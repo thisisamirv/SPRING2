@@ -107,9 +107,7 @@ jobs:
             fi && \
             patchelf --remove-rpath out/bin/spring2 && \
             export LINUXDEPLOY_DEBUG=1 && \
-            URL='https://github.com/linuxdeploy/linuxdeploy/' && \
-            URL=\"\${URL}releases/download/continuous/\" && \
-            URL=\"\${URL}linuxdeploy-\$ARCH_SUFFIX.AppImage\" && \
+            URL=\"https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-\$ARCH_SUFFIX.AppImage\" && \
             wget \"\$URL\" -O linuxdeploy && \
             chmod +x linuxdeploy && \
             export EXTRA_QT_PLUGINS= && \

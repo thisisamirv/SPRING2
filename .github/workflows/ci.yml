@@ -802,11 +802,11 @@ jobs:
       - name: Configure CMake with sanitizer flags
         run: |
           if [ "${{ matrix.sanitizer }}" = "TSan" ]; then
-            echo "TSAN_OPTIONS=halt_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/support/tsan.supp" >> $GITHUB_ENV
+            echo "TSAN_OPTIONS=halt_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/support/tsan.supp" >> "$GITHUB_ENV"
           else
-            echo "${{ matrix.options }}" >> $GITHUB_ENV
+            echo "${{ matrix.options }}" >> "$GITHUB_ENV"
           fi
-          cmake -S . -B $BUILD_DIR -G Ninja \
+          cmake -S . -B "$BUILD_DIR" -G Ninja \
             -DCMAKE_MAKE_PROGRAM="$GITHUB_WORKSPACE/tools/host/ninja/linux/ninja" \
             -DCMAKE_BUILD_TYPE=Debug \
             -DSPRING_ENABLE_IPO=OFF \
@@ -815,7 +815,7 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build $BUILD_DIR -j
+          cmake --build "$BUILD_DIR" -j
 
       - name: Run all tests (Unit + Smoke) with Sanitizers
         env:
