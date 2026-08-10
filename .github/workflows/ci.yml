@@ -97,6 +97,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -218,7 +220,7 @@ jobs:
       - name: Set up MSYS2 for Windows Clang or analysis
         id: setup-msys2
         if: matrix.windows_toolchain == 'msys2-clang' || (runner.os == 'Windows' && matrix.windows_toolchain == 'mingw')
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
         with:
           msystem: ${{ matrix.windows_toolchain == 'msys2-clang' && 'CLANG64' || 'UCRT64' }}
           update: false
@@ -228,8 +230,10 @@ jobs:
       - name: Expose MSYS2 tools on PATH
         if: matrix.windows_toolchain == 'msys2-clang'
         shell: powershell
+        env:
+          MSYS2_ROOT: ${{ steps.setup-msys2.outputs.msys2-location }}
         run: |
-          $msys2Root = '${{ steps.setup-msys2.outputs.msys2-location }}'
+          $msys2Root = $env:MSYS2_ROOT
           if (-not $msys2Root -or -not (Test-Path $msys2Root)) {
             $msys2Root = @('C:\msys64', 'D:\msys64') | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
@@ -243,8 +247,10 @@ jobs:
       - name: Expose MSYS2 UCRT64 tools on PATH for analysis
         if: runner.os == 'Windows' && matrix.windows_toolchain == 'mingw'
         shell: powershell
+        env:
+          MSYS2_ROOT: ${{ steps.setup-msys2.outputs.msys2-location }}
         run: |
-          $msys2Root = '${{ steps.setup-msys2.outputs.msys2-location }}'
+          $msys2Root = $env:MSYS2_ROOT
           if (-not $msys2Root -or -not (Test-Path $msys2Root)) {
             $msys2Root = @('C:\msys64', 'D:\msys64') | Where-Object { Test-Path $_ } | Select-Object -First 1
           }
@@ -638,13 +644,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
           GIT_CONFIG_VALUE_0: main
 
       - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4
         with:
           auto-update-conda: true
           channels: conda-forge
@@ -762,19 +770,18 @@ jobs:
             build_dir: out/build-asan
             san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Wno-stringop-overflow"
             ld_flags: "-fsanitize=address,undefined"
-            options: "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1"
           - sanitizer: TSan
             build_dir: out/build-tsan
             san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=thread -Wno-stringop-overflow"
             ld_flags: "-fsanitize=thread"
-            options:
-              "TSAN_OPTIONS=halt_on_error=1:suppressions=${{ github.workspace
-              }}/tests/support/tsan.supp"
     env:
       BUILD_DIR: ${{ matrix.build_dir }}
+      SANITIZER_NAME: ${{ matrix.sanitizer }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -801,10 +808,10 @@ jobs:
 
       - name: Configure CMake with sanitizer flags
         run: |
-          if [ "${{ matrix.sanitizer }}" = "TSan" ]; then
-            echo "TSAN_OPTIONS=halt_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/support/tsan.supp" >> "$GITHUB_ENV"
+          if [ "$SANITIZER_NAME" = "TSan" ]; then
+            printf '%s\n' "TSAN_OPTIONS=halt_on_error=1:suppressions=$GITHUB_WORKSPACE/tests/support/tsan.supp" >> "$GITHUB_ENV"
           else
-            echo "${{ matrix.options }}" >> "$GITHUB_ENV"
+            printf '%s\n' "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1" >> "$GITHUB_ENV"
           fi
           cmake -S . -B "$BUILD_DIR" -G Ninja \
             -DCMAKE_MAKE_PROGRAM="$GITHUB_WORKSPACE/tools/host/ninja/linux/ninja" \
