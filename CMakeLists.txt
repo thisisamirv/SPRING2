@@ -212,6 +212,16 @@ option(LIBRAPIDARCHIVE_WITH_ISAL "Build rapidgzip with Intel ISA-L support" ON)
 if(APPLE)
     # ISA-L support is generally omitted on macOS to ensure build success across architectures.
     set(LIBRAPIDARCHIVE_WITH_ISAL OFF CACHE BOOL "" FORCE)
+    # Several vendored libs (e.g. libdeflate) unconditionally compile both their
+    # arm/ and x86/ CPU-feature-detection sources and rely on #ifdef guards to
+    # make the non-matching one an empty translation unit. Apple's ranlib warns
+    # "has no symbols" for those empty .o files; this is harmless, so silence it.
+    set(CMAKE_C_ARCHIVE_FINISH
+        "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>"
+    )
+    set(CMAKE_CXX_ARCHIVE_FINISH
+        "<CMAKE_RANLIB> -no_warning_for_no_symbols <TARGET>"
+    )
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -344,7 +354,6 @@ option(SPRING_ENABLE_IPO "Enable Interprocedural Optimization if supported" ON)
 
 if(
     NOT WIN32
-    AND NOT APPLE
     AND SPRING_ENABLE_IPO
     AND NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION
 )
@@ -354,11 +363,6 @@ if(
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 endif()
-# IPO/LTO is intentionally left disabled on Apple platforms: Apple
-# Clang + ld64 ThinLTO has been observed to miscompile exception unwinding
-# out of OpenMP regions when decoding deliberately corrupted archives,
-# turning a caught std::runtime_error into a SIGSEGV instead. This mirrors
-# the existing -fno-lto workaround for vendor/cloudflare_zlib.
 
 # Native tuning is the default; portability mode restricts x86-family code
 # generation to SSE4.1-compatible instructions.
@@ -409,7 +413,12 @@ elseif(spring_optimize_for_native)
         )
     endif()
 endif()
-if(SPRING_COMPILER_SUPPORTS_GNU_STYLE_FLAGS)
+if(SPRING_COMPILER_SUPPORTS_GNU_STYLE_FLAGS AND NOT APPLE)
+    # Omitting the frame pointer is skipped on Apple platforms: Apple's
+    # compact-unwind "frameless" stepper has been observed to crash inside
+    # libunwind.dylib while walking the stack for a thrown C++ exception on
+    # frame-pointer-less code, turning a caught std::runtime_error into a
+    # SIGSEGV instead of a clean error message.
     set(FLAGS "${FLAGS} -fomit-frame-pointer")
 endif()
 if(SPRING_COMPILER_SUPPORTS_GNU_STYLE_FLAGS)

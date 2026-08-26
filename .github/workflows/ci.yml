@@ -405,8 +405,7 @@ jobs:
         run: |
           cmake -S . -B ${{ matrix.build_dir }} -G Ninja \
             -DCMAKE_MAKE_PROGRAM="$GITHUB_WORKSPACE/${{ matrix.ninja_path }}" \
-            -DOpenMP_ROOT="$MACOS_LIBOMP_PREFIX" \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            -DOpenMP_ROOT="$MACOS_LIBOMP_PREFIX"
 
       - name: Configure on Windows with MinGW
         if: matrix.windows_toolchain == 'mingw'
@@ -540,28 +539,6 @@ jobs:
       - name: Run tests on Linux and macOS (non-Docker)
         if: success() && runner.os != 'Windows' && matrix.use_docker != true
         run: ctest --test-dir ${{ matrix.build_dir }} --output-on-failure --verbose
-
-      - name: Debug crash backtraces on macOS
-        if: failure() && runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -x
-          cd "${{ matrix.build_dir }}"
-          ls -la
-          run_repro() {
-            marker="$1"
-            shift
-            if [ -f "$marker" ]; then
-              echo "::group::lldb backtrace for: spring2 $*"
-              lldb --batch -o "run" -o "bt all" -o "quit" -- ./spring2 "$@" || true
-              echo "::endgroup::"
-            else
-              echo "Marker file $marker not found, skipping."
-            fi
-          }
-          run_repro "integrity_test_tmp/corrupted.sp" -p -a "integrity_test_tmp/corrupted.sp"
-          run_repro "long_read_error_test_tmp/corrupted.sp" -d -i "long_read_error_test_tmp/corrupted.sp" -o "long_read_error_test_tmp/restored.fastq"
-          run_repro "truncated_metadata_preview_test_tmp/corrupted.sp" -p "truncated_metadata_preview_test_tmp/corrupted.sp"
 
       - name: Run tests on Windows with MinGW or MSYS2 Clang
         if: success() && (matrix.windows_toolchain == 'mingw' || matrix.windows_toolchain == 'msys2-clang')
