@@ -92,7 +92,7 @@ uint32_t write_unaligned_range(
     const bool *remaining_reads,
     const encoder_global_b<bitset_size> &encoder_bits,
     const uint32_t begin_read_index, const uint32_t end_read_index,
-    uint64_t &unaligned_length, [[maybe_unused]] const encoder_global &eg) {
+    uint64_t &unaligned_length) {
   uint32_t aligned_read_count = 0;
   for (uint32_t read_index = begin_read_index; read_index < end_read_index;
        read_index++) {
@@ -1028,7 +1028,7 @@ encoder_main(const reorder_encoder_artifact &reorder_artifact,
                     std::to_string(singleton_pool_size) + " singletons...");
     constructdictionary<bitset_size>(
         read.data(), dict.data(), read_lengths_s.data(), eg.numdict_s,
-        singleton_pool_size, 3, eg.basedir, eg.num_thr, /*depleted_base=*/'N',
+        singleton_pool_size, 3, /*depleted_base=*/'N',
         cp.encoding.use_external_mphf, cp.encoding.mphf_tmp_dir);
   }
   SPRING_LOG_INFO("Starting main encoding loop...");
@@ -1234,11 +1234,11 @@ encoder_main(const reorder_encoder_artifact &reorder_artifact,
 
     const uint32_t remaining_singleton_reads = detail::write_unaligned_range(
         artifact, read.data(), order_s.data(), read_lengths_s.data(),
-        remaining_reads, egb, 0, eg.numreads_s, len_unaligned, eg);
+        remaining_reads, egb, 0, eg.numreads_s, len_unaligned);
     const uint32_t remaining_n_reads = detail::write_unaligned_range(
         artifact, read.data(), order_s.data(), read_lengths_s.data(),
         remaining_reads, egb, eg.numreads_s, eg.numreads_s + eg.numreads_N,
-        len_unaligned, eg);
+        len_unaligned);
     artifact.unaligned_char_count = len_unaligned;
     SPRING_LOG_DEBUG("block_id=enc-main, Encoder residual unaligned writes: "
                      "singleton_reads=" +

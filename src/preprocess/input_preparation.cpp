@@ -229,11 +229,9 @@ void detect_paired_id_pattern(
   }
 }
 
-void merge_paired_n_reads(
-    std::array<std::string, 2> &n_read_streams,
-    std::array<std::vector<uint32_t>, 2> &n_read_orders,
-    const std::array<uint64_t, 2> &num_reads,
-    [[maybe_unused]] const std::array<uint64_t, 2> &num_reads_clean) {
+void merge_paired_n_reads(std::array<std::string, 2> &n_read_streams,
+                          std::array<std::vector<uint32_t>, 2> &n_read_orders,
+                          const std::array<uint64_t, 2> &num_reads) {
   n_read_streams[0].append(n_read_streams[1]);
   n_read_streams[1].clear();
 
@@ -1265,8 +1263,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
   if (!cp.encoding.long_flag && cp.encoding.paired_end) {
     // Shift mate-2 N-read positions by file-1 length before merging the
     // streams.
-    merge_paired_n_reads(n_read_streams, n_read_orders, num_reads,
-                         num_reads_clean);
+    merge_paired_n_reads(n_read_streams, n_read_orders, num_reads);
   }
 
   output_artifact.reorder_inputs.n_read_bytes = std::move(n_read_streams[0]);

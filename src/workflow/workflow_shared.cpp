@@ -54,7 +54,6 @@ estimate_peak_intermediate_memory_bytes(const uint64_t estimated_input_bytes) {
 }
 
 uint64_t estimate_memory_path_safety_margin_bytes(
-    [[maybe_unused]] const uint64_t estimated_input_bytes,
     const uint64_t estimated_peak_intermediate_bytes) {
   const uint64_t peak_based_margin =
       estimated_peak_intermediate_bytes / kSafetyMarginDivisor;
@@ -407,7 +406,7 @@ build_compression_storage_plan(const string_list &input_paths,
   plan.estimated_peak_intermediate_bytes =
       estimate_peak_intermediate_memory_bytes(plan.estimated_input_bytes);
   plan.safety_margin_bytes = estimate_memory_path_safety_margin_bytes(
-      plan.estimated_input_bytes, plan.estimated_peak_intermediate_bytes);
+      plan.estimated_peak_intermediate_bytes);
   plan.required_peak_memory_bytes =
       saturating_add(saturating_add(plan.estimated_input_bytes,
                                     plan.estimated_peak_intermediate_bytes),

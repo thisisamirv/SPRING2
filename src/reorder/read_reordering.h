@@ -80,8 +80,7 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
 template <size_t bitset_size>
 void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
                  reorder_global<bitset_size> &rg,
-                 reorder_encoder_artifact &artifact,
-                 const bool deterministic_mode);
+                 reorder_encoder_artifact &artifact);
 
 template <size_t bitset_size>
 reorder_encoder_artifact reorder_main(reorder_input_artifact artifact,

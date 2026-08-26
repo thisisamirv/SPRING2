@@ -165,12 +165,10 @@ void decompress_standard_from_memory(
 }
 
 void materialize_aliased_group_output_from_memory(
-    const std::string &read_archive_contents,
-    const std::string &read_archive_label, const std::string &alias_source,
+    const std::string &read_archive_contents, const std::string &alias_source,
     const std::string &alias_output_path, const int num_thr,
     const int compression_level, const log_level verbosity_level,
     const bool unzip_flag) {
-  (void)read_archive_label;
   (void)compression_level;
   (void)verbosity_level;
 
@@ -321,9 +319,8 @@ void decompress(const std::vector<std::string> &input_paths,
       if (!manifest.read3_alias_source.empty()) {
         materialize_aliased_group_output_from_memory(
             require_member(manifest.read_archive_name),
-            manifest.read_archive_name, manifest.read3_alias_source,
-            resolved_outputs[next_output++], num_thr, compression_level,
-            verbosity_level, unzip_flag);
+            manifest.read3_alias_source, resolved_outputs[next_output++],
+            num_thr, compression_level, verbosity_level, unzip_flag);
       } else {
         decompress_standard_from_memory(
             require_member(manifest.read3_archive_name),

@@ -1029,8 +1029,7 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
 template <size_t bitset_size>
 void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
                  reorder_global<bitset_size> &rg,
-                 reorder_encoder_artifact &artifact,
-                 [[maybe_unused]] const bool deterministic_mode) {
+                 reorder_encoder_artifact &artifact) {
   std::vector<std::string> write_errors(static_cast<size_t>(rg.num_thr));
   artifact.singleton_read_bytes.clear();
 
@@ -1384,8 +1383,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
       const auto dictionary_stage_start = std::chrono::steady_clock::now();
       constructdictionary<bitset_size>(
           chunk_read.data(), chunk_dict.data(), chunk_read_lengths.data(),
-          rg.numdict, rg.numreads, 2, rg.basedir,
-          deterministic_mode ? 1 : rg.num_thr, rg.depleted_base,
+          rg.numdict, rg.numreads, 2, rg.depleted_base,
           cp.encoding.use_external_mphf, cp.encoding.mphf_tmp_dir);
       const auto dictionary_stage_end = std::chrono::steady_clock::now();
       SPRING_LOG_INFO(
@@ -1416,7 +1414,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
     SPRING_LOG_INFO("Writing to file");
     const auto write_stage_start = std::chrono::steady_clock::now();
     writetofile<bitset_size>(chunk_read.data(), chunk_read_lengths.data(), rg,
-                             chunk_artifact, deterministic_mode);
+                             chunk_artifact);
     const auto write_stage_end = std::chrono::steady_clock::now();
     SPRING_LOG_INFO("Reorder write time: " +
                     format_seconds(write_stage_end - write_stage_start) + " s");
