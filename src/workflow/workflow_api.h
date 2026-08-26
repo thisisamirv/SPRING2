@@ -33,7 +33,6 @@ void compress(const string_list &input_paths, const string_list &output_paths,
               uint32_t cb_len = 16, double memory_cap_gb = 0.0);
 
 void decompress(const string_list &input_paths, const string_list &output_paths,
-                const int num_thr,
                 const log_level verbosity_level = log_level::info,
                 const bool unzip_flag = false);
 

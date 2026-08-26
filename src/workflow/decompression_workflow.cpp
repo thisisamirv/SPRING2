@@ -15,7 +15,7 @@ namespace {
 void decompress_archive_artifact(const decompression_archive_artifact &artifact,
                                  const std::vector<std::string> &input_paths,
                                  const std::vector<std::string> &output_paths,
-                                 const int num_thr, const bool unzip_flag) {
+                                 const bool unzip_flag) {
   const auto decompression_start = clock_type::now();
   auto *progress_ptr = ProgressBar::GlobalInstance();
   ProgressBar dummy_progress(true);
@@ -137,22 +137,20 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
 
 void decompress_standard(const std::vector<std::string> &input_paths,
                          const std::vector<std::string> &output_paths,
-                         const int num_thr, const bool unzip_flag) {
+                         const bool unzip_flag) {
   decompression_archive_artifact artifact;
   artifact.files = read_all_files_from_tar_memory(input_paths[0]);
   artifact.scratch_dir.clear();
-  decompress_archive_artifact(artifact, input_paths, output_paths, num_thr,
-                              unzip_flag);
+  decompress_archive_artifact(artifact, input_paths, output_paths, unzip_flag);
 }
 
 void decompress_standard_from_memory(
     const std::string &archive_contents, const std::string &archive_label,
-    const std::vector<std::string> &output_paths, const int num_thr,
-    const bool unzip_flag) {
+    const std::vector<std::string> &output_paths, const bool unzip_flag) {
   decompression_archive_artifact artifact;
   artifact.files = read_all_files_from_tar_bytes(archive_contents);
   artifact.scratch_dir.clear();
-  decompress_archive_artifact(artifact, {archive_label}, output_paths, num_thr,
+  decompress_archive_artifact(artifact, {archive_label}, output_paths,
                               unzip_flag);
 }
 
@@ -230,7 +228,7 @@ void materialize_aliased_group_output_from_memory(
 } // namespace
 
 void decompress(const std::vector<std::string> &input_paths,
-                const std::vector<std::string> &output_paths, const int num_thr,
+                const std::vector<std::string> &output_paths,
                 const log_level verbosity_level, const bool unzip_flag) {
   Logger::set_level(verbosity_level);
   ProgressBar progress(verbosity_level == log_level::quiet);
@@ -296,7 +294,7 @@ void decompress(const std::vector<std::string> &input_paths,
                                              resolved_outputs[1]};
     decompress_standard_from_memory(require_member(manifest.read_archive_name),
                                     manifest.read_archive_name, read_outputs,
-                                    num_thr, unzip_flag);
+                                    unzip_flag);
 
     size_t next_output = 2;
     if (manifest.has_r3) {
@@ -309,7 +307,7 @@ void decompress(const std::vector<std::string> &input_paths,
         decompress_standard_from_memory(
             require_member(manifest.read3_archive_name),
             manifest.read3_archive_name, {resolved_outputs[next_output++]},
-            num_thr, unzip_flag);
+            unzip_flag);
       }
     }
 
@@ -321,14 +319,14 @@ void decompress(const std::vector<std::string> &input_paths,
       }
       decompress_standard_from_memory(
           require_member(manifest.index_archive_name),
-          manifest.index_archive_name, index_outputs, num_thr, unzip_flag);
+          manifest.index_archive_name, index_outputs, unzip_flag);
     }
 
     ProgressBar::SetGlobalInstance(nullptr);
     return;
   }
 
-  decompress_standard(input_paths, output_paths, num_thr, unzip_flag);
+  decompress_standard(input_paths, output_paths, unzip_flag);
 }
 
 } // namespace spring
