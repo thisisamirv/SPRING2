@@ -2,6 +2,26 @@
 
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Changed CI (`ci.yml`) to trigger only on `pull_request` (plus `merge_group` and manual `workflow_dispatch`), instead of also on every `push`. This eliminates duplicate CI runs on the same commit (once via `push`, once via `pull_request`) and removes the automatic re-run on `main` after a squash-merge, since the merged commit is content-identical to what already passed on the PR.
+- Changed `comparison.yml` to run only via manual `workflow_dispatch`, removing its `workflow_run` trigger on `CI` completions. The benchmark no longer runs automatically on every PR/push; it is now an on-demand comparison against legacy SPRING.
+- Fixed the `macOS x64 Clang` CI matrix leg using `os: macos-latest`, which is an Apple Silicon (arm64) runner, not x64 — it was silently duplicating the `macOS ARM64 Clang` leg instead of testing Intel. Changed to `os: macos-15-intel` to match the genuine x64 runner label already used in `release.yml`.
+- Added `-Wall -Wextra -Werror` (GCC/Clang/MinGW/MSYS2-Clang) and `/W4 /WX` (MSVC/ClangCL) to the first-party `spring2`, `unit-tests`, `integration-tests`, and `smoke-tests` targets. Previously these targets had no warning flags configured at all, so compiler warnings never failed CI.
+- Added `-warnings-as-errors=*` to the `clang-tidy` invocation in `tools/dev/lint/lint.py`. Without it, `clang-tidy` always exited 0 regardless of how many check violations it found, so the lint step printed diagnostics but never failed the build.
+- Changed `vendor/pthash/CMakeLists.txt` to mark pthash's own include directory as `SYSTEM`, while keeping `src/` as a regular (fully-diagnosed) include. pthash is header-only and gets instantiated inside first-party translation units; without this split, the new `-Werror`/`/WX` enforcement surfaced pthash's own warnings (`-Wreorder`, `C4244`, `C4305`, `C4146`) as first-party build failures.
+- Hardened `download_file` in `tests/bench/bench_common.py` to download to a temporary path and only rename into place on success, so a failed/truncated download is never mistaken for a valid cached file on a later run. Changed the `comparison_bench.py` reference dataset URLs from `ftp://` to `https://` (same host/path on EBI's ENA), since FTP data connections are frequently blocked or dropped on GitHub-hosted runners, which was causing `EOFError: Compressed file ended before the end-of-stream marker was reached`.
+
+### Fixed
+
+- Fixed pre-existing warnings surfaced by the new `-Werror`/`/WX` enforcement across GCC, Clang, and MSVC:
+  - Removed `native_path_string` in `tests/integration/archive_integration_tests.cpp` (dead code, never called).
+  - Removed the `r_` field in `src/common/legacy_id_codec.cpp`'s `arithmetic_decoder` (write-only, never read).
+  - Marked genuinely-unused-but-API-required parameters `[[maybe_unused]]` in `src/common/bitset_dictionary.h` (`basedir`, `num_thr`), `src/preprocess/input_preparation.cpp` (`num_reads_clean`), `src/reorder/read_reordering_impl.h` (`deterministic_mode` in `writetofile`), and `src/encode/encoder_impl.h` (`eg` in `write_unaligned_range`).
+  - Fixed five unused-parameter warnings and one `DWORDLONG`→`long` narrowing conversion in the Windows POSIX-compatibility shim `src/common/pthash_windefs.h` (`getrusage`, `mmap`, `munmap`, `posix_madvise`, `mkdir`, `sysconf`).
+
 ## V1.3.4
 
 ### Changed
