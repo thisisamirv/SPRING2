@@ -57,8 +57,7 @@ private:
 class arithmetic_decoder {
 public:
   explicit arithmetic_decoder(std::string_view bytes)
-      : reader_(bytes), r_(1U << (kLegacyArithmeticWordLength - 3)), l_(0),
-        u_((1U << kLegacyArithmeticWordLength) - 1),
+      : reader_(bytes), l_(0), u_((1U << kLegacyArithmeticWordLength) - 1),
         t_(reader_.read_bits(kLegacyArithmeticWordLength)) {}
 
   uint32_t symbol_range(const uint32_t n) const {
@@ -113,7 +112,6 @@ public:
 
 private:
   bit_reader reader_;
-  uint32_t r_;
   uint32_t l_;
   uint32_t u_;
   uint32_t t_;

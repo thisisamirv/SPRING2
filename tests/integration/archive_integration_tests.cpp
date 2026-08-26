@@ -16,12 +16,6 @@ using namespace integration_test_support;
 
 namespace {
 
-std::string native_path_string(const std::string &path) {
-  fs::path native_path(path);
-  native_path.make_preferred();
-  return native_path.string();
-}
-
 std::string sample_asset_path(const std::string &name) {
 #ifdef INTEGRATION_TEST_ASSET_DIR
   return (fs::path(INTEGRATION_TEST_ASSET_DIR) / name).generic_string();
