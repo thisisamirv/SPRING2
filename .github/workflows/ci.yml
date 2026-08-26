@@ -96,7 +96,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -637,7 +637,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
@@ -774,7 +774,7 @@ jobs:
       BUILD_DIR: ${{ matrix.build_dir }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         env:
           GIT_CONFIG_COUNT: 1
           GIT_CONFIG_KEY_0: init.defaultBranch
