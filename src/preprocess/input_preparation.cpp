@@ -893,7 +893,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
         const uint32_t thread_read_count = reads_for_thread_step(
             reads_in_step, num_reads_per_block, thread_id);
         if (!thread_done) {
-          for (uint32_t read_index = thread_id * num_reads_per_block;
+          for (uint32_t read_index =
+                   static_cast<uint32_t>(thread_id * num_reads_per_block);
                read_index < thread_id * num_reads_per_block + thread_read_count;
                read_index++) {
             const uint32_t read_length = read_lengths_array[read_index];
@@ -923,7 +924,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                     thread_archive_members[static_cast<size_t>(thread_id)],
                     std::filesystem::path(
                         block_file_path(paths.id_output_paths[stream_index],
-                                        num_blocks_done + thread_id))
+                                        num_blocks_done +
+                                            static_cast<uint32_t>(thread_id)))
                         .filename()
                         .string(),
                     compress_id_block_bytes(
@@ -936,7 +938,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                     std::filesystem::path(
                         block_file_path(
                             paths.quality_output_paths[stream_index],
-                            num_blocks_done + thread_id))
+                            num_blocks_done + static_cast<uint32_t>(thread_id)))
                         .filename()
                         .string(),
                     bsc_str_array_compress_bytes(
@@ -1044,8 +1046,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                                       read_array[read_index]);
               thread_buffer.clean_read_count++;
             } else {
-              thread_buffer.n_read_positions.push_back(num_reads[stream_index] +
-                                                       read_index);
+              thread_buffer.n_read_positions.push_back(
+                  static_cast<uint32_t>(num_reads[stream_index] + read_index));
               append_encoded_dna_n_bits(thread_buffer.n_read_bytes,
                                         read_array[read_index]);
             }
@@ -1286,9 +1288,9 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
   cp.encoding.use_crlf =
       cp.encoding.use_crlf_by_stream[0] ||
       (cp.encoding.paired_end && cp.encoding.use_crlf_by_stream[1]);
-  cp.read_info.num_reads = num_reads[0] + num_reads[1];
-  cp.read_info.num_reads_clean[0] = num_reads_clean[0];
-  cp.read_info.num_reads_clean[1] = num_reads_clean[1];
+  cp.read_info.num_reads = static_cast<uint32_t>(num_reads[0] + num_reads[1]);
+  cp.read_info.num_reads_clean[0] = static_cast<uint32_t>(num_reads_clean[0]);
+  cp.read_info.num_reads_clean[1] = static_cast<uint32_t>(num_reads_clean[1]);
   cp.read_info.max_readlen = max_readlen;
 
   if (expected_summary != nullptr && !cp.encoding.long_flag &&

@@ -608,7 +608,7 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
     std::bitset<bitset_size> reference_read, reverse_reference_read,
         masked_read_bits;
 
-    int64_t seed_read_id;
+    int64_t seed_read_id = 0;
 
     std::array<std::list<std::pair<uint32_t, uint64_t>>, NUM_DICT_REORDER>
         pending_bin_deletions;
@@ -631,12 +631,12 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
     bool previous_read_unmatched = false;
     bool left_search_start = false;
     bool left_search = false;
-    int64_t current_read_id;
-    int64_t previous_read_id;
+    int64_t current_read_id = 0;
+    int64_t previous_read_id = 0;
     int64_t scan_slot;
     uint64_t lookup_key;
     int reference_length;
-    int64_t reference_position;
+    int64_t reference_position = 0;
     int64_t current_read_position;
 
     // Claim an initial seed read from a shared cursor. Keep trying until we
