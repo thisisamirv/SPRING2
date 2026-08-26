@@ -43,7 +43,7 @@ jobs:
             use_docker: true
 
           # macOS builds
-          - os: macos-latest
+          - os: macos-15-intel
             name: macOS x64 Clang
             cc: clang
             cxx: clang++
