@@ -113,12 +113,10 @@ void preview_single(const std::string &archive_path, bool audit_only) {
   } catch (const std::exception &) {
     throw std::runtime_error("Could not parse cp.bin from the archive.");
   }
-  const archive_decompression_plan decompression_plan =
-      build_archive_decompression_plan(cp);
+  build_archive_decompression_plan(cp);
 
   std::cout << "SPRING2 Archive Metadata Preview:\n";
   std::cout << "--------------------------------\n";
-  (void)decompression_plan;
   std::cout << "Archive Version:   " << preview_archive_version(cp) << "\n";
   if (cp.read_info.legacy_spring) {
     std::cout << "Original Inputs:   Unavailable in legacy spring archives\n";
@@ -294,8 +292,7 @@ void preview(const std::string &archive_path, bool audit_only) {
     } catch (const std::exception &) {
       throw std::runtime_error("Could not parse cp.bin in reads archive.");
     }
-    const archive_decompression_plan reads_plan =
-        build_archive_decompression_plan(cp_reads);
+    build_archive_decompression_plan(cp_reads);
 
     // Parse compression params from R3 archive cp.bin if present
     compression_params cp_r3{};
@@ -332,7 +329,6 @@ void preview(const std::string &archive_path, bool audit_only) {
     // Display unified metadata
     std::cout << "\nSPRING2 Archive Metadata Preview:\n";
     std::cout << "--------------------------------\n";
-    (void)reads_plan;
     std::cout << "Archive Version:   " << preview_archive_version(cp_reads)
               << "\n";
     if (!cp_reads.read_info.note.empty()) {

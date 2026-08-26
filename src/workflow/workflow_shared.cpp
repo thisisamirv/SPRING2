@@ -862,7 +862,7 @@ std::string archive_decompression_route_name(
 
 void execute_archive_decompression_plan(
     const decompression_archive_artifact &artifact, DecompressionSink &sink,
-    compression_params &cp, const int decoding_num_thr,
+    compression_params &cp,
     const archive_decompression_plan &decompression_plan) {
   ensure_archive_decompression_plan_supported(decompression_plan);
 
@@ -870,9 +870,9 @@ void execute_archive_decompression_plan(
       is_supported_archive_decompression_version(
           decompression_plan.archive_version)) {
     if (cp.encoding.long_flag) {
-      decompress_long(artifact, sink, cp, decoding_num_thr);
+      decompress_long(artifact, sink, cp);
     } else {
-      decompress_short(artifact, sink, cp, decoding_num_thr);
+      decompress_short(artifact, sink, cp);
     }
     return;
   }

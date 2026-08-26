@@ -612,9 +612,7 @@ void write_bgzf_fastq_block(std::ofstream &output_stream, std::string *id_array,
 
 std::vector<char> compress_id_block_bytes(std::string *id_array,
                                           const uint32_t &num_ids,
-                                          const int &compression_level,
                                           bool pack_only) {
-  (void)compression_level;
   if (num_ids == 0)
     return {};
 
@@ -864,87 +862,6 @@ std::vector<char> bsc_str_array_compress_bytes(std::string *string_array,
   }
 
   return output_bytes;
-}
-
-void compress_id_block(const char *output_path, std::string *id_array,
-                       const uint32_t &num_ids, const int &compression_level,
-                       bool pack_only) {
-  SPRING_LOG_DEBUG(
-      "block_id=io-utils:id-compress, compress_id_block start: output=" +
-      std::string(output_path) + ", num_ids=" + std::to_string(num_ids) +
-      ", pack_only=" + std::string(pack_only ? "true" : "false"));
-
-  try {
-    const std::vector<char> output_bytes = compress_id_block_bytes(
-        id_array, num_ids, compression_level, pack_only);
-    std::ofstream out(output_path, std::ios::binary | std::ios::trunc);
-    if (!out) {
-      SPRING_LOG_DEBUG("block_id=io-utils:id-compress, compress_id_block open "
-                       "failure: path=" +
-                       std::string(output_path) +
-                       ", expected_bytes=1, actual_bytes=0, index=0");
-      throw std::runtime_error(
-          pack_only ? "Failed to open raw ID output file."
-                    : "Failed to open compressed ID output file.");
-    }
-    if (!output_bytes.empty()) {
-      out.write(output_bytes.data(),
-                static_cast<std::streamsize>(output_bytes.size()));
-    }
-    out.close();
-    SPRING_LOG_DEBUG(
-        "block_id=io-utils:id-compress, compress_id_block done: output=" +
-        std::string(output_path) +
-        ", bytes=" + std::to_string(output_bytes.size()) +
-        ", pack_only=" + std::string(pack_only ? "true" : "false"));
-  } catch (const std::exception &e) {
-    SPRING_LOG_DEBUG("block_id=io-utils:id-compress, compress_id_block "
-                     "failure: output_path=" +
-                     std::string(output_path));
-    throw std::runtime_error(std::string(pack_only
-                                             ? "Raw ID write failed: "
-                                             : "BSC compression failed: ") +
-                             e.what());
-  }
-}
-
-void decompress_id_block(const char *input_path, std::string *id_array,
-                         const uint32_t &num_ids, bool pack_only) {
-  if (num_ids == 0)
-    return;
-
-  SPRING_LOG_DEBUG(
-      "block_id=io-utils:id-decompress, decompress_id_block start: input=" +
-      std::string(input_path) + ", num_ids=" + std::to_string(num_ids) +
-      ", pack_only=" + std::string(pack_only ? "true" : "false"));
-
-  std::ifstream input(input_path, std::ios::binary | std::ios::ate);
-  if (!input) {
-    SPRING_LOG_DEBUG("block_id=io-utils:id-decompress, decompress_id_block "
-                     "open failure: path=" +
-                     std::string(input_path) +
-                     ", expected_bytes=1, actual_bytes=0, index=0");
-    throw std::runtime_error(pack_only
-                                 ? "Failed to open raw ID input file."
-                                 : "Failed to open compressed ID input file.");
-  }
-  const size_t input_size = static_cast<size_t>(input.tellg());
-  input.seekg(0, std::ios::beg);
-  std::string input_bytes(input_size, '\0');
-  if (input_size > 0 && !input.read(input_bytes.data(), input_size)) {
-    SPRING_LOG_DEBUG("block_id=io-utils:id-decompress, decompress_id_block "
-                     "read failure: path=" +
-                     std::string(input_path) +
-                     ", expected_bytes=" + std::to_string(input_size) +
-                     ", actual_bytes=" + std::to_string(input.gcount()) +
-                     ", index=0");
-    throw std::runtime_error(pack_only
-                                 ? "Failed to read raw ID input file."
-                                 : "Failed to read compressed ID input file.");
-  }
-
-  decompress_id_block_bytes(input_bytes, input_path, id_array, num_ids,
-                            pack_only);
 }
 
 void decompress_id_block_bytes(std::string_view input_bytes,

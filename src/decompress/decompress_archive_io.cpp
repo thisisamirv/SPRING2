@@ -240,8 +240,8 @@ void decompress_legacy_archive_id_member(
     const decompression_archive_artifact &artifact,
     const std::string &member_name, std::string *id_array,
     const uint32_t num_ids) {
-  decompress_legacy_id_block_bytes(artifact.require(member_name), member_name,
-                                   id_array, num_ids);
+  decompress_legacy_id_block_bytes(artifact.require(member_name), id_array,
+                                   num_ids);
 }
 
 std::vector<std::string> slice_monolithic_id_blocks(

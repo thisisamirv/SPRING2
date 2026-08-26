@@ -354,12 +354,10 @@ void compress_block_batch(
       if (mode == reorder_compress_mode::id) {
         if (id_block_outputs != nullptr) {
           (*id_block_outputs)[block_index] = compress_id_block_bytes(
-              reordered_strings.data() + block_begin, reads_in_block,
-              cp.encoding.compression_level);
+              reordered_strings.data() + block_begin, reads_in_block);
         } else {
           block_outputs[block_index] = compress_id_block_bytes(
-              reordered_strings.data() + block_begin, reads_in_block,
-              cp.encoding.compression_level);
+              reordered_strings.data() + block_begin, reads_in_block);
         }
         if (global_block_idx <
             compression_params::ReadMetadata::kFileLenThrSize) {

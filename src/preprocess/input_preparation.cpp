@@ -928,9 +928,9 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                                             static_cast<uint32_t>(thread_id)))
                         .filename()
                         .string(),
-                    compress_id_block_bytes(
-                        id_array + thread_id * num_reads_per_block,
-                        thread_read_count, cp.encoding.compression_level));
+                    compress_id_block_bytes(id_array +
+                                                thread_id * num_reads_per_block,
+                                            thread_read_count));
               }
               if (cp.encoding.preserve_quality) {
                 add_archive_member(
@@ -967,9 +967,9 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                           paths.id_output_paths[stream_index], block_num))
                       .filename()
                       .string(),
-                  compress_id_block_bytes(
-                      id_array + thread_id * num_reads_per_block,
-                      thread_read_count, cp.encoding.compression_level));
+                  compress_id_block_bytes(id_array +
+                                              thread_id * num_reads_per_block,
+                                          thread_read_count));
             }
             if (cp.encoding.preserve_quality) {
               add_archive_member(

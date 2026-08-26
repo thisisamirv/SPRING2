@@ -530,9 +530,7 @@ void apply_memory_cap(command_line_options &options) {
   options.num_threads = memory_capped_threads;
 }
 
-int print_unexpected_error_and_exit(const std::string &options_description,
-                                    const std::string &error_message) {
-  (void)options_description;
+int print_unexpected_error_and_exit(const std::string &error_message) {
   std::cout << error_message << "\n";
   return 1;
 }
@@ -557,8 +555,8 @@ void run_requested_mode(const command_line_options &options) {
   }
 
   spring::decompress(options.input_paths, options.output_paths,
-                     options.num_threads, options.compression_level,
-                     options.log_level, options.unzip_flag);
+                     options.num_threads, options.log_level,
+                     options.unzip_flag);
 }
 
 void log_options_for_debugging(const command_line_options &options) {
@@ -672,17 +670,14 @@ int main(int argc, char **argv) {
       run_requested_mode(options);
     } catch (const std::runtime_error &e) {
       return print_unexpected_error_and_exit(
-          options_description,
           std::string("Program terminated unexpectedly with error: ") +
-              e.what());
+          e.what());
     } catch (const std::exception &e) {
       return print_unexpected_error_and_exit(
-          options_description,
           std::string("Program terminated unexpectedly with std::exception: ") +
-              e.what());
+          e.what());
     } catch (...) {
-      return print_unexpected_error_and_exit(options_description,
-                                             "Program terminated unexpectedly");
+      return print_unexpected_error_and_exit("Program terminated unexpectedly");
     }
     return 0;
   }
@@ -693,16 +688,13 @@ int main(int argc, char **argv) {
     run_requested_mode(options);
   } catch (const std::runtime_error &e) {
     return print_unexpected_error_and_exit(
-        options_description,
         std::string("Program terminated unexpectedly with error: ") + e.what());
   } catch (const std::exception &e) {
     return print_unexpected_error_and_exit(
-        options_description,
         std::string("Program terminated unexpectedly with std::exception: ") +
-            e.what());
+        e.what());
   } catch (...) {
-    return print_unexpected_error_and_exit(options_description,
-                                           "Program terminated unexpectedly");
+    return print_unexpected_error_and_exit("Program terminated unexpectedly");
   }
   return 0;
 }

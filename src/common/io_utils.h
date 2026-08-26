@@ -103,15 +103,8 @@ void write_bgzf_fastq_block(std::ofstream &output_stream, std::string *id_array,
 // ID stream helpers (using libbsc).
 std::vector<char> compress_id_block_bytes(std::string *id_array,
                                           const uint32_t &num_ids,
-                                          const int &compression_level,
                                           bool pack_only = false);
 
-void compress_id_block(const char *output_path, std::string *id_array,
-                       const uint32_t &num_ids, const int &compression_level,
-                       bool pack_only = false);
-
-void decompress_id_block(const char *input_path, std::string *id_array,
-                         const uint32_t &num_ids, bool pack_only = false);
 void decompress_id_block_bytes(std::string_view input_bytes,
                                std::string_view input_label,
                                std::string *id_array, const uint32_t &num_ids,

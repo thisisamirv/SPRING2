@@ -229,7 +229,7 @@ public:
         BufferDecompressionSink sink(queue_, mutex_, cv_, shutdown_requested_,
                                      params_.encoding.paired_end, 2);
         execute_archive_decompression_plan(artifact_, sink, params_,
-                                           decode_num_thr_, decompression_plan);
+                                           decompression_plan);
         sink.log_summary();
         sink.copy_digests(sequence_crc_, quality_crc_, id_crc_);
         const auto elapsed_ms =

@@ -118,9 +118,7 @@ void write_step_output(std::ofstream &output_stream, std::string *id_buffer,
 }
 
 void decompress_short(const decompression_archive_artifact &artifact,
-                      DecompressionSink &sink, compression_params &cp,
-                      int decoding_num_thr) {
-  (void)decoding_num_thr;
+                      DecompressionSink &sink, compression_params &cp) {
   SPRING_LOG_DEBUG(
       "decompress_short start: scratch_dir=" + artifact.scratch_dir +
       ", num_reads=" + std::to_string(cp.read_info.num_reads) +
@@ -690,9 +688,7 @@ void decompress_short(const decompression_archive_artifact &artifact,
 }
 
 void decompress_long(const decompression_archive_artifact &artifact,
-                     DecompressionSink &sink, compression_params &cp,
-                     int decoding_num_thr) {
-  (void)decoding_num_thr;
+                     DecompressionSink &sink, compression_params &cp) {
   SPRING_LOG_DEBUG(
       "decompress_long start: scratch_dir=" + artifact.scratch_dir +
       ", num_reads=" + std::to_string(cp.read_info.num_reads) +

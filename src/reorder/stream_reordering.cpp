@@ -338,9 +338,7 @@ void append_binary(std::vector<char> &buffer, const T &value) {
 void decode_unaligned_reads(const std::vector<char> &encoded,
                             const uint32_t expected_read_count,
                             std::vector<char> &decoded_chars,
-                            std::vector<uint16_t> &decoded_lengths,
-                            bool bisulfite_ternary) {
-  (void)bisulfite_ternary;
+                            std::vector<uint16_t> &decoded_lengths) {
   decoded_lengths.assign(expected_read_count, 0);
   std::vector<uint64_t> encoded_offsets(expected_read_count, 0);
   std::vector<uint64_t> decoded_offsets(expected_read_count, 0);
@@ -1044,8 +1042,7 @@ reorder_compress_streams(const compression_params &cp,
   std::vector<char> unaligned_chars;
   std::vector<uint16_t> unaligned_lengths;
   decode_unaligned_reads(artifact.unaligned_serialized, unaligned_read_count,
-                         unaligned_chars, unaligned_lengths,
-                         cp.encoding.bisulfite_ternary);
+                         unaligned_chars, unaligned_lengths);
   if (unaligned_chars.size() != artifact.unaligned_char_count) {
     throw std::runtime_error(
         "Corruption in unaligned stream: decoded size does not match recorded "

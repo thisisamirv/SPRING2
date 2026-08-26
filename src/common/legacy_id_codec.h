@@ -8,7 +8,6 @@
 namespace spring {
 
 void decompress_legacy_id_block_bytes(std::string_view input_bytes,
-                                      std::string_view input_label,
                                       std::string *id_array, uint32_t num_ids);
 
 } // namespace spring

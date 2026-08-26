@@ -154,7 +154,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
   AssayDetectionStats stats;
 
   auto record_sequence = [&](const std::string &header, const std::string &seq,
-                             const bool is_r1, const int stream_index) {
+                             const bool is_r1) {
     result.input_summary.max_read_length =
         std::max(result.input_summary.max_read_length,
                  static_cast<uint32_t>(seq.size()));
@@ -234,8 +234,6 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
         }
       }
     }
-
-    (void)stream_index;
   };
 
   if (!fasta_input) {
@@ -280,7 +278,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
                              result.input_summary.use_crlf_by_stream[0])) {
         break;
       }
-      record_sequence(header_1, seq_1, true, 0);
+      record_sequence(header_1, seq_1, true);
 
       if (paired_end) {
         std::string header_2;
@@ -290,7 +288,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
           throw std::runtime_error(
               "Paired-end input truncated during startup sampling.");
         }
-        record_sequence(header_2, seq_2, false, 1);
+        record_sequence(header_2, seq_2, false);
       }
 
       stats.total_reads++;
@@ -354,7 +352,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
                              result.input_summary.use_crlf_by_stream[0])) {
         break;
       }
-      record_sequence(header_1, seq_1, true, 0);
+      record_sequence(header_1, seq_1, true);
 
       if (paired_end) {
         std::string header_2;
@@ -364,7 +362,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
           throw std::runtime_error(
               "Paired-end FASTA input truncated during startup sampling.");
         }
-        record_sequence(header_2, seq_2, false, 1);
+        record_sequence(header_2, seq_2, false);
       }
 
       stats.total_reads++;

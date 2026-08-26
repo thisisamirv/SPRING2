@@ -126,14 +126,12 @@ public:
 
 // Short-read archives reconstruct aligned and unaligned records separately.
 void decompress_short(const decompression_archive_artifact &artifact,
-                      DecompressionSink &sink, compression_params &cp,
-                      int decoding_num_thr);
+                      DecompressionSink &sink, compression_params &cp);
 
 // Long-read archives store read streams directly, without reference-based
 // reconstruction.
 void decompress_long(const decompression_archive_artifact &artifact,
-                     DecompressionSink &sink, compression_params &cp,
-                     int decoding_num_thr);
+                     DecompressionSink &sink, compression_params &cp);
 
 // Packed reference chunks are decoded once, then concatenated by callers.
 std::vector<std::string> decompress_unpack_seq_chunks(
