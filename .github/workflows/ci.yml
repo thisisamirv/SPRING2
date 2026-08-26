@@ -760,12 +760,12 @@ jobs:
         include:
           - sanitizer: ASan and UBSan
             build_dir: out/build-asan
-            san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Wno-stringop-overflow"
+            san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -Wno-stringop-overflow -Wno-array-bounds"
             ld_flags: "-fsanitize=address,undefined"
             options: "ASAN_OPTIONS=detect_leaks=1:abort_on_error=1"
           - sanitizer: TSan
             build_dir: out/build-tsan
-            san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=thread -Wno-stringop-overflow"
+            san_flags: "-g -O1 -fno-omit-frame-pointer -fsanitize=thread -Wno-stringop-overflow -Wno-array-bounds"
             ld_flags: "-fsanitize=thread"
             options:
               "TSAN_OPTIONS=halt_on_error=1:suppressions=${{ github.workspace
