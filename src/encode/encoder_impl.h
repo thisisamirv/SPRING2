@@ -92,7 +92,7 @@ uint32_t write_unaligned_range(
     const bool *remaining_reads,
     const encoder_global_b<bitset_size> &encoder_bits,
     const uint32_t begin_read_index, const uint32_t end_read_index,
-    uint64_t &unaligned_length, const encoder_global &eg) {
+    uint64_t &unaligned_length, [[maybe_unused]] const encoder_global &eg) {
   uint32_t aligned_read_count = 0;
   for (uint32_t read_index = begin_read_index; read_index < end_read_index;
        read_index++) {

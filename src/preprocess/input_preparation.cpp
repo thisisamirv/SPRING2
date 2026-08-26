@@ -232,7 +232,8 @@ void detect_paired_id_pattern(
 void merge_paired_n_reads(std::array<std::string, 2> &n_read_streams,
                           std::array<std::vector<uint32_t>, 2> &n_read_orders,
                           const std::array<uint64_t, 2> &num_reads,
-                          const std::array<uint64_t, 2> &num_reads_clean) {
+                          [[maybe_unused]] const std::array<uint64_t, 2>
+                              &num_reads_clean) {
   n_read_streams[0].append(n_read_streams[1]);
   n_read_streams[1].clear();
 

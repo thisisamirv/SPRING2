@@ -1030,7 +1030,7 @@ template <size_t bitset_size>
 void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
                  reorder_global<bitset_size> &rg,
                  reorder_encoder_artifact &artifact,
-                 const bool deterministic_mode) {
+                 [[maybe_unused]] const bool deterministic_mode) {
   std::vector<std::string> write_errors(static_cast<size_t>(rg.num_thr));
   artifact.singleton_read_bytes.clear();
 
