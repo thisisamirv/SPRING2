@@ -22,6 +22,8 @@
   - Removed the `r_` field in `src/common/legacy_id_codec.cpp`'s `arithmetic_decoder` (write-only, never read).
   - Marked genuinely-unused-but-API-required parameters `[[maybe_unused]]` in `src/common/bitset_dictionary.h` (`basedir`, `num_thr`), `src/preprocess/input_preparation.cpp` (`num_reads_clean`), `src/reorder/read_reordering_impl.h` (`deterministic_mode` in `writetofile`), and `src/encode/encoder_impl.h` (`eg` in `write_unaligned_range`).
   - Fixed five unused-parameter warnings and one `DWORDLONG`→`long` narrowing conversion in the Windows POSIX-compatibility shim `src/common/pthash_windefs.h` (`getrusage`, `mmap`, `munmap`, `posix_madvise`, `mkdir`, `sysconf`).
+  - Marked `idx` `[[maybe_unused]]` in `src/workflow/archive_preview.cpp`'s `print_gzip_compression_info` and `read_archive_label` unused (`(void)` cast, matching the file's existing convention) in `src/workflow/decompression_workflow.cpp`'s `materialize_aliased_group_output_from_memory`.
+  - Removed `spill_reordered_stream_artifact` in `src/workflow/compression_workflow.cpp` (dead code; the call site was already removed and only a comment referencing it remained).
 
 ## V1.3.4
 

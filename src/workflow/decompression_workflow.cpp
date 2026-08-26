@@ -170,6 +170,7 @@ void materialize_aliased_group_output_from_memory(
     const std::string &alias_output_path, const int num_thr,
     const int compression_level, const log_level verbosity_level,
     const bool unzip_flag) {
+  (void)read_archive_label;
   (void)compression_level;
   (void)verbosity_level;
 

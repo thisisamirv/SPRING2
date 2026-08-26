@@ -33,12 +33,13 @@ std::string preview_archive_version(const compression_params &cp) {
 } // namespace
 
 // Helper function to print gzip compression info for a single file
-void print_gzip_compression_info(int idx, const std::string &filename,
-                                 bool was_gzipped, uint8_t flg, uint32_t mtime,
-                                 uint8_t xfl, uint8_t os,
-                                 const std::string &name, bool is_bgzf,
-                                 uint16_t bgzf_bsiz, uint64_t uncomp_sz,
-                                 uint64_t comp_sz, uint32_t members) {
+void print_gzip_compression_info([[maybe_unused]] int idx,
+                                 const std::string &filename, bool was_gzipped,
+                                 uint8_t flg, uint32_t mtime, uint8_t xfl,
+                                 uint8_t os, const std::string &name,
+                                 bool is_bgzf, uint16_t bgzf_bsiz,
+                                 uint64_t uncomp_sz, uint64_t comp_sz,
+                                 uint32_t members) {
   if (!was_gzipped)
     return;
 

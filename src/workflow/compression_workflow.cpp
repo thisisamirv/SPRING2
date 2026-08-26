@@ -243,33 +243,6 @@ load_reorder_encoder_artifact(const std::string &root_dir,
   return artifact;
 }
 
-void spill_reordered_stream_artifact(const reordered_stream_artifact &artifact,
-                                     const std::string &root_dir) {
-  reset_directory(root_dir);
-  write_archive_member_file(root_dir, "meta/unaligned_char_count.txt",
-                            std::to_string(artifact.unaligned_char_count));
-  write_archive_member_file(root_dir, "orientation_entries.bin",
-                            vector_to_bytes(artifact.orientation_entries));
-  write_archive_member_file(root_dir, "position_entries.bin",
-                            vector_to_bytes(artifact.position_entries));
-  write_archive_member_file(root_dir, "read_length_entries.bin",
-                            vector_to_bytes(artifact.read_length_entries));
-  write_archive_member_file(root_dir, "read_order_entries.bin",
-                            vector_to_bytes(artifact.read_order_entries));
-  write_archive_member_file(root_dir, "noise_serialized.bin",
-                            vector_to_bytes(artifact.noise_serialized));
-  write_archive_member_file(root_dir, "noise_positions.bin",
-                            vector_to_bytes(artifact.noise_positions));
-  write_archive_member_file(root_dir, "unaligned_serialized.bin",
-                            vector_to_bytes(artifact.unaligned_serialized));
-
-  const std::string archive_root =
-      (std::filesystem::path(root_dir) / "archive_members").string();
-  for (const auto &[archive_path, contents] : artifact.archive_members) {
-    write_archive_member_file(archive_root, archive_path, contents);
-  }
-}
-
 void spill_post_encode_side_stream_artifact(
     const post_encode_side_stream_artifact &artifact,
     const std::string &root_dir) {
