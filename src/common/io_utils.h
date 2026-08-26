@@ -136,13 +136,6 @@ std::vector<char> bsc_compress_bytes(const std::vector<char> &input_bytes);
 
 std::vector<char> bsc_decompress_bytes(const std::vector<char> &input_bytes);
 
-void safe_bsc_decompress(const std::string &input_path,
-                         const std::string &output_path);
-
-void safe_bsc_str_array_decompress(const std::string &input_path,
-                                   std::string *string_array,
-                                   uint32_t num_strings,
-                                   uint32_t *string_lengths);
 void safe_bsc_str_array_decompress_bytes(std::string_view input_bytes,
                                          std::string_view input_label,
                                          std::string *string_array,
@@ -157,10 +150,6 @@ void extract_gzip_detailed_info(const std::string &path, bool &is_gzipped,
                                 uint64_t &uncompressed_size,
                                 uint64_t &compressed_size,
                                 uint32_t &member_count);
-
-// Temporary integer stream helpers.
-void write_var_int64(const int64_t value, std::ofstream &output_stream);
-int64_t read_var_int64(std::ifstream &input_stream);
 
 } // namespace spring
 

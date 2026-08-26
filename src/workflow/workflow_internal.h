@@ -81,8 +81,6 @@ void validate_output_targets(const std::string &archive_path,
                              const std::vector<std::string> &output_paths);
 void validate_compression_target(const std::vector<std::string> &input_paths,
                                  const std::string &archive_path);
-std::string assay_from_archive_metadata_bytes(const std::string &archive_bytes,
-                                              const std::string &archive_label);
 std::string assay_from_archive_metadata_path(const std::string &archive_path,
                                              const std::string &archive_label);
 uint64_t resolve_compression_memory_budget_bytes(double memory_cap_gb);

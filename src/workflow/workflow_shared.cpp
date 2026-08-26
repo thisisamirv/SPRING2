@@ -346,28 +346,6 @@ void validate_compression_target(const std::vector<std::string> &input_paths,
   }
 }
 
-std::string
-assay_from_archive_metadata_bytes(const std::string &archive_bytes,
-                                  const std::string &archive_label) {
-  auto contents = read_files_from_tar_bytes(archive_bytes, {"cp.bin"});
-  if (!contents.contains("cp.bin")) {
-    throw std::runtime_error("Could not find cp.bin in archive: " +
-                             archive_label);
-  }
-
-  compression_params cp{};
-  decompression_archive_artifact artifact;
-  artifact.files = std::move(contents);
-  artifact.scratch_dir.clear();
-  try {
-    read_archive_compression_params(artifact, cp);
-  } catch (const std::exception &) {
-    throw std::runtime_error("Could not parse cp.bin in archive: " +
-                             archive_label);
-  }
-  return cp.read_info.assay.empty() ? std::string("auto") : cp.read_info.assay;
-}
-
 std::string assay_from_archive_metadata_path(const std::string &archive_path,
                                              const std::string &archive_label) {
   auto contents = read_files_from_tar_memory(archive_path, {"cp.bin"});

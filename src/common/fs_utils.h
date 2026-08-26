@@ -27,7 +27,6 @@ std::string resolve_archive_entry_disk_path(const std::string &root_dir,
 void write_archive_member_file(const std::string &root_dir,
                                const std::string &entry_name,
                                const std::string &contents);
-bool safe_remove_file(const std::string &path) noexcept;
 void create_tar_archive_from_sources(
     const std::string &archive_path,
     const std::vector<tar_archive_source> &sources);
@@ -53,8 +52,7 @@ read_all_files_from_tar_bytes(const std::string &archive_contents);
 // libarchive read callback, extracting only the listed inner files without
 // buffering the outer entry in RAM.
 // Result keys: outer direct targets as-is; nested files as "outer/inner".
-std::unordered_map<std::string, std::string>
-read_files_from_nested_tars(
+std::unordered_map<std::string, std::string> read_files_from_nested_tars(
     const std::string &archive_path,
     const std::vector<std::string> &outer_direct_targets,
     const std::unordered_map<std::string, std::vector<std::string>>

@@ -4,7 +4,6 @@
 #ifndef SPRING_PROGRESS_H
 #define SPRING_PROGRESS_H
 
-#include <atomic>
 #include <mutex>
 #include <string>
 

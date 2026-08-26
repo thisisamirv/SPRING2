@@ -31,13 +31,6 @@ struct encoder_global {
   int max_readlen = 0;
   int num_thr = 0;
 
-  std::string basedir;
-  std::string outfile_unaligned;
-  std::string outfile_seq;
-  std::string outfile_pos;
-  std::string outfile_noise;
-  std::string outfile_noisepos;
-
   char enc_noise[128][128] = {{0}};
   bool bisulfite_ternary = false;
   // When non-empty, the encoder flushes per-thread metadata to this directory

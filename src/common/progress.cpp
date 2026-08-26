@@ -4,6 +4,7 @@
 #include "progress.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <iomanip>
 #include <iostream>

@@ -612,18 +612,6 @@ void write_archive_member_file(const std::string &root_dir,
   }
 }
 
-bool safe_remove_file(const std::string &path) noexcept {
-  if (path.empty())
-    return true;
-  std::error_code ec;
-  std::filesystem::remove(path, ec);
-  if (ec) {
-    Logger::log_warning("Failed to remove file: " + path + ": " + ec.message());
-    return false;
-  }
-  return true;
-}
-
 void create_tar_archive_from_sources(
     const std::string &archive_path,
     const std::vector<tar_archive_source> &sources) {

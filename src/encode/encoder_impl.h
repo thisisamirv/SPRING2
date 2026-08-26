@@ -979,13 +979,6 @@ encoder_main(const reorder_encoder_artifact &reorder_artifact,
   encoder_global_b<bitset_size> egb(cp.read_info.max_readlen);
   encoder_global eg;
 
-  eg.basedir = "in-memory";
-  eg.outfile_seq = eg.basedir + "/read_seq.bin";
-  eg.outfile_pos = eg.basedir + "/read_pos.bin";
-  eg.outfile_noise = eg.basedir + "/read_noise.txt";
-  eg.outfile_noisepos = eg.basedir + "/read_noisepos.bin";
-  eg.outfile_unaligned = eg.basedir + "/read_unaligned.txt";
-
   eg.max_readlen = cp.read_info.max_readlen;
   eg.num_thr = cp.encoding.num_thr;
   eg.metadata_spill_dir = cp.encoding.encoder_metadata_spill_dir;

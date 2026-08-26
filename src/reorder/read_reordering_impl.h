@@ -52,8 +52,6 @@ template <size_t bitset_size> struct reorder_global {
   int maxshift, shift_step, num_thr, max_readlen;
   int numdict;
 
-  std::string basedir;
-
   bool paired_end;
   std::bitset<bitset_size> mask64;
   std::bitset<bitset_size> mask_lsb;
@@ -1183,7 +1181,6 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
   reorder_global<bitset_size> rg(cp.read_info.max_readlen);
   rg.paired_end = cp.encoding.paired_end;
   rg.depleted_base = cp.encoding.depleted_base;
-  rg.basedir = "in-memory";
 
   rg.max_readlen = cp.read_info.max_readlen;
   rg.num_thr = cp.encoding.num_thr;

@@ -36,8 +36,6 @@
 
 namespace spring {
 
-namespace {} // namespace
-
 void write_fastq_block(std::ostream &output_stream, std::string *id_buffer,
                        std::string *read_buffer,
                        const std::string *quality_array,

@@ -8,7 +8,6 @@
 #include "quality_id_reordering.h"
 #include "read_reordering.h"
 
-
 #include <array>
 #include <cstdint>
 #include <stdexcept>
@@ -64,13 +63,6 @@ input_detection_summary detect_input_properties(const std::string &infile_1,
                                                 const std::string &infile_2,
                                                 bool paired_end,
                                                 bool fasta_input);
-
-// Quick pre-scan to determine the maximum read length across input files.
-uint32_t detect_max_read_length(const std::string &infile_1,
-                                const std::string &infile_2,
-                                const bool paired_end, const bool fasta_input,
-                                std::array<bool, 2> &use_crlf_by_stream,
-                                bool &contains_non_acgtn_symbols);
 
 } // namespace spring
 

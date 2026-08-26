@@ -17,7 +17,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <omp.h>
 #include <stdexcept>
@@ -397,68 +396,6 @@ input_detection_summary detect_input_properties(const std::string &infile_1,
     detect_input_properties_in_file(infile_2, fasta_input, summary, 1);
   }
   return summary;
-}
-
-uint32_t detect_max_read_length_in_file(const std::string &path,
-                                        bool fasta_input, bool &use_crlf,
-                                        bool &contains_non_acgtn_symbols) {
-  std::ifstream input(path, std::ios::binary);
-  if (!input.is_open())
-    throw std::runtime_error("Can't open file for pre-scan: " + path);
-
-  uint32_t max_len = 0;
-  std::string line;
-  if (fasta_input) {
-    uint32_t current_len = 0;
-    while (std::getline(input, line)) {
-      if (!line.empty() && line.back() == '\r')
-        use_crlf = true;
-      if (line.empty())
-        continue;
-      if (line[0] == '>') {
-        max_len = std::max(max_len, current_len);
-        current_len = 0;
-      } else {
-        if (!contains_non_acgtn_symbols && has_non_acgtn_symbol(line)) {
-          contains_non_acgtn_symbols = true;
-        }
-        // Saturate instead of wrapping: a multi-line FASTA record could in
-        // principle exceed 4 GB, and silent uint32_t wraparound would
-        // misclassify the input as short-read.
-        current_len = static_cast<uint32_t>(
-            std::min<size_t>(static_cast<size_t>(current_len) + line.length(),
-                             std::numeric_limits<uint32_t>::max()));
-      }
-    }
-    max_len = std::max(max_len, current_len);
-  } else {
-    // FASTQ: Seq is 2nd line of every 4.
-    while (std::getline(input, line)) { // 1: Header
-      if (!line.empty() && line.back() == '\r')
-        use_crlf = true;
-      if (std::getline(input, line)) { // 2: Sequence
-        if (!contains_non_acgtn_symbols && has_non_acgtn_symbol(line)) {
-          contains_non_acgtn_symbols = true;
-        }
-        max_len = std::max(max_len, (uint32_t)line.length());
-      }
-      std::getline(input, line); // 3: +
-      std::getline(input, line); // 4: Quality
-    }
-  }
-  return max_len;
-}
-
-uint32_t detect_max_read_length(const std::string &infile_1,
-                                const std::string &infile_2,
-                                const bool paired_end, const bool fasta_input,
-                                std::array<bool, 2> &use_crlf_by_stream,
-                                bool &contains_non_acgtn_symbols) {
-  const input_detection_summary summary =
-      detect_input_properties(infile_1, infile_2, paired_end, fasta_input);
-  use_crlf_by_stream = summary.use_crlf_by_stream;
-  contains_non_acgtn_symbols = summary.contains_non_acgtn_symbols;
-  return summary.max_read_length;
 }
 
 preprocess_artifact

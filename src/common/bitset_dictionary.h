@@ -28,17 +28,6 @@ namespace spring {
 using boophf_t = pthash::single_phf<pthash::xxhash_64, pthash::range_bucketer,
                                     pthash::compact, false>;
 
-inline std::string keys_bin_path(const std::string &base_dir,
-                                 const int thread_id) {
-  return base_dir + "/keys.bin." + std::to_string(thread_id);
-}
-
-inline std::string hash_bin_path(const std::string &base_dir,
-                                 const int thread_id, const int dict_index) {
-  return base_dir + "/hash.bin." + std::to_string(thread_id) + '.' +
-         std::to_string(dict_index);
-}
-
 class bbhashdict {
 public:
   std::unique_ptr<boophf_t> bphf;
@@ -57,25 +46,14 @@ public:
   void remove(const int64_t *dictidx, const uint64_t &startposidx,
               const int64_t read_id_to_remove);
 
-  // Freeze the dictionary to enable lock-free reads. After freeze(), the
-  // dictionary becomes immutable and read operations no longer require locking.
-  // This is safe because dictionary construction and modifications happen
-  // strictly before freeze() is called.
-  void freeze() { frozen_ = true; }
-
-  bool is_frozen() const { return frozen_; }
-
   bbhashdict()
       : bphf(nullptr), start(0), end(0), numkeys(0), dict_numreads(0),
-        startpos(nullptr), read_id(nullptr), frozen_(false) {}
+        startpos(nullptr), read_id(nullptr) {}
   bbhashdict(const bbhashdict &) = delete;
   bbhashdict &operator=(const bbhashdict &) = delete;
   bbhashdict(bbhashdict &&) noexcept = default;
   bbhashdict &operator=(bbhashdict &&) noexcept = default;
   ~bbhashdict() = default;
-
-private:
-  bool frozen_;
 };
 
 namespace detail {
@@ -154,28 +132,6 @@ inline uint32_t compact_dictionary_keys(uint64_t *dictionary_keys,
   }
 
   return eligible_read_count;
-}
-
-inline void write_key_chunks(const uint64_t *dictionary_keys,
-                             const uint32_t key_count,
-                             const std::string &base_dir) {
-  const uint32_t local_key_count = key_count;
-  const std::string local_base_dir = base_dir;
-  const uint64_t *local_dictionary_keys = dictionary_keys;
-#pragma omp parallel default(none) shared(local_dictionary_keys)               \
-    firstprivate(local_key_count, local_base_dir)
-  {
-    const int thread_id = omp_get_thread_num();
-    const int thread_count = omp_get_num_threads();
-    const thread_range range =
-        split_thread_range(local_key_count, thread_id, thread_count);
-    std::ofstream key_output(keys_bin_path(local_base_dir, thread_id),
-                             std::ios::binary);
-
-    for (uint64_t key_index = range.begin; key_index < range.end; key_index++)
-      key_output.write(byte_ptr(&local_dictionary_keys[key_index]),
-                       sizeof(uint64_t));
-  }
 }
 
 inline void merge_sorted_key_ranges(const uint64_t *source_keys,
