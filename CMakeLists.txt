@@ -344,6 +344,7 @@ option(SPRING_ENABLE_IPO "Enable Interprocedural Optimization if supported" ON)
 
 if(
     NOT WIN32
+    AND NOT APPLE
     AND SPRING_ENABLE_IPO
     AND NOT DEFINED CMAKE_INTERPROCEDURAL_OPTIMIZATION
 )
@@ -353,6 +354,11 @@ if(
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
 endif()
+# IPO/LTO is intentionally left disabled on Apple platforms: Apple
+# Clang + ld64 ThinLTO has been observed to miscompile exception unwinding
+# out of OpenMP regions when decoding deliberately corrupted archives,
+# turning a caught std::runtime_error into a SIGSEGV instead. This mirrors
+# the existing -fno-lto workaround for vendor/cloudflare_zlib.
 
 # Native tuning is the default; portability mode restricts x86-family code
 # generation to SSE4.1-compatible instructions.

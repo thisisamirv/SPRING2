@@ -310,14 +310,28 @@ reference_sequence_store::reference_sequence_store(
   for (int encoding_thread_id = 0; encoding_thread_id < encoding_thread_count;
        encoding_thread_id++) {
     reference_chunk chunk;
-    chunk.size =
-        cp.read_info.legacy_spring
-            ? decoded_chunks[static_cast<size_t>(encoding_thread_id)].size()
-            : cp.read_info.file_len_seq_thr[encoding_thread_id];
+    if (cp.read_info.legacy_spring) {
+      if (static_cast<size_t>(encoding_thread_id) >= decoded_chunks.size()) {
+        throw std::runtime_error(
+            "Corrupt archive: missing decoded sequence chunk " +
+            std::to_string(encoding_thread_id));
+      }
+      chunk.size =
+          decoded_chunks[static_cast<size_t>(encoding_thread_id)].size();
+    } else {
+      chunk.size = cp.read_info.file_len_seq_thr[encoding_thread_id];
+    }
     chunk.start_offset = next_start_offset;
     next_start_offset += chunk.size;
     if (static_cast<size_t>(encoding_thread_id) < decoded_chunks.size()) {
       chunk.owned_data = std::move(decoded_chunks[encoding_thread_id]);
+    }
+    if (chunk.size != chunk.owned_data.size()) {
+      throw std::runtime_error(
+          "Corrupt archive: sequence chunk " +
+          std::to_string(encoding_thread_id) + " length metadata (" +
+          std::to_string(chunk.size) + ") does not match decoded size (" +
+          std::to_string(chunk.owned_data.size()) + ")");
     }
     start_offsets_.push_back(chunk.start_offset);
     chunks_.push_back(std::move(chunk));
@@ -335,6 +349,10 @@ std::string reference_sequence_store::read(const uint64_t start_offset,
   uint64_t current_offset = start_offset;
   size_t chunk_index = find_chunk_index(current_offset);
   while (remaining > 0) {
+    if (chunk_index >= chunks_.size()) {
+      throw std::runtime_error("Corrupt archive: reference read runs past the "
+                               "end of the sequence store");
+    }
     const reference_chunk &chunk = chunks_[chunk_index];
     const uint64_t offset_in_chunk = current_offset - chunk.start_offset;
     const uint64_t copy_size =
