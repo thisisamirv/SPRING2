@@ -669,8 +669,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
       uint32_t reads_in_step = read_fastq_block(
           input_streams[stream_index], id_array, read_array.data(),
           quality_array.empty() ? nullptr : quality_array.data(),
-          num_reads_per_step, fasta_input, read_lengths_array.data(),
-          contains_n_output,
+          static_cast<uint32_t>(num_reads_per_step), fasta_input,
+          read_lengths_array.data(), contains_n_output,
           sequence_crc_output, // Compute CRC on original data before stripping
           quality_crc_output, id_crc_output, cp.encoding.preserve_quality,
           &block_saw_crlf);

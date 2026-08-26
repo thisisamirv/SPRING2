@@ -382,8 +382,8 @@ void compress_block_batch(
       } else {
         for (uint64_t read_offset = 0; read_offset < reads_in_block;
              read_offset++) {
-          read_lengths[read_offset] =
-              reordered_strings[block_begin + read_offset].size();
+          read_lengths[read_offset] = static_cast<uint32_t>(
+              reordered_strings[block_begin + read_offset].size());
         }
         block_outputs[block_index] =
             bsc_str_array_compress_bytes(reordered_strings.data() + block_begin,

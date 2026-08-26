@@ -391,8 +391,8 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
     char read_flag = '0', orientation = 'd';
     std::list<contig_reads> current_contig;
     int64_t relative_position = 0;
-    uint16_t read_length;
-    uint32_t read_order, contig_read_count = 0;
+    uint16_t read_length = 0;
+    uint32_t read_order = 0, contig_read_count = 0;
     std::array<std::list<uint32_t>, NUM_DICT_ENCODER> deleted_rids;
     uint64_t thread_contig_flush_count = 0;
     uint64_t thread_forced_break_count = 0;
