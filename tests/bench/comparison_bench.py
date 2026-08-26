@@ -10,8 +10,10 @@ import subprocess
 
 from bench_common import (
     ROOT_DIR,
-    detect_max_read_length,
+    decompress_gzip_to_file,
     default_spring_binary,
+    detect_max_read_length,
+    download_file,
     ensure_directory,
     ensure_spring_binary,
     env_or_default_path,
@@ -23,8 +25,6 @@ from bench_common import (
     sum_decompressed_sizes,
     sum_sizes,
     write_gzip_from_bytes,
-    decompress_gzip_to_file,
-    download_file,
 )
 
 TMP_DIR = ROOT_DIR / "out" / "tests" / "bench" / "comparison"
@@ -32,10 +32,10 @@ TMP_INPUT_DIR = ROOT_DIR / "tests" / "fixtures" / "input"
 TMP_LOG_DIR = TMP_DIR / "logs"
 TMP_OUTPUT_DIR = TMP_DIR / "runs"
 URL_R1 = (
-    "ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_1.fastq.gz"
+    "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_1.fastq.gz"
 )
 URL_R2 = (
-    "ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_2.fastq.gz"
+    "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_2.fastq.gz"
 )
 DEFAULT_PATH_R1 = TMP_INPUT_DIR / "SRR8185389_1.fastq.gz"
 DEFAULT_PATH_R2 = TMP_INPUT_DIR / "SRR8185389_2.fastq.gz"
