@@ -136,9 +136,8 @@ def download_file(url: str, destination: pathlib.Path) -> None:
         ) as output:
             shutil.copyfileobj(response, output)
         tmp_destination.replace(destination)
-    except BaseException:
+    finally:
         tmp_destination.unlink(missing_ok=True)
-        raise
 
 
 def _get_windows_peak_rss_kb(pid: int) -> int | None:

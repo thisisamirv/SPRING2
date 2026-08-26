@@ -23,6 +23,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
+#include <limits>
+
 #if !defined(_MODE_T_DECLARED) && !defined(_MODE_T_)
 typedef int mode_t;
 #define _MODE_T_DECLARED
@@ -124,7 +127,9 @@ inline long sysconf(int name) {
     if (GlobalMemoryStatusEx(&ms)) {
       SYSTEM_INFO si;
       GetSystemInfo(&si);
-      return static_cast<long>(ms.ullTotalPhys / si.dwPageSize);
+      const uint64_t page_count = ms.ullTotalPhys / si.dwPageSize;
+      return static_cast<long>(
+          std::min<uint64_t>(page_count, std::numeric_limits<long>::max()));
     }
   }
   return -1;

@@ -1168,9 +1168,10 @@ function(spring_apply_common_target_settings target_name)
         target_compile_definitions(${target_name} PRIVATE LIBARCHIVE_STATIC)
     endif()
 
-    # Fail the build on any warning in first-party code (src/ and tests/).
-    # Vendored targets configure their own warning flags independently and
-    # are unaffected since this is applied per-target, not globally.
+    # Fail the build on any warning in this target's compilation units.
+    # Warnings from third-party headers are only suppressed when those headers
+    # are provided via SYSTEM include directories (e.g. vendored targets);
+    # any non-SYSTEM third-party header included here is still diagnosed.
     if(MSVC)
         target_compile_options(${target_name} PRIVATE /W4 /WX)
     else()
@@ -1202,7 +1203,7 @@ endfunction()
 # compression_dispatch_encoder.cpp instantiates encoder_main<> for 24 bitset
 # sizes; each instantiation now includes substantial inline disk-spill logic.
 # On MSVC/ClangCL the resulting object file can exceed the default COFF section
-# limit � raise it with /bigobj.
+# limit - raise it with /bigobj.
 if(MSVC)
     set_source_files_properties(
         ${source_dir}/encode/compression_dispatch_encoder.cpp
