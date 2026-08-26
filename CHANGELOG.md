@@ -13,6 +13,7 @@
 - Added `-warnings-as-errors=*` to the `clang-tidy` invocation in `tools/dev/lint/lint.py`. Without it, `clang-tidy` always exited 0 regardless of how many check violations it found, so the lint step printed diagnostics but never failed the build.
 - Changed `vendor/pthash/CMakeLists.txt` to mark pthash's own include directory as `SYSTEM`, while keeping `src/` as a regular (fully-diagnosed) include. pthash is header-only and gets instantiated inside first-party translation units; without this split, the new `-Werror`/`/WX` enforcement surfaced pthash's own warnings (`-Wreorder`, `C4244`, `C4305`, `C4146`) as first-party build failures.
 - Hardened `download_file` in `tests/bench/bench_common.py` to download to a temporary path and only rename into place on success, so a failed/truncated download is never mistaken for a valid cached file on a later run. Changed the `comparison_bench.py` reference dataset URLs from `ftp://` to `https://` (same host/path on EBI's ENA), since FTP data connections are frequently blocked or dropped on GitHub-hosted runners, which was causing `EOFError: Compressed file ended before the end-of-stream marker was reached`.
+- Added `-Wno-array-bounds` to the `sanitizers` job's compile flags (alongside the existing `-Wno-stringop-overflow`), suppressing a known GCC false positive where `-Warray-bounds` misfires on `std::vector<std::string>::emplace_back` reallocation at `-O1`. The diagnostic originates entirely inside inlined libstdc++ code, not any SPRING2 source.
 
 ### Fixed
 
