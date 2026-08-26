@@ -397,9 +397,10 @@ std::string compressed_block_file_path(const std::string &base_path,
 uint32_t compute_thread_read_count(const uint32_t step_read_count,
                                    const uint32_t num_reads_per_block,
                                    const uint64_t thread_id) {
-  return std::min((uint64_t)step_read_count,
-                  (thread_id + 1) * (uint64_t)num_reads_per_block) -
-         thread_id * (uint64_t)num_reads_per_block;
+  return static_cast<uint32_t>(
+      std::min((uint64_t)step_read_count,
+               (thread_id + 1) * (uint64_t)num_reads_per_block) -
+      thread_id * (uint64_t)num_reads_per_block);
 }
 
 std::string decode_packed_sequence_chunk_bytes(
