@@ -104,6 +104,12 @@ void write_bgzf_fastq_block(std::ofstream &output_stream, std::string *id_array,
 std::vector<char> compress_id_block_bytes(std::string *id_array,
                                           const uint32_t &num_ids,
                                           bool pack_only = false);
+// Guards against stale call sites still passing the removed compression_level
+// argument: an int third argument would otherwise silently convert to
+// pack_only instead of failing to compile.
+std::vector<char> compress_id_block_bytes(std::string *id_array,
+                                          const uint32_t &num_ids, int,
+                                          bool pack_only = false) = delete;
 
 void decompress_id_block_bytes(std::string_view input_bytes,
                                std::string_view input_label,
