@@ -333,10 +333,8 @@ void decompress_short(const decompression_archive_artifact &artifact,
                             artifact, compressed_block_file_path(file_unaligned,
                                                                  block_num))
                       : decompress_archive_bsc_member(
-                            artifact,
-                            compressed_block_file_path(file_unaligned,
-                                                       block_num),
-                            true);
+                            artifact, compressed_block_file_path(file_unaligned,
+                                                                 block_num));
               const std::vector<char> readlength_bytes =
                   cp.read_info.legacy_spring
                       ? decompress_legacy_archive_bsc_member(
@@ -772,10 +770,9 @@ void decompress_long(const decompression_archive_artifact &artifact,
                           compressed_block_file_path(
                               input_read_length_paths[stream_index], block_num))
                     : decompress_archive_bsc_member(
-                          artifact,
-                          compressed_block_file_path(
-                              input_read_length_paths[stream_index], block_num),
-                          true);
+                          artifact, compressed_block_file_path(
+                                        input_read_length_paths[stream_index],
+                                        block_num));
             memory_cursor read_length_cursor(read_length_bytes);
             for (uint32_t read_index = 0; read_index < thread_read_count;
                  ++read_index) {

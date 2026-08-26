@@ -28,8 +28,7 @@ archive_member_bytes(const decompression_archive_artifact &artifact,
 
 std::vector<char>
 decompress_archive_bsc_member(const decompression_archive_artifact &artifact,
-                              const std::string &member_name,
-                              bool allow_raw_fallback = false);
+                              const std::string &member_name);
 
 std::vector<char> decompress_legacy_archive_bsc_member(
     const decompression_archive_artifact &artifact,

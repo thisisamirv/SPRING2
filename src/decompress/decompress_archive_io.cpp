@@ -178,21 +178,13 @@ archive_member_bytes(const decompression_archive_artifact &artifact,
 
 std::vector<char>
 decompress_archive_bsc_member(const decompression_archive_artifact &artifact,
-                              const std::string &member_name,
-                              const bool allow_raw_fallback) {
+                              const std::string &member_name) {
   std::vector<char> compressed_bytes =
       archive_member_bytes(artifact, member_name);
   if (compressed_bytes.empty()) {
     return {};
   }
-  try {
-    return bsc_decompress_bytes(compressed_bytes);
-  } catch (const std::exception &) {
-    if (!allow_raw_fallback) {
-      throw;
-    }
-    return compressed_bytes;
-  }
+  return bsc_decompress_bytes(compressed_bytes);
 }
 
 std::vector<char> decompress_legacy_archive_bsc_member(
