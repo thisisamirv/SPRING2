@@ -1578,9 +1578,9 @@ void generate_binary_binning_table(char *binary_binning_table,
                                    const unsigned int low) {
   unsigned int split = 33 + thr;
   for (unsigned int i = 0; i < split; i++)
-    binary_binning_table[i] = 33 + low;
+    binary_binning_table[i] = static_cast<char>(33 + low);
   for (unsigned int i = split; i <= 127; i++)
-    binary_binning_table[i] = 33 + high;
+    binary_binning_table[i] = static_cast<char>(33 + high);
 }
 
 void extract_gzip_detailed_info(const std::string &path, bool &is_gzipped,

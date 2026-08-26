@@ -24,6 +24,8 @@
   - Fixed five unused-parameter warnings and one `DWORDLONG`→`long` narrowing conversion in the Windows POSIX-compatibility shim `src/common/pthash_windefs.h` (`getrusage`, `mmap`, `munmap`, `posix_madvise`, `mkdir`, `sysconf`).
   - Marked `idx` `[[maybe_unused]]` in `src/workflow/archive_preview.cpp`'s `print_gzip_compression_info` and `read_archive_label` unused (`(void)` cast, matching the file's existing convention) in `src/workflow/decompression_workflow.cpp`'s `materialize_aliased_group_output_from_memory`.
   - Removed `spill_reordered_stream_artifact` in `src/workflow/compression_workflow.cpp` (dead code; the call site was already removed and only a comment referencing it remained).
+  - Marked `estimated_input_bytes` `[[maybe_unused]]` in `src/workflow/workflow_shared.cpp`'s `estimate_memory_path_safety_margin_bytes`, and fixed a GCC `-Wrange-loop-construct` warning by iterating `default_archive_name_from_input`'s extension list as `const char *` instead of binding a `const std::string &` to a temporary.
+  - Fixed two real narrowing-conversion warnings on MSVC: explicit `static_cast<char>` for the ASCII quality values written into `binary_binning_table` in `src/common/io_utils.cpp`, and `static_cast<int>` on the `la_ssize_t` return of `archive_write_data_block` in `src/common/fs_utils.cpp`.
 
 ## V1.3.4
 

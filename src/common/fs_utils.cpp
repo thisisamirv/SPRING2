@@ -714,7 +714,8 @@ void extract_tar_archive(const std::string &archive_path,
           if (r < ARCHIVE_OK)
             throw std::runtime_error("Error reading archive data: " +
                                      std::string(archive_error_string(a)));
-          r = archive_write_data_block(ext, buff, size, offset);
+          r = static_cast<int>(
+              archive_write_data_block(ext, buff, size, offset));
           extracted_data_bytes += static_cast<uint64_t>(size);
           if (r < ARCHIVE_OK)
             throw std::runtime_error("Error writing disk data: " +

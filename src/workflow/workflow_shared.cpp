@@ -54,7 +54,7 @@ estimate_peak_intermediate_memory_bytes(const uint64_t estimated_input_bytes) {
 }
 
 uint64_t estimate_memory_path_safety_margin_bytes(
-    const uint64_t estimated_input_bytes,
+    [[maybe_unused]] const uint64_t estimated_input_bytes,
     const uint64_t estimated_peak_intermediate_bytes) {
   const uint64_t peak_based_margin =
       estimated_peak_intermediate_bytes / kSafetyMarginDivisor;
@@ -276,8 +276,8 @@ std::string default_archive_name_from_input(const std::string &input_path) {
   while (changed) {
     changed = false;
     const std::string ext = p.extension().string();
-    for (const std::string &value : {".gz", ".fastq", ".fq", ".fasta", ".fa",
-                                     ".FASTQ", ".FQ", ".FASTA", ".FA"}) {
+    for (const char *value : {".gz", ".fastq", ".fq", ".fasta", ".fa", ".FASTQ",
+                              ".FQ", ".FASTA", ".FA"}) {
       if (ext == value) {
         p.replace_extension("");
         changed = true;
