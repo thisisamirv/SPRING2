@@ -282,10 +282,11 @@ std::string buildcontig(std::list<contig_reads> &current_contig,
   for (size_t i = 0; i < base_counts.size(); i++) {
     uint16_t best_base_count = 0;
     uint32_t best_base_index = 0;
-    for (uint32_t base_index = 0; base_index < 4; base_index++)
-      if (base_counts[i][base_index] > best_base_count) {
-        best_base_count = base_counts[i][base_index];
-        best_base_index = base_index;
+    for (uint32_t candidate_base_index = 0; candidate_base_index < 4;
+         candidate_base_index++)
+      if (base_counts[i][candidate_base_index] > best_base_count) {
+        best_base_count = base_counts[i][candidate_base_index];
+        best_base_index = candidate_base_index;
       }
     ref[i] = base_char_lookup[best_base_index];
   }
@@ -303,7 +304,7 @@ void writecontig(const std::string &ref,
   uint16_t pos_var;
   size_t previous_noise_offset = 0;
   auto current_contig_it = current_contig.begin();
-  long current_position;
+  int64_t current_position;
   uint64_t absolute_current_position;
   for (; current_contig_it != current_contig.end(); ++current_contig_it) {
     current_position = (*current_contig_it).pos;

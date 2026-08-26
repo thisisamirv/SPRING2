@@ -522,13 +522,14 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
             forward_bitset.reset();
             reverse_bitset.reset();
             stringtobitset(reference_contig.substr(0, eg.max_readlen),
-                           eg.max_readlen, forward_bitset,
+                           static_cast<uint16_t>(eg.max_readlen),
+                           forward_bitset,
                            const_cast<std::bitset<bitset_size> **>(
                                egb.basemask_ptrs.data()));
             stringtobitset(
                 reverse_complement(reference_contig.substr(0, eg.max_readlen),
                                    eg.max_readlen),
-                eg.max_readlen, reverse_bitset,
+                static_cast<uint16_t>(eg.max_readlen), reverse_bitset,
                 const_cast<std::bitset<bitset_size> **>(
                     egb.basemask_ptrs.data()));
             for (long window_start = 0;
@@ -590,15 +591,17 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                           dictionaries[dictionary_index].read_id[bucket_index];
                       int hamming;
                       if (!orientation_index)
-                        hamming = ((forward_bitset ^ reads[read_id]) &
-                                   length_masks[0][eg.max_readlen -
-                                                   read_lengths[read_id]])
-                                      .count();
+                        hamming = static_cast<int>(
+                            ((forward_bitset ^ reads[read_id]) &
+                             length_masks[0][eg.max_readlen -
+                                             read_lengths[read_id]])
+                                .count());
                       else
-                        hamming = ((reverse_bitset ^ reads[read_id]) &
-                                   length_masks[0][eg.max_readlen -
-                                                   read_lengths[read_id]])
-                                      .count();
+                        hamming = static_cast<int>(
+                            ((reverse_bitset ^ reads[read_id]) &
+                             length_masks[0][eg.max_readlen -
+                                             read_lengths[read_id]])
+                                .count());
                       if (hamming <= thresh_s) {
                         if (!omp_test_lock(
                                 read_locks[detail::lock_shard(read_id)].get()))

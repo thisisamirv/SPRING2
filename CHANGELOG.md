@@ -26,6 +26,11 @@
   - Removed `spill_reordered_stream_artifact` in `src/workflow/compression_workflow.cpp` (dead code; the call site was already removed and only a comment referencing it remained).
   - Marked `estimated_input_bytes` `[[maybe_unused]]` in `src/workflow/workflow_shared.cpp`'s `estimate_memory_path_safety_margin_bytes`, and fixed a GCC `-Wrange-loop-construct` warning by iterating `default_archive_name_from_input`'s extension list as `const char *` instead of binding a `const std::string &` to a temporary.
   - Fixed two real narrowing-conversion warnings on MSVC: explicit `static_cast<char>` for the ASCII quality values written into `binary_binning_table` in `src/common/io_utils.cpp`, and `static_cast<int>` on the `la_ssize_t` return of `archive_write_data_block` in `src/common/fs_utils.cpp`.
+  - Fixed variable shadowing in `src/encode/encoder.cpp`'s `buildcontig` (renamed an inner loop `base_index` that shadowed an outer lambda of the same name) and widened `writecontig`'s `current_position` from `long` to `int64_t` to match `contig_reads::pos`.
+  - Fixed narrowing-conversion warnings in `src/preprocess/input_preparation.cpp`: explicit `static_cast<uint32_t>` in `block_count` and `reads_for_thread_step` (both provably bounded by their own logic), and changed `current_len`'s accumulation in the FASTA pre-scan to saturate at `UINT32_MAX` instead of silently wrapping, since a multi-line FASTA record's cumulative length is a `size_t` that could in principle exceed 4 GB.
+  - Fixed a narrowing-conversion warning in `src/common/bitset_dictionary.h`'s dictionary construction by casting the MPHF's `uint64_t` `table_size()` down to the `bbhashdict::numkeys` field's existing `uint32_t` type.
+  - Fixed narrowing-conversion warnings in `src/encode/encoder_impl.h`: cast `eg.max_readlen` (`int`) to `uint16_t` at two `stringtobitset` call sites, and cast the `size_t` result of `std::bitset::count()` to `int` when computing Hamming distance (bounded by the bitset's own size).
+  - Marked `decoding_thread_count` `[[maybe_unused]]` in `src/decompress/decompress_archive_io.cpp`'s `decompress_legacy_unpack_seq_chunks`; ClangCL does not treat use inside a `#pragma omp` clause as a use for `-Wunused-parameter` purposes.
 
 ## V1.3.4
 

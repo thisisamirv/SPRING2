@@ -117,7 +117,7 @@ decode_legacy_packed_sequence_chunk_bytes(const std::vector<char> &packed_bytes,
 std::vector<std::string> decompress_legacy_unpack_seq_chunks(
     const decompression_archive_artifact &artifact,
     const std::string &packed_seq_base_path, const int encoding_thread_count,
-    const int decoding_thread_count) {
+    [[maybe_unused]] const int decoding_thread_count) {
   std::vector<std::string> decoded_chunks(
       static_cast<size_t>(encoding_thread_count));
   std::exception_ptr omp_exception;

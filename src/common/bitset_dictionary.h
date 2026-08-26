@@ -555,7 +555,8 @@ void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
                                                   current_dict.numkeys, config);
     }
     const auto mphf_build_end = std::chrono::steady_clock::now();
-    current_dict.numkeys = current_dict.bphf->table_size();
+    current_dict.numkeys =
+        static_cast<uint32_t>(current_dict.bphf->table_size());
     SPRING_LOG_INFO(std::string("Done. (T=") +
                     std::to_string(current_dict.numkeys) + ")");
     SPRING_LOG_INFO("  MPHF build time: " +

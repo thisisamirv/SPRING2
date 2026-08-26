@@ -60,7 +60,7 @@ uint32_t block_count(const uint64_t num_reads,
                      const uint32_t num_reads_per_block) {
   if (num_reads == 0)
     return 0;
-  return 1 + (num_reads - 1) / num_reads_per_block;
+  return static_cast<uint32_t>(1 + (num_reads - 1) / num_reads_per_block);
 }
 
 void open_input_stream(std::ifstream &file_stream, std::istream *&input_stream,
@@ -121,9 +121,9 @@ preprocess_paths build_preprocess_paths(const std::string &input_path_1,
 uint32_t reads_for_thread_step(const uint32_t reads_in_step,
                                const uint32_t num_reads_per_block,
                                const uint64_t thread_id) {
-  return std::min((uint64_t)reads_in_step,
-                  (thread_id + 1) * num_reads_per_block) -
-         thread_id * num_reads_per_block;
+  return static_cast<uint32_t>(
+      std::min((uint64_t)reads_in_step, (thread_id + 1) * num_reads_per_block) -
+      thread_id * num_reads_per_block);
 }
 
 void open_preprocess_streams(
@@ -229,11 +229,11 @@ void detect_paired_id_pattern(
   }
 }
 
-void merge_paired_n_reads(std::array<std::string, 2> &n_read_streams,
-                          std::array<std::vector<uint32_t>, 2> &n_read_orders,
-                          const std::array<uint64_t, 2> &num_reads,
-                          [[maybe_unused]] const std::array<uint64_t, 2>
-                              &num_reads_clean) {
+void merge_paired_n_reads(
+    std::array<std::string, 2> &n_read_streams,
+    std::array<std::vector<uint32_t>, 2> &n_read_orders,
+    const std::array<uint64_t, 2> &num_reads,
+    [[maybe_unused]] const std::array<uint64_t, 2> &num_reads_clean) {
   n_read_streams[0].append(n_read_streams[1]);
   n_read_streams[1].clear();
 
@@ -423,7 +423,12 @@ uint32_t detect_max_read_length_in_file(const std::string &path,
         if (!contains_non_acgtn_symbols && has_non_acgtn_symbol(line)) {
           contains_non_acgtn_symbols = true;
         }
-        current_len += line.length();
+        // Saturate instead of wrapping: a multi-line FASTA record could in
+        // principle exceed 4 GB, and silent uint32_t wraparound would
+        // misclassify the input as short-read.
+        current_len = static_cast<uint32_t>(
+            std::min<size_t>(static_cast<size_t>(current_len) + line.length(),
+                             std::numeric_limits<uint32_t>::max()));
       }
     }
     max_len = std::max(max_len, current_len);
