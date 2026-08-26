@@ -489,7 +489,8 @@ template <size_t bitset_size>
 void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
                          uint16_t *read_lengths, const int numdict,
                          const uint32_t numreads, const int bpb,
-                         const std::string &basedir, const int num_thr,
+                         [[maybe_unused]] const std::string &basedir,
+                         [[maybe_unused]] const int num_thr,
                          const char depleted_base = 'N',
                          const bool use_external_mphf = false,
                          const std::string &mphf_tmp_dir = "") {

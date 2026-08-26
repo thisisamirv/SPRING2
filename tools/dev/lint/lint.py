@@ -529,6 +529,7 @@ def build_clang_tidy_common_args() -> list[str]:
     args = [
         "-quiet",
         f"-checks={TIDY_CHECKS}",
+        "-warnings-as-errors=*",
         "-header-filter=^$",
         "--system-headers=false",
     ]

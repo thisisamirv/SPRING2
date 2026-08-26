@@ -1168,6 +1168,15 @@ function(spring_apply_common_target_settings target_name)
         target_compile_definitions(${target_name} PRIVATE LIBARCHIVE_STATIC)
     endif()
 
+    # Fail the build on any warning in first-party code (src/ and tests/).
+    # Vendored targets configure their own warning flags independently and
+    # are unaffected since this is applied per-target, not globally.
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /W4 /WX)
+    else()
+        target_compile_options(${target_name} PRIVATE -Wall -Wextra -Werror)
+    endif()
+
     if(SPRING_OPENMP_INCLUDE_DIRS)
         target_include_directories(
             ${target_name}
