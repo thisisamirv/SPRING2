@@ -5,16 +5,6 @@ option(
     "Compile with ISA-L for faster decompression"
     ON
 )
-option(
-    LIBRAPIDARCHIVE_WITH_RPMALLOC
-    "Compile with rpmalloc for faster memory allocations"
-    OFF
-)
-option(
-    LIBRAPIDARCHIVE_USE_SYSTEM_ZLIB
-    "Use system zlib instead of compiling from source"
-    OFF
-)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(LIBRAPIDARCHIVE_WITH_ISAL OFF)
 endif()
@@ -56,8 +46,7 @@ if(LIBRAPIDARCHIVE_WITH_ISAL)
     include(FetchContent)
     FetchContent_Declare(
         isal_project
-        SOURCE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/isa-l
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/isa-l
     )
     set(ISAL_BUILD_SHARED_LIBS OFF CACHE BOOL "Build static ISA-L" FORCE)
     FetchContent_MakeAvailable(isal_project)
