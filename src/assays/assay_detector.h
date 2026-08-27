@@ -48,8 +48,7 @@ struct SingleCellDetectionEvidence {
 };
 
 // Shared single-cell layout heuristic (explicit lanes, CB/UMI header tags,
-// R1/R2 read-length asymmetry) used identically by all per-assay
-// detect_sc_*_layout wrappers.
+// R1/R2 read-length asymmetry) used by AssayDetector during startup sampling.
 [[nodiscard]] SingleCellDetectionEvidence
 detect_single_cell_layout(const AssayDetectionStats &stats,
                           bool explicit_sc_layout);

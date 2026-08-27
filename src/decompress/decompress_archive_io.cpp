@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
