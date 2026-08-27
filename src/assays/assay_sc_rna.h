@@ -14,9 +14,6 @@ namespace spring {
 [[nodiscard]] bool is_grouped_index_archive_note(const std::string &note);
 [[nodiscard]] bool is_grouped_read3_archive_note(const std::string &note);
 
-[[nodiscard]] SingleCellDetectionEvidence
-detect_sc_rna_layout(const AssayDetectionStats &stats, bool explicit_sc_layout);
-
 [[nodiscard]] bool
 should_enable_sc_rna_cb_prefix_stripping(const compression_params &cp);
 

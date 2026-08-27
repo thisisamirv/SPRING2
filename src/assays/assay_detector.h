@@ -47,6 +47,13 @@ struct SingleCellDetectionEvidence {
   std::vector<std::string> evidence;
 };
 
+// Shared single-cell layout heuristic (explicit lanes, CB/UMI header tags,
+// R1/R2 read-length asymmetry) used identically by all per-assay
+// detect_sc_*_layout wrappers.
+[[nodiscard]] SingleCellDetectionEvidence
+detect_single_cell_layout(const AssayDetectionStats &stats,
+                          bool explicit_sc_layout);
+
 class AssayDetector {
 public:
   AssayDetector() = default;

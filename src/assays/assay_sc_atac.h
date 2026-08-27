@@ -12,10 +12,6 @@
 
 namespace spring {
 
-[[nodiscard]] SingleCellDetectionEvidence
-detect_sc_atac_layout(const AssayDetectionStats &stats,
-                      bool explicit_sc_layout);
-
 [[nodiscard]] bool
 should_consider_sc_atac_adapter_stripping(const compression_params &cp,
                                           bool fasta_input);

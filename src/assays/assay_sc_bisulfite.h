@@ -9,10 +9,6 @@
 
 namespace spring {
 
-[[nodiscard]] SingleCellDetectionEvidence
-detect_sc_bisulfite_layout(const AssayDetectionStats &stats,
-                           bool explicit_sc_layout);
-
 [[nodiscard]] bool is_sc_bisulfite_assay(const compression_params &cp);
 
 [[nodiscard]] bool
