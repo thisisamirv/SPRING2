@@ -37,6 +37,8 @@ URL_R1 = (
 URL_R2 = (
     "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_2.fastq.gz"
 )
+MD5_R1 = "ad5e8dced2ead9f8c181d1c30b5fddad"
+MD5_R2 = "635d06de10de8a662a4d07b5064fe802"
 DEFAULT_PATH_R1 = TMP_INPUT_DIR / "SRR8185389_1.fastq.gz"
 DEFAULT_PATH_R2 = TMP_INPUT_DIR / "SRR8185389_2.fastq.gz"
 SPRING_V1_ENV_NAME = "spring_v1"
@@ -86,9 +88,9 @@ def ensure_inputs() -> tuple[pathlib.Path, pathlib.Path | None]:
     path_1 = input_fastq_1()
     path_2 = input_fastq_2()
     if path_1 == DEFAULT_PATH_R1:
-        download_file(URL_R1, DEFAULT_PATH_R1)
+        download_file(URL_R1, DEFAULT_PATH_R1, MD5_R1)
     if path_2 == DEFAULT_PATH_R2:
-        download_file(URL_R2, DEFAULT_PATH_R2)
+        download_file(URL_R2, DEFAULT_PATH_R2, MD5_R2)
     if not path_1.exists():
         raise FileNotFoundError(f"Primary INPUT_FASTQ_1 does not exist: {path_1}")
     return path_1, path_2 if path_2 and path_2.exists() else None

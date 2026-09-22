@@ -10,13 +10,13 @@ import pathlib
 from bench_common import (
     ROOT_DIR,
     default_spring_binary,
+    download_file,
     ensure_directory,
     ensure_spring_binary,
     env_or_default_path,
     normalized_fastq_match,
     print_metrics_block,
     run_logged_process,
-    download_file,
 )
 
 TMP_DIR = ROOT_DIR / "out" / "tests" / "bench" / "big"
@@ -25,11 +25,13 @@ TMP_LOG_DIR = TMP_DIR / "logs"
 TMP_OUTPUT_DIR = TMP_DIR / "runs"
 BIG_BENCH_LOG = TMP_LOG_DIR / "big_bench.log"
 URL_R1 = (
-    "ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_1.fastq.gz"
+    "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_1.fastq.gz"
 )
 URL_R2 = (
-    "ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_2.fastq.gz"
+    "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR818/009/SRR8185389/SRR8185389_2.fastq.gz"
 )
+MD5_R1 = "ad5e8dced2ead9f8c181d1c30b5fddad"
+MD5_R2 = "635d06de10de8a662a4d07b5064fe802"
 PATH_R1 = TMP_INPUT_DIR / "SRR8185389_1.fastq.gz"
 PATH_R2 = TMP_INPUT_DIR / "SRR8185389_2.fastq.gz"
 
@@ -103,8 +105,8 @@ def initialize_environment() -> None:
     ensure_directory(TMP_OUTPUT_DIR)
     if BIG_BENCH_LOG.exists():
         BIG_BENCH_LOG.unlink()
-    download_file(URL_R1, PATH_R1)
-    download_file(URL_R2, PATH_R2)
+    download_file(URL_R1, PATH_R1, MD5_R1)
+    download_file(URL_R2, PATH_R2, MD5_R2)
 
 
 def main() -> int:

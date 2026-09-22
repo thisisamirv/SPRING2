@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import threading
 import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Iterable, Sequence
@@ -118,7 +119,12 @@ def ensure_spring_binary(
         )
 
 
-def download_file(url: str, destination: pathlib.Path) -> None:
+def download_file(
+    url: str,
+    destination: pathlib.Path,
+    expected_md5: str | None = None,
+    max_attempts: int = 4,
+) -> None:
     """Download a file once and reuse it on later benchmark runs.
 
     Downloads to a temporary path first and only renames into place on
@@ -130,14 +136,51 @@ def download_file(url: str, destination: pathlib.Path) -> None:
         return
     ensure_directory(destination.parent)
     tmp_destination = destination.with_suffix(destination.suffix + ".part")
-    try:
-        with urllib.request.urlopen(url) as response, tmp_destination.open(
-            "wb"
-        ) as output:
-            shutil.copyfileobj(response, output)
-        tmp_destination.replace(destination)
-    finally:
-        tmp_destination.unlink(missing_ok=True)
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "SPRING2-benchmark/1.0 (+https://github.com/thisisamirv/SPRING2)",
+            "Accept": "*/*",
+        },
+    )
+    retry_statuses = {403, 408, 429, 500, 502, 503, 504}
+    for attempt in range(1, max_attempts + 1):
+        try:
+            digest = hashlib.md5(usedforsecurity=False)
+            bytes_written = 0
+            with urllib.request.urlopen(request, timeout=120) as response:
+                expected_size_header = response.headers.get("Content-Length")
+                expected_size = (
+                    int(expected_size_header) if expected_size_header else None
+                )
+                with tmp_destination.open("wb") as output:
+                    while chunk := response.read(1024 * 1024):
+                        output.write(chunk)
+                        digest.update(chunk)
+                        bytes_written += len(chunk)
+
+            if expected_size is not None and bytes_written != expected_size:
+                raise OSError(
+                    f"Incomplete download from {url}: received {bytes_written} "
+                    f"of {expected_size} bytes"
+                )
+            if expected_md5 and digest.hexdigest().lower() != expected_md5.lower():
+                raise OSError(
+                    f"Checksum mismatch for {url}: expected {expected_md5}, "
+                    f"received {digest.hexdigest()}"
+                )
+            tmp_destination.replace(destination)
+            return
+        except urllib.error.HTTPError as error:
+            if error.code not in retry_statuses or attempt == max_attempts:
+                raise
+        except (OSError, TimeoutError, urllib.error.URLError):
+            if attempt == max_attempts:
+                raise
+        finally:
+            tmp_destination.unlink(missing_ok=True)
+
+        time.sleep(min(2 ** (attempt - 1), 8))
 
 
 def _get_windows_peak_rss_kb(pid: int) -> int | None:
