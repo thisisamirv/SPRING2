@@ -204,8 +204,11 @@ TIDY_CHECKS = (
 )
 VENDOR_TIDY_CHECKS = (
     "readability-redundant-nested-if",
+    "readability-trivial-switch",
     "bugprone-unhandled-code-paths",
     "clang-analyzer-unix.cstring.UninitializedRead",
+    "modernize-use-std-bit",
+    "portability-no-assembler",
 )
 
 
