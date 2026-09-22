@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Fixed macOS ARM64 lint failures with newer Homebrew LLVM releases by excluding the deprecated `zircon-*` alias and newly enabled clang-tidy checks that produced repository-wide style churn or false positives for valid unsigned bitwise operations.
 - Fixed dozens of pre-existing warnings surfaced by the new `-Werror`/`/WX` enforcement across GCC, Clang, MSVC, and ClangCL (Linux/macOS/Windows, including ARM64): narrowing conversions, uninitialized-variable false positives, variable shadowing, unused parameters, and a few small dead-code removals. Where a parameter was genuinely unused, it was removed (along with all call sites) rather than suppressed with `[[maybe_unused]]`/`(void)`-casts; a handful of parameters that mimic POSIX/Windows API contracts or are consumed only inside `#pragma omp` clauses were intentionally left in place.
 - Removed several fully dead functions with no remaining callers (`spill_reordered_stream_artifact`, `compress_id_block`/`decompress_id_block` file-path wrappers, an unused test helper).
 - Simplified the public `decompress()` API and several internal decompression helpers by dropping the `num_thr` and `compression_level` parameters that were threaded through many layers but never actually used for anything.

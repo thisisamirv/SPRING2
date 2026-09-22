@@ -65,7 +65,7 @@ EXTRA_INCLUDES = (
     PTHASH_INCLUDE_DIR,
 )
 TIDY_CHECKS = (
-    "*,-fuchsia-*,-llvmlibc-*,-altera-*,-google-*,-cert-*,-llvm-*"
+    "*,-fuchsia-*,-zircon-*,-llvmlibc-*,-altera-*,-google-*,-cert-*,-llvm-*"
     ",-cppcoreguidelines-avoid-magic-numbers,-readability-magic-numbers"
     ",-misc-const-correctness,-readability-identifier-length"
     ",-bugprone-empty-catch,-misc-include-cleaner"
@@ -192,6 +192,11 @@ TIDY_CHECKS = (
     ",-clang-analyzer-valist.Uninitialized"
     ",-bugprone-non-zero-enum-to-bool-conversion"
     ",-bugprone-sizeof-expression,-bugprone-not-null-terminated-result"
+    # Newer LLVM releases enabled these checks through the wildcard. They
+    # impose repository-wide style churn or flag valid unsigned bitwise code.
+    ",-bugprone-signed-bitwise,-readability-trailing-comma"
+    ",-readability-redundant-lambda-parameter-list"
+    ",-performance-faster-string-find,-performance-prefer-single-char-overloads"
     # MSVC STL _BITMASK_OPS macro combines valid enum flags via bitwise OR,
     # producing combined values not listed as named enumerators.  This is a
     # known false positive with MSVC's <filesystem> / <xfilesystem_abi.h>.
