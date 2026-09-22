@@ -841,16 +841,17 @@ std::string archive_decompression_route_name(
 void execute_archive_decompression_plan(
     const decompression_archive_artifact &artifact, DecompressionSink &sink,
     compression_params &cp,
-    const archive_decompression_plan &decompression_plan) {
+    const archive_decompression_plan &decompression_plan,
+    const int decoding_thread_count) {
   ensure_archive_decompression_plan_supported(decompression_plan);
 
   if (decompression_plan.is_legacy_spring || decompression_plan.is_v1_0_0_rc1 ||
       is_supported_archive_decompression_version(
           decompression_plan.archive_version)) {
     if (cp.encoding.long_flag) {
-      decompress_long(artifact, sink, cp);
+      decompress_long(artifact, sink, cp, decoding_thread_count);
     } else {
-      decompress_short(artifact, sink, cp);
+      decompress_short(artifact, sink, cp, decoding_thread_count);
     }
     return;
   }

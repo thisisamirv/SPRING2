@@ -121,6 +121,44 @@ TEST_CASE("Archive Integrity Verification Test") {
   fs::remove_all(test_dir);
 }
 
+TEST_CASE(
+    "Public decompression thread count is independent of archive layout") {
+  const std::string test_dir = "decompression_thread_count_test_tmp";
+  const std::string input_fastq = test_dir + "/input.fastq";
+  const std::string archive_path = test_dir + "/archive.sp";
+  const std::string output_one_thread = test_dir + "/output_t1.fastq";
+  const std::string output_two_threads = test_dir + "/output_t2.fastq.gz";
+  const std::string long_input_fastq = test_dir + "/long_input.fastq";
+  const std::string long_archive_path = test_dir + "/long_archive.sp";
+  const std::string long_output_three_threads =
+      test_dir + "/long_output_t3.fastq";
+
+  fs::remove_all(test_dir);
+  fs::create_directories(test_dir);
+  create_custom_fastq(input_fastq, 1000, false, false, 150);
+  run_spring(std::string(SPRING2_EXECUTABLE) + " -c --R1 " + input_fastq +
+             " -o " + archive_path + " -t 4 --assay dna -q lossless");
+  create_custom_fastq(long_input_fastq, 128, false, false, 700);
+  run_spring(std::string(SPRING2_EXECUTABLE) + " -c --R1 " + long_input_fastq +
+             " -o " + long_archive_path + " -t 4 --assay dna -q lossless");
+
+  CHECK_NOTHROW(decompress({archive_path}, {output_one_thread}, 1));
+  CHECK_NOTHROW(decompress({archive_path}, {output_two_threads}, 2));
+  CHECK_NOTHROW(
+      decompress({long_archive_path}, {long_output_three_threads}, 3));
+  CHECK_THROWS_WITH(decompress({archive_path}, {output_two_threads}, 0),
+                    "Number of decompression threads must be positive.");
+  check_bytes_equal(read_file_binary(output_one_thread),
+                    read_file_binary(input_fastq), "one-thread decompression");
+  check_bytes_equal(read_gzip_file_binary(output_two_threads),
+                    read_file_binary(input_fastq), "two-thread decompression");
+  check_bytes_equal(read_file_binary(long_output_three_threads),
+                    read_file_binary(long_input_fastq),
+                    "three-thread long-read decompression");
+
+  fs::remove_all(test_dir);
+}
+
 TEST_CASE("Archive extraction rejects absolute paths") {
   const std::string test_dir = "archive_path_escape_test_tmp";
   fs::create_directories(test_dir);

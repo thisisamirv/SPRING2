@@ -45,14 +45,12 @@ void write_fastq_block(std::ostream &output_stream, std::string *id_buffer,
                        int compression_level, bool use_crlf, bool fasta_mode,
                        bool quality_header_has_id);
 
-FileDecompressionSink::FileDecompressionSink(const std::string &outfile_1,
-                                             const std::string &outfile_2,
-                                             const compression_params &cp,
-                                             const int (&compression_levels)[2],
-                                             const bool (&gzip)[2],
-                                             const bool (&bgzf)[2],
-                                             const bool (&write_enabled)[2])
-    : fasta_mode(cp.encoding.fasta_mode), num_thr(cp.encoding.num_thr),
+FileDecompressionSink::FileDecompressionSink(
+    const std::string &outfile_1, const std::string &outfile_2,
+    const compression_params &cp, const int decoding_thread_count,
+    const int (&compression_levels)[2], const bool (&gzip)[2],
+    const bool (&bgzf)[2], const bool (&write_enabled)[2])
+    : fasta_mode(cp.encoding.fasta_mode), num_thr(decoding_thread_count),
       paired_end(cp.encoding.paired_end) {
   should_gzip[0] = gzip[0];
   should_gzip[1] = gzip[1];
@@ -117,7 +115,8 @@ void write_step_output(std::ofstream &output_stream, std::string *id_buffer,
 }
 
 void decompress_short(const decompression_archive_artifact &artifact,
-                      DecompressionSink &sink, compression_params &cp) {
+                      DecompressionSink &sink, compression_params &cp,
+                      const int decoding_thread_count) {
   SPRING_LOG_DEBUG(
       "decompress_short start: scratch_dir=" + artifact.scratch_dir +
       ", num_reads=" + std::to_string(cp.read_info.num_reads) +
@@ -160,6 +159,9 @@ void decompress_short(const decompression_archive_artifact &artifact,
   const uint32_t cb_prefix_len = cp.encoding.cb_prefix_len;
   const int archive_encoding_thread_count =
       resolve_archive_encoding_thread_count(cp);
+  const int resolved_decoding_thread_count =
+      decoding_thread_count > 0 ? decoding_thread_count
+                                : archive_encoding_thread_count;
 
   std::array<std::vector<std::string>, 2> monolithic_id_blocks;
   bool monolithic_id[2] = {false, false};
@@ -245,10 +247,10 @@ void decompress_short(const decompression_archive_artifact &artifact,
   std::array<std::array<char, 128>, 128> decoded_noise_table;
   set_dec_noise_array(decoded_noise_table);
 
-  omp_set_num_threads(archive_encoding_thread_count);
+  omp_set_num_threads(resolved_decoding_thread_count);
   reference_sequence_store seq(artifact, file_seq,
                                archive_encoding_thread_count,
-                               archive_encoding_thread_count, cp);
+                               resolved_decoding_thread_count, cp);
 
   uint32_t num_blocks_done = 0;
   uint32_t num_reads_done = 0;
@@ -272,7 +274,7 @@ void decompress_short(const decompression_archive_artifact &artifact,
           static_cast<int>((static_cast<uint64_t>(num_reads_cur_step) +
                             num_reads_per_block - 1) /
                            num_reads_per_block);
-#pragma omp parallel for num_threads(archive_encoding_thread_count)            \
+#pragma omp parallel for num_threads(resolved_decoding_thread_count)           \
     schedule(static, 1)
       for (int thread_id_int = 0; thread_id_int < num_blocks_in_step;
            ++thread_id_int) {
@@ -685,7 +687,8 @@ void decompress_short(const decompression_archive_artifact &artifact,
 }
 
 void decompress_long(const decompression_archive_artifact &artifact,
-                     DecompressionSink &sink, compression_params &cp) {
+                     DecompressionSink &sink, compression_params &cp,
+                     const int decoding_thread_count) {
   SPRING_LOG_DEBUG(
       "decompress_long start: scratch_dir=" + artifact.scratch_dir +
       ", num_reads=" + std::to_string(cp.read_info.num_reads) +
@@ -711,6 +714,9 @@ void decompress_long(const decompression_archive_artifact &artifact,
   const bool preserve_quality = cp.encoding.preserve_quality;
   const int archive_encoding_thread_count =
       resolve_archive_encoding_thread_count(cp);
+  const int resolved_decoding_thread_count =
+      decoding_thread_count > 0 ? decoding_thread_count
+                                : archive_encoding_thread_count;
 
   const uint64_t num_reads_per_step =
       compute_num_reads_per_step(num_reads, num_reads_per_block,
@@ -725,7 +731,7 @@ void decompress_long(const decompression_archive_artifact &artifact,
   std::vector<uint32_t> read_lengths_buffer(
       static_cast<size_t>(num_reads_per_step));
 
-  omp_set_num_threads(archive_encoding_thread_count);
+  omp_set_num_threads(resolved_decoding_thread_count);
 
   uint32_t num_blocks_done = 0;
   uint32_t num_reads_done = 0;
@@ -749,7 +755,7 @@ void decompress_long(const decompression_archive_artifact &artifact,
           static_cast<int>((static_cast<uint64_t>(num_reads_cur_step) +
                             num_reads_per_block - 1) /
                            num_reads_per_block);
-#pragma omp parallel for num_threads(archive_encoding_thread_count)            \
+#pragma omp parallel for num_threads(resolved_decoding_thread_count)           \
     schedule(static, 1)
       for (int thread_id_int = 0; thread_id_int < num_blocks_in_step;
            ++thread_id_int) {

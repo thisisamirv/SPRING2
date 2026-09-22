@@ -142,7 +142,8 @@ std::string archive_decompression_route_name(
 void execute_archive_decompression_plan(
     const decompression_archive_artifact &artifact, DecompressionSink &sink,
     compression_params &cp,
-    const archive_decompression_plan &decompression_plan);
+    const archive_decompression_plan &decompression_plan,
+    int decoding_thread_count = 0);
 std::vector<tar_archive_source> build_archive_sources(
     const std::unordered_map<std::string, std::string> &archive_members);
 std::vector<tar_archive_source> build_archive_sources_from_disk(

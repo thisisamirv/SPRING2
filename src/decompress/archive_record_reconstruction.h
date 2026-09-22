@@ -81,7 +81,7 @@ class FileDecompressionSink : public DecompressionSink {
 public:
   FileDecompressionSink(const std::string &outfile_1,
                         const std::string &outfile_2,
-                        const compression_params &cp,
+                        const compression_params &cp, int decoding_thread_count,
                         const int (&compression_levels)[2],
                         const bool (&should_gzip)[2],
                         const bool (&should_bgzf)[2],
@@ -126,12 +126,14 @@ public:
 
 // Short-read archives reconstruct aligned and unaligned records separately.
 void decompress_short(const decompression_archive_artifact &artifact,
-                      DecompressionSink &sink, compression_params &cp);
+                      DecompressionSink &sink, compression_params &cp,
+                      int decoding_thread_count);
 
 // Long-read archives store read streams directly, without reference-based
 // reconstruction.
 void decompress_long(const decompression_archive_artifact &artifact,
-                     DecompressionSink &sink, compression_params &cp);
+                     DecompressionSink &sink, compression_params &cp,
+                     int decoding_thread_count);
 
 // Packed reference chunks are decoded once, then concatenated by callers.
 std::vector<std::string> decompress_unpack_seq_chunks(

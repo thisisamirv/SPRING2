@@ -555,7 +555,8 @@ void run_requested_mode(const command_line_options &options) {
   }
 
   spring::decompress(options.input_paths, options.output_paths,
-                     options.log_level, options.unzip_flag);
+                     options.num_threads, options.log_level,
+                     options.unzip_flag);
 }
 
 void log_options_for_debugging(const command_line_options &options) {
