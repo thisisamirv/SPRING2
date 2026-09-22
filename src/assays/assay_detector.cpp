@@ -5,9 +5,6 @@
 #include "assay_atac.h"
 #include "assay_bisulfite.h"
 #include "assay_rna.h"
-#include "assay_sc_atac.h"
-#include "assay_sc_bisulfite.h"
-#include "assay_sc_rna.h"
 #include "io_utils.h"
 #include <algorithm>
 #include <limits>
@@ -82,6 +79,57 @@ void remove_sample_cr(std::string &line, bool &stream_saw_crlf) {
 }
 
 } // namespace
+
+SingleCellDetectionEvidence
+detect_single_cell_layout(const AssayDetectionStats &stats,
+                          bool explicit_sc_layout) {
+  SingleCellDetectionEvidence result;
+  result.is_single_cell = explicit_sc_layout;
+
+  if (explicit_sc_layout) {
+    result.evidence.emplace_back("explicit lanes");
+    result.indicator_count++;
+  }
+
+  if (stats.total_reads == 0) {
+    return result;
+  }
+
+  const double cb_tag_frac =
+      static_cast<double>(stats.headers_with_cb_tag) / stats.total_reads;
+  if (cb_tag_frac > 0.5) {
+    result.is_single_cell = true;
+    result.indicator_count++;
+    result.evidence.emplace_back("CB tags");
+  }
+
+  const double umi_tag_frac =
+      static_cast<double>(stats.headers_with_umi_tag) / stats.total_reads;
+  if (umi_tag_frac > 0.5) {
+    result.is_single_cell = true;
+    result.indicator_count++;
+    result.evidence.emplace_back("UMI tags");
+  }
+
+  if (!stats.r1_lengths.empty() && !stats.r2_lengths.empty()) {
+    std::vector<int> r1_copy = stats.r1_lengths;
+    std::vector<int> r2_copy = stats.r2_lengths;
+    std::nth_element(r1_copy.begin(), r1_copy.begin() + r1_copy.size() / 2,
+                     r1_copy.end());
+    std::nth_element(r2_copy.begin(), r2_copy.begin() + r2_copy.size() / 2,
+                     r2_copy.end());
+    const int med_r1 = r1_copy[r1_copy.size() / 2];
+    const int med_r2 = r2_copy[r2_copy.size() / 2];
+
+    if (med_r1 <= 45 && (med_r2 - med_r1) >= 30) {
+      result.is_single_cell = true;
+      result.indicator_count++;
+      result.evidence.emplace_back("read length asymmetry");
+    }
+  }
+
+  return result;
+}
 
 // Declared in generated/reference_data.cpp
 extern const unsigned char kEmbeddedReference[];
@@ -431,12 +479,7 @@ AssayDetector::evaluate_stages(const AssayDetectionStats &stats,
   }
 
   SingleCellDetectionEvidence sc_layout =
-      detect_sc_rna_layout(stats, explicit_sc_layout);
-  if (base_assay == "atac") {
-    sc_layout = detect_sc_atac_layout(stats, explicit_sc_layout);
-  } else if (base_assay == "bisulfite") {
-    sc_layout = detect_sc_bisulfite_layout(stats, explicit_sc_layout);
-  }
+      detect_single_cell_layout(stats, explicit_sc_layout);
 
   // Apply single-cell modifier
   res.assay = sc_layout.is_single_cell ? ("sc-" + base_assay) : base_assay;

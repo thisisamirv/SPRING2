@@ -4,17 +4,12 @@
 #ifndef SPRING_ASSAY_SC_ATAC_H_
 #define SPRING_ASSAY_SC_ATAC_H_
 
-#include "assay_detector.h"
 #include "params.h"
 
 #include <cstdint>
 #include <string>
 
 namespace spring {
-
-[[nodiscard]] SingleCellDetectionEvidence
-detect_sc_atac_layout(const AssayDetectionStats &stats,
-                      bool explicit_sc_layout);
 
 [[nodiscard]] bool
 should_consider_sc_atac_adapter_stripping(const compression_params &cp,

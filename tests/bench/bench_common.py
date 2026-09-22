@@ -395,16 +395,6 @@ def normalized_fastq_match(
     return normalized_fastq_digest(input_paths) == normalized_fastq_digest(output_paths)
 
 
-def write_gzip_from_input(input_path: pathlib.Path, output_path: pathlib.Path) -> None:
-    """Write a deterministic gzip file from a source path."""
-
-    ensure_directory(output_path.parent)
-    with gzip.GzipFile(
-        filename="", mode="wb", fileobj=output_path.open("wb"), mtime=0
-    ) as handle:
-        handle.write(read_decompressed_bytes(input_path))
-
-
 def write_gzip_from_bytes(data: bytes, output_path: pathlib.Path) -> None:
     """Write deterministic gzip output from in-memory bytes."""
 

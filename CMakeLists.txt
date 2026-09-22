@@ -1107,9 +1107,6 @@ add_vendor_subdirectory_no_install("${LIBDEFLATE_DIR}" "${CMAKE_BINARY_DIR}/libd
 
 add_vendor_subdirectory_no_install("${CLOUDFLARE_ZLIB_DIR}" "${CMAKE_BINARY_DIR}/cloudflare_zlib-build")
 
-set(LIBRAPIDARCHIVE_USE_SYSTEM_ZLIB OFF CACHE BOOL "" FORCE)
-set(LIBRAPIDARCHIVE_USE_ZLIB_NG OFF CACHE BOOL "" FORCE)
-set(LIBRAPIDARCHIVE_WITH_RPMALLOC OFF CACHE BOOL "" FORCE)
 set(LIBRAPIDARCHIVE_WITH_ISAL ON CACHE BOOL "Build with ISA-L support")
 add_vendor_subdirectory_no_install("${INDEXED_BZIP2_DIR}" "${CMAKE_BINARY_DIR}/indexed_bzip2-build" EXCLUDE_FROM_ALL)
 
