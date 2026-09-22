@@ -16,6 +16,7 @@
 
 ### Fixed
 
+- Fixed paired-end sequence ordering when reordering spans multiple chunks, preserving each sequence's association with its header, quality string, and mate; added CI integration coverage for memory, disk, aligned, singleton-heavy, and unequal-clean-read scenarios.
 - Fixed macOS ARM64 lint failures with newer Homebrew LLVM releases by excluding the deprecated `zircon-*` alias and newly enabled clang-tidy checks that produced repository-wide style churn or false positives for valid unsigned bitwise operations.
 - Fixed dozens of pre-existing warnings surfaced by the new `-Werror`/`/WX` enforcement across GCC, Clang, MSVC, and ClangCL (Linux/macOS/Windows, including ARM64): narrowing conversions, uninitialized-variable false positives, variable shadowing, unused parameters, and a few small dead-code removals. Where a parameter was genuinely unused, it was removed (along with all call sites) rather than suppressed with `[[maybe_unused]]`/`(void)`-casts; a handful of parameters that mimic POSIX/Windows API contracts or are consumed only inside `#pragma omp` clauses were intentionally left in place.
 - Removed several fully dead functions with no remaining callers (`spill_reordered_stream_artifact`, `compress_id_block`/`decompress_id_block` file-path wrappers, an unused test helper).

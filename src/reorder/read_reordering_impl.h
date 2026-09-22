@@ -1422,7 +1422,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
     const auto global_read_id = [chunk0, done0, done1,
                                  total0](const uint32_t local_id) -> uint32_t {
       return local_id < chunk0 ? done0 + local_id
-                              : total0 + done1 + (local_id - chunk0);
+                               : total0 + done1 + (local_id - chunk0);
     };
 
     // Merge chunk output into the combined artifact.

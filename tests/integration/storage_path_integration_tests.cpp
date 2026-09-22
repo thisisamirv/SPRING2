@@ -1,7 +1,10 @@
 #include "integration_test_support.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <random>
 
 namespace fs = std::filesystem;
 using namespace integration_test_support;
@@ -14,6 +17,54 @@ std::string sample_asset_path(const std::string &name) {
 #else
   return (fs::path("..") / ".." / "data" / "samples" / name).generic_string();
 #endif
+}
+
+enum class ChunkOrderFixture { Random, Aligned, UnevenN };
+
+void create_chunk_order_fastq(const std::string &path, const int mate,
+                              const ChunkOrderFixture fixture,
+                              const int num_records = 200) {
+  static constexpr char kBases[] = {'A', 'C', 'G', 'T'};
+  static constexpr int kReadLength = 150;
+  std::mt19937 rng(9382U + static_cast<uint32_t>(mate));
+  std::mt19937 template_rng(751U);
+  std::uniform_int_distribution<int> base_distribution(0, 3);
+
+  std::string aligned_template(kReadLength, 'A');
+  for (char &base : aligned_template) {
+    base = kBases[base_distribution(template_rng)];
+  }
+
+  std::ofstream output(path, std::ios::binary);
+  for (int record = 0; record < num_records; ++record) {
+    std::string sequence(kReadLength, 'A');
+    for (char &base : sequence) {
+      base = kBases[base_distribution(rng)];
+    }
+
+    if (fixture == ChunkOrderFixture::Aligned) {
+      sequence = aligned_template;
+      const uint32_t tag =
+          static_cast<uint32_t>(record + (mate - 1) * num_records);
+      for (uint32_t base_index = 0; base_index < 8; ++base_index) {
+        sequence[base_index] = kBases[(tag >> (2U * base_index)) & 3U];
+      }
+    }
+    if (fixture == ChunkOrderFixture::UnevenN &&
+        record % (mate == 1 ? 13 : 7) == 0) {
+      sequence[37] = 'N';
+    }
+
+    std::string quality(kReadLength, '!');
+    for (int base_index = 0; base_index < kReadLength; ++base_index) {
+      quality[base_index] =
+          static_cast<char>(53 + (record * 3 + base_index + mate * 5) % 21);
+    }
+    write_fastq_record(output,
+                       "@pair" + std::to_string(record + 1) + "/" +
+                           std::to_string(mate),
+                       sequence, quality, false, false);
+  }
 }
 
 TEST_CASE("Single-end sample matches for memory_path and disk_path") {
@@ -402,6 +453,77 @@ TEST_CASE("Chunked reorder log fires when chunk size threshold is exceeded") {
   CHECK(std::system(decomp_cmd.c_str()) == 0);
 
   fs::remove_all(test_dir);
+}
+
+TEST_CASE("Paired multi-chunk reorder preserves mate record associations") {
+  struct Variant {
+    const char *name;
+    ChunkOrderFixture fixture;
+    const char *memory;
+    int threads;
+    bool expect_disk_path;
+  };
+
+  const std::vector<Variant> variants = {
+      {"singleton_memory", ChunkOrderFixture::Random, "1024", 1, false},
+      {"aligned_disk", ChunkOrderFixture::Aligned, "0.00001", 4, true},
+      {"uneven_n_memory", ChunkOrderFixture::UnevenN, "1024", 1, false},
+  };
+
+  for (const Variant &variant : variants) {
+    CAPTURE(variant.name);
+    const std::string test_dir =
+        std::string("paired_chunk_order_") + variant.name + "_tmp";
+    const std::string input_r1 = test_dir + "/input_R1.fastq";
+    const std::string input_r2 = test_dir + "/input_R2.fastq";
+    const std::string archive = test_dir + "/archive.sp";
+    const std::string output_r1 = test_dir + "/output_R1.fastq";
+    const std::string output_r2 = test_dir + "/output_R2.fastq";
+    const std::string log = test_dir + "/compress.log";
+
+    fs::remove_all(test_dir);
+    fs::create_directories(test_dir);
+    create_chunk_order_fastq(input_r1, 1, variant.fixture);
+    create_chunk_order_fastq(input_r2, 2, variant.fixture);
+
+#if defined(_WIN32)
+    _putenv_s("SPRING2_REORDER_CHUNK_SIZE", "100");
+#else
+    setenv("SPRING2_REORDER_CHUNK_SIZE", "100", 1);
+#endif
+
+    const std::string compress_cmd =
+        std::string(SPRING2_EXECUTABLE) + " -c --R1 " + input_r1 + " --R2 " +
+        input_r2 + " -o " + archive + " -t " + std::to_string(variant.threads) +
+        " -m " + variant.memory +
+        " --assay dna -q lossless --audit -v info > " + log + " 2>&1";
+    const int compress_status = std::system(compress_cmd.c_str());
+
+#if defined(_WIN32)
+    _putenv_s("SPRING2_REORDER_CHUNK_SIZE", "");
+#else
+    unsetenv("SPRING2_REORDER_CHUNK_SIZE");
+#endif
+
+    REQUIRE(compress_status == 0);
+    const std::string log_contents = read_file_binary(log);
+    CHECK(log_contents.find("Reorder chunk 2") != std::string::npos);
+    CHECK(log_contents.find("Audit successful:") != std::string::npos);
+    const bool used_disk_path =
+        log_contents.find("Disk-backed compression path selected") !=
+        std::string::npos;
+    CHECK(used_disk_path == variant.expect_disk_path);
+
+    run_spring(std::string(SPRING2_EXECUTABLE) + " -d -u -i " + archive +
+               " -o " + output_r1 + " " + output_r2 + " -t " +
+               std::to_string(variant.threads));
+    check_bytes_equal(read_file_binary(output_r1), read_file_binary(input_r1),
+                      "paired multi-chunk R1 round-trip");
+    check_bytes_equal(read_file_binary(output_r2), read_file_binary(input_r2),
+                      "paired multi-chunk R2 round-trip");
+
+    fs::remove_all(test_dir);
+  }
 }
 
 TEST_CASE("Chunked reorder spills streams and singletons to disk (disk_path)") {
