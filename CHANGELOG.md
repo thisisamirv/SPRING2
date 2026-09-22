@@ -2,7 +2,7 @@
 
 # Changelog
 
-## [Unreleased]
+## V1.3.5
 
 ### Changed
 
