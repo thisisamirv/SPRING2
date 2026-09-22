@@ -142,6 +142,7 @@ if(
             -Wno-microsoft-enum-value
             -Wno-missing-prototypes
             -Wno-missing-variable-declarations
+            -Wno-padded
             -Wno-reserved-identifier
             -Wno-reserved-macro-identifier
             -Wno-shorten-64-to-32
@@ -149,6 +150,7 @@ if(
             -Wno-switch-default
             -Wno-unreachable-code
             -Wno-unsafe-buffer-usage
+            -Wno-c++-keyword
             -Wno-unused-macros
     )
 endif()

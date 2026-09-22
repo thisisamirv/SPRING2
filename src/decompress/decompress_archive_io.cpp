@@ -26,21 +26,6 @@ namespace {
 
 std::atomic<uint64_t> g_legacy_temp_file_counter{0};
 
-struct thread_range {
-  uint64_t begin;
-  uint64_t end;
-};
-
-thread_range split_thread_range(const uint64_t item_count, const int thread_id,
-                                const int thread_count) {
-  thread_range range;
-  range.begin = uint64_t(thread_id) * item_count / thread_count;
-  range.end = uint64_t(thread_id + 1) * item_count / thread_count;
-  if (thread_id == thread_count - 1)
-    range.end = item_count;
-  return range;
-}
-
 std::filesystem::path make_legacy_temp_file_path(const std::string &stem,
                                                  const std::string &suffix) {
   const uint64_t counter = g_legacy_temp_file_counter.fetch_add(1);
@@ -121,6 +106,7 @@ std::vector<std::string> decompress_legacy_unpack_seq_chunks(
     [[maybe_unused]] const int decoding_thread_count) {
   std::vector<std::string> decoded_chunks(
       static_cast<size_t>(encoding_thread_count));
+  std::string *const decoded_chunks_data = decoded_chunks.data();
   std::exception_ptr omp_exception;
 
 #pragma omp parallel for num_threads(decoding_thread_count)
@@ -149,7 +135,7 @@ std::vector<std::string> decompress_legacy_unpack_seq_chunks(
       if (artifact.contains(tail_member)) {
         decoded.append(artifact.require(tail_member));
       }
-      decoded_chunks[static_cast<size_t>(encoding_thread_id)] =
+      decoded_chunks_data[static_cast<size_t>(encoding_thread_id)] =
           std::move(decoded);
     } catch (...) {
 #pragma omp critical
@@ -593,25 +579,22 @@ std::vector<std::string> decompress_unpack_seq_chunks(
   std::exception_ptr decode_exception;
   std::vector<std::string> decoded_chunks(
       static_cast<size_t>(encoding_thread_count));
-#pragma omp parallel
-  {
-    const int thread_id = omp_get_thread_num();
-    const thread_range range = split_thread_range(
-        encoding_thread_count, thread_id, decoding_thread_count);
-    for (uint64_t encoding_thread_id = range.begin;
-         encoding_thread_id < range.end; encoding_thread_id++) {
-      try {
-        decoded_chunks[static_cast<size_t>(encoding_thread_id)] =
-            decode_packed_sequence_chunk_bytes(
-                packed_chunks[static_cast<size_t>(encoding_thread_id)],
-                static_cast<int>(encoding_thread_id),
-                cp.read_info.file_len_seq_thr[encoding_thread_id],
-                cp.encoding.bisulfite_ternary);
-      } catch (...) {
+  std::vector<char> *const packed_chunks_data = packed_chunks.data();
+  std::string *const decoded_chunks_data = decoded_chunks.data();
+#pragma omp parallel for num_threads(decoding_thread_count) schedule(static, 1)
+  for (int encoding_thread_id = 0; encoding_thread_id < encoding_thread_count;
+       ++encoding_thread_id) {
+    try {
+      decoded_chunks_data[static_cast<size_t>(encoding_thread_id)] =
+          decode_packed_sequence_chunk_bytes(
+              packed_chunks_data[static_cast<size_t>(encoding_thread_id)],
+              encoding_thread_id,
+              cp.read_info.file_len_seq_thr[encoding_thread_id],
+              cp.encoding.bisulfite_ternary);
+    } catch (...) {
 #pragma omp critical
-        {
-          decode_exception = std::current_exception();
-        }
+      {
+        decode_exception = std::current_exception();
       }
     }
   }
