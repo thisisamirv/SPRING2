@@ -1416,9 +1416,16 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
     SPRING_LOG_INFO("Reorder write time: " +
                     format_seconds(write_stage_end - write_stage_start) + " s");
 
+    // A chunk stores its R1 reads followed by its R2 reads. Downstream order
+    // correction expects all clean R1 reads followed by all clean R2 reads,
+    // so each mate needs its own offset into that global clean-read space.
+    const auto global_read_id = [chunk0, done0, done1,
+                                 total0](const uint32_t local_id) -> uint32_t {
+      return local_id < chunk0 ? done0 + local_id
+                              : total0 + done1 + (local_id - chunk0);
+    };
+
     // Merge chunk output into the combined artifact.
-    // order_bytes (local chunk read IDs) are shifted by global_offset so
-    // quality/id reordering can map them back to the original read stream.
     for (int tid = 0; tid < rg.num_thr; ++tid) {
       auto &src = chunk_artifact.aligned_shards[static_cast<size_t>(tid)];
       auto &dst = artifact.aligned_shards[static_cast<size_t>(tid)];
@@ -1430,7 +1437,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
       for (size_t k = 0; k < src.order_bytes.size(); k += sizeof(uint32_t)) {
         uint32_t id;
         std::memcpy(&id, src.order_bytes.data() + k, sizeof(uint32_t));
-        id += global_offset;
+        id = global_read_id(id);
         detail::append_binary(dst.order_bytes, id);
       }
     }
@@ -1449,7 +1456,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
       uint32_t id;
       std::memcpy(&id, chunk_artifact.singleton_order_bytes.data() + k,
                   sizeof(uint32_t));
-      id += global_offset;
+      id = global_read_id(id);
       detail::append_binary(artifact.singleton_order_bytes, id);
     }
 
