@@ -1102,10 +1102,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
           std::max(max_readlen,
                    max_read_length_in_step(read_lengths_array, reads_in_step));
     }
-    if (cp.encoding.paired_end)
-      if (num_reads[0] != num_reads[1])
-        throw std::runtime_error(
-            "Number of reads in paired files do not match.");
+    if (cp.encoding.paired_end && num_reads[0] != num_reads[1])
+      throw std::runtime_error("Number of reads in paired files do not match.");
     if (done[0] && done[1])
       break;
     num_blocks_done += cp.encoding.num_thr;
@@ -1127,19 +1125,17 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
     }
   }
 
-  if (apply_cb_strip) {
-    if (cp.encoding.cb_prefix_stripped) {
-      const std::vector<char> compressed_cb_seq = bsc_compress_bytes(
-          std::vector<char>(cb_seq_bytes.begin(), cb_seq_bytes.end()));
-      add_archive_member(output_artifact.archive_members, "cb_prefix.dna.bsc",
-                         compressed_cb_seq);
+  if (apply_cb_strip && cp.encoding.cb_prefix_stripped) {
+    const std::vector<char> compressed_cb_seq = bsc_compress_bytes(
+        std::vector<char>(cb_seq_bytes.begin(), cb_seq_bytes.end()));
+    add_archive_member(output_artifact.archive_members, "cb_prefix.dna.bsc",
+                       compressed_cb_seq);
 
-      if (cp.encoding.preserve_quality) {
-        const std::vector<char> compressed_cb_qual = bsc_compress_bytes(
-            std::vector<char>(cb_qual_bytes.begin(), cb_qual_bytes.end()));
-        add_archive_member(output_artifact.archive_members,
-                           "cb_prefix.qual.bsc", compressed_cb_qual);
-      }
+    if (cp.encoding.preserve_quality) {
+      const std::vector<char> compressed_cb_qual = bsc_compress_bytes(
+          std::vector<char>(cb_qual_bytes.begin(), cb_qual_bytes.end()));
+      add_archive_member(output_artifact.archive_members, "cb_prefix.qual.bsc",
+                         compressed_cb_qual);
     }
   }
   if (maybe_apply_atac_adapter_strip) {

@@ -202,6 +202,11 @@ TIDY_CHECKS = (
     # known false positive with MSVC's <filesystem> / <xfilesystem_abi.h>.
     ",-clang-analyzer-optin.core.EnumCastOutOfRange"
 )
+VENDOR_TIDY_CHECKS = (
+    "readability-redundant-nested-if",
+    "bugprone-unhandled-code-paths",
+    "clang-analyzer-unix.cstring.UninitializedRead",
+)
 
 
 @dataclass
@@ -261,6 +266,45 @@ def normalize_compile_db_path(path: pathlib.Path | str) -> str:
     if IS_WINDOWS:
         return normalized.lower()
     return normalized
+
+
+def clang_tidy_args_for_file(
+    common_args: list[str], file_path: pathlib.Path, vendor_exclusions: str
+) -> list[str]:
+    """Add exclusions for policy checks that are not maintained in vendor code."""
+
+    try:
+        file_path.relative_to(ROOT_DIR / "vendor")
+    except ValueError:
+        return common_args
+
+    return [
+        (
+            f"-checks={TIDY_CHECKS}{vendor_exclusions}"
+            if argument.startswith("-checks=")
+            else argument
+        )
+        for argument in common_args
+    ]
+
+
+def discover_vendor_tidy_exclusions(clang_tidy_bin: str) -> str:
+    """Return vendor exclusions supported by the selected clang-tidy version."""
+
+    process = subprocess.run(
+        [clang_tidy_bin, "--list-checks", "-checks=*"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"Failed to query checks from {clang_tidy_bin}: {process.stderr.strip()}"
+        )
+    available_checks = {line.strip() for line in process.stdout.splitlines()}
+    return "".join(
+        f",-{check}" for check in VENDOR_TIDY_CHECKS if check in available_checks
+    )
 
 
 def is_cpp_source(path: pathlib.Path) -> bool:
@@ -807,6 +851,7 @@ def main() -> int:
         return 0
 
     clang_tidy_common_args = build_clang_tidy_common_args()
+    vendor_tidy_exclusions = discover_vendor_tidy_exclusions(clang_tidy_bin)
 
     compile_db_files: list[pathlib.Path] = []
     standalone_files: list[pathlib.Path] = []
@@ -841,12 +886,15 @@ def main() -> int:
 
     compile_db_work: list[tuple[str, list[str]]] = []
     for file_path in compile_db_files:
+        file_clang_tidy_args = clang_tidy_args_for_file(
+            clang_tidy_common_args, file_path, vendor_tidy_exclusions
+        )
         compile_db_work.append(
             (
                 f"Linting compile-db file {file_path}.",
                 [
                     clang_tidy_bin,
-                    *clang_tidy_common_args,
+                    *file_clang_tidy_args,
                     "-p",
                     str(tidy_db_dir),
                     str(file_path),
@@ -856,6 +904,9 @@ def main() -> int:
 
     standalone_work: list[tuple[str, list[str]]] = []
     for file_path in standalone_files:
+        file_clang_tidy_args = clang_tidy_args_for_file(
+            clang_tidy_common_args, file_path, vendor_tidy_exclusions
+        )
         include_args = []
         if IS_MSYS_WINDOWS:
             include_args.append(f"-I{LINT_INCLUDE_DIR}")
@@ -868,7 +919,7 @@ def main() -> int:
                 f"Linting standalone file {file_path}.",
                 [
                     clang_tidy_bin,
-                    *clang_tidy_common_args,
+                    *file_clang_tidy_args,
                     str(file_path),
                     "--",
                     *driver_args,
