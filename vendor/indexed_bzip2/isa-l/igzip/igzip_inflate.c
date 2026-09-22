@@ -1953,6 +1953,8 @@ int isal_read_gzip_header(struct inflate_state *const state,
     state->wrapper_flag = 1;
     state->block_state = ISAL_BLOCK_NEW_HDR;
     return ISAL_DECOMP_OK;
+  default:
+    return ISAL_INVALID_STATE;
   }
 
 #ifndef NO_CHECKSUM
@@ -2004,6 +2006,9 @@ int isal_read_zlib_header(struct inflate_state *const state,
 
     state->wrapper_flag = 1;
     state->block_state = ISAL_BLOCK_NEW_HDR;
+    break;
+  default:
+    return ISAL_INVALID_STATE;
   }
 
   return ret;

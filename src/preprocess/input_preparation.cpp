@@ -626,11 +626,10 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
         }
       }
 
-      if (expected_summary != nullptr && !cp.encoding.long_flag) {
-        if (observed_summary.contains_non_acgtn_symbols ||
-            observed_summary.max_read_length > MAX_READ_LEN) {
-          throw preprocess_retry_exception(observed_summary);
-        }
+      if (expected_summary != nullptr && !cp.encoding.long_flag &&
+          (observed_summary.contains_non_acgtn_symbols ||
+           observed_summary.max_read_length > MAX_READ_LEN)) {
+        throw preprocess_retry_exception(observed_summary);
       }
 
       // Strip poly-A/T tails and accumulate per-read tail info.

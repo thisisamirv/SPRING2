@@ -188,11 +188,9 @@ bool is_option_token(const std::string &token) {
 }
 
 std::string strip_quotes(const std::string &value) {
-  if (value.size() >= 2) {
-    if ((value.front() == '"' && value.back() == '"') ||
-        (value.front() == '\'' && value.back() == '\'')) {
-      return value.substr(1, value.size() - 2);
-    }
+  if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
+                            (value.front() == '\'' && value.back() == '\''))) {
+    return value.substr(1, value.size() - 2);
   }
   return value;
 }
