@@ -162,7 +162,6 @@ jobs:
       - name: Install macOS dependencies
         if: matrix.name == 'macos'
         env:
-          HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
           HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: |
           # Remove preinstalled third-party taps that are unrelated to this build.
@@ -477,7 +476,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v48
+        uses: actions/download-artifact@v8
         with:
           pattern: release-*
           path: release

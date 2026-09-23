@@ -134,7 +134,6 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         env:
-          HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
           # Silence Homebrew's noisy update chatter (new formulae lists, analytics
           # nags, outdated-formula banners).  Errors still surface via exit code.
           HOMEBREW_NO_INSTALL_CLEANUP: 1

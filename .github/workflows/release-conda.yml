@@ -1,0 +1,128 @@
+---
+name: Release Conda recipe
+
+"on":
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to update, for example v1.3.5"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  update-bioconda-recipe:
+    name: Update Bioconda recipe
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="$REF_NAME"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag="$INPUT_TAG"
+          fi
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Expected a semantic version tag such as v1.3.5, got: $tag" >&2
+            exit 1
+          }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out Bioconda recipes fork
+        uses: actions/checkout@v7
+        with:
+          repository: thisisamirv/bioconda-recipes
+          ref: master
+          token: ${{ secrets.BIOCONDA_RECIPES_TOKEN }}
+          path: bioconda-recipes
+
+      - name: Update recipe and source checksum
+        shell: bash
+        working-directory: bioconda-recipes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          recipe="recipes/spring2/meta.yaml"
+          [[ -f "$recipe" ]] || {
+            echo "Missing $recipe in thisisamirv/bioconda-recipes" >&2
+            exit 1
+          }
+
+          archive="${RUNNER_TEMP}/spring2-${VERSION}.tar.gz"
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://github.com/thisisamirv/SPRING2/archive/refs/tags/${RELEASE_TAG}.tar.gz" \
+            --output "$archive"
+          sha256="$(sha256sum "$archive" | cut -d ' ' -f 1)"
+
+          python3 - "$recipe" "$VERSION" "$sha256" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          recipe = Path(sys.argv[1])
+          version = sys.argv[2]
+          sha256 = sys.argv[3]
+          text = recipe.read_text()
+          text, version_count = re.subn(
+              r'(?m)^(\{%\s*set\s+version\s*=\s*)"[^"]+"(\s*%\})$',
+              rf'\g<1>"{version}"\2',
+              text,
+          )
+          text, sha_count = re.subn(
+              r'(?m)^(\s*sha256:\s*)[^\s]+$',
+              rf'\g<1>{sha256}',
+              text,
+              count=1,
+          )
+          if version_count != 1 or sha_count != 1:
+              raise SystemExit(
+                  f"Expected one version and sha256 update, got {version_count} and {sha_count}"
+              )
+          recipe.write_text(text)
+          PY
+
+          git diff -- "$recipe"
+
+      - name: Create recipe branch and pull request
+        shell: bash
+        working-directory: bioconda-recipes
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ secrets.BIOCONDA_RECIPES_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="update-spring2-${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add recipes/spring2/meta.yaml
+          if git diff --cached --quiet; then
+            echo "Recipe already contains version ${VERSION}; nothing to submit."
+            exit 0
+          fi
+          git commit -m "Update spring2 to ${VERSION}"
+          git push --force origin "$branch"
+          gh pr create \
+            --repo bioconda/bioconda-recipes \
+            --head "thisisamirv:${branch}" \
+            --base master \
+            --title "Update spring2 to ${VERSION}" \
+            --body "Updates spring2 to ${RELEASE_TAG} and refreshes the source archive checksum."
