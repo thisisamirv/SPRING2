@@ -483,6 +483,7 @@ jobs:
           merge-multiple: true
 
       - name: Create or update draft release
+        id: draft-release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -497,6 +498,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+          RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+        run: gh api --method PATCH \
+          "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+          --field draft=false
