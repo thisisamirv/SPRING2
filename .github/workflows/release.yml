@@ -500,6 +500,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_ID: ${{ steps.draft-release.outputs.id }}
-        run: gh api --method PATCH \
-          "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
-          --field draft=false
+        run: gh api --method PATCH "/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -f draft=false
