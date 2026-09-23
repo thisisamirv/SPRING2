@@ -2,6 +2,19 @@
 
 # Changelog
 
+## V1.3.6
+
+### Changed
+
+- Added release automation for updating the Bioconda recipe from tagged source archives, including refreshed checksums and pull-request creation.
+- Changed release publication to aggregate platform artifacts before publishing a draft release, avoiding uploads to immutable published releases.
+
+### Fixed
+
+- Fixed Windows ClangCL decompression failures for chunked archives by using OpenMP work sharing for packed sequence chunks.
+- Hardened the ENA benchmark download path with retries, transfer validation, and checksums to handle transient HTTP failures safely.
+- Extended vendor-only clang-tidy compatibility handling for newer LLVM checks without weakening first-party lint coverage.
+
 ## V1.3.5
 
 ### Changed
