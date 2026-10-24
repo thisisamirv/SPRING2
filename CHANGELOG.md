@@ -24,6 +24,10 @@
 - Fixed `spring -d -a` silently ignoring `--audit`: decompress now runs `perform_audit` on the archive before writing outputs.
 - Fixed paired `SpringReader::next` indexing mate-2 without checking step sizes: mismatched mate counts now throw instead of reading past the end of the mate-2 batch.
 
+### Changed
+
+- Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
+
 ## V1.3.6
 
 ### Changed

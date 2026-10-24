@@ -100,6 +100,7 @@ TEST_CASE("SpringReader streams grouped archives via primary read member") {
   run_spring(compress_cmd.str());
 
   SpringReader reader(archive_path, 1);
+  CHECK(reader.lane() == SpringReaderLane::Reads);
   ReadRecord mate1;
   ReadRecord mate2;
   int count = 0;
@@ -109,6 +110,54 @@ TEST_CASE("SpringReader streams grouped archives via primary read member") {
     count++;
   }
   CHECK(count == 120);
+
+  SpringReader r3_reader(archive_path, SpringReaderLane::Read3, 1);
+  CHECK(r3_reader.lane() == SpringReaderLane::Read3);
+  ReadRecord r3;
+  int r3_count = 0;
+  while (r3_reader.next(r3)) {
+    CHECK(r3.id == std::string("@read_") + std::to_string(r3_count));
+    r3_count++;
+  }
+  CHECK(r3_count == 120);
+
+  SpringReader i1_reader(archive_path, SpringReaderLane::Index, 1);
+  CHECK(i1_reader.lane() == SpringReaderLane::Index);
+  ReadRecord i1;
+  int i1_count = 0;
+  while (i1_reader.next(i1)) {
+    CHECK(i1.id == std::string("@read_") + std::to_string(i1_count));
+    i1_count++;
+  }
+  CHECK(i1_count == 120);
+  CHECK_THROWS_AS(i1_reader.next(mate1, mate2), std::runtime_error);
+
+  fs::remove_all(test_dir);
+}
+
+TEST_CASE("SpringReader rejects missing grouped lanes") {
+  const std::string test_dir = "reader_grouped_missing_lane_tmp";
+  fs::create_directories(test_dir);
+
+  const std::string r1_fastq = test_dir + "/input_R1.fastq";
+  const std::string r2_fastq = test_dir + "/input_R2.fastq";
+  const std::string archive_path = test_dir + "/paired_only.sp";
+
+  create_dummy_fastq(r1_fastq, 40);
+  create_dummy_fastq(r2_fastq, 40);
+
+  std::ostringstream compress_cmd;
+  compress_cmd << SPRING2_EXECUTABLE << " -c --R1 " << r1_fastq << " --R2 "
+               << r2_fastq << " -o " << archive_path << " -t 1";
+  run_spring(compress_cmd.str());
+
+  // Non-grouped paired archive: Read3/Index are unavailable.
+  CHECK_THROWS_AS(
+      SpringReader(archive_path, SpringReaderLane::Read3, 1),
+      std::runtime_error);
+  CHECK_THROWS_AS(
+      SpringReader(archive_path, SpringReaderLane::Index, 1),
+      std::runtime_error);
 
   fs::remove_all(test_dir);
 }

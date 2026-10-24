@@ -4,7 +4,6 @@
 #include "archive_record_reconstruction.h"
 #include "common/bundle_manifest.h"
 #include "fs_utils.h"
-#include "integrity_utils.h"
 #include "params.h"
 #include "progress.h"
 #include "workflow_internal.h"
@@ -38,10 +37,10 @@ public:
   BufferDecompressionSink(std::queue<StepPair> &queue, std::mutex &mutex,
                           std::condition_variable &cv, bool &shutdown_requested,
                           bool paired_end, size_t max_queue_size,
-                          bool digest_length_framed)
+                          bool digest_length_framed, int emit_stream_only = -1)
       : queue_(queue), mutex_(mutex), cv_(cv),
         shutdown_requested_(shutdown_requested), paired_end_(paired_end),
-        max_queue_size_(max_queue_size) {
+        max_queue_size_(max_queue_size), emit_stream_only_(emit_stream_only) {
     set_digest_length_framed(digest_length_framed);
   }
 
@@ -71,6 +70,34 @@ public:
       update_stream_digests(stream_index, read_buffer[i],
                             quality_buffer ? &quality_buffer[i] : nullptr,
                             id_buffer[i]);
+    }
+
+    // Aliased R3: decode both mates for digests, but only queue the selected
+    // stream as single-end records.
+    if (emit_stream_only_ >= 0) {
+      if (stream_index != emit_stream_only_) {
+        return;
+      }
+      current_step_.first.clear();
+      current_step_.first.reserve(count);
+      for (uint32_t i = 0; i < count; ++i) {
+        ReadRecord rec;
+        rec.id = id_buffer[i];
+        rec.sequence = read_buffer[i];
+        if (quality_buffer)
+          rec.quality = quality_buffer[i];
+        current_step_.first.push_back(std::move(rec));
+      }
+      current_step_.second.clear();
+      queue_.get().push(std::move(current_step_));
+      max_queue_depth_ = std::max(max_queue_depth_,
+                                  static_cast<uint64_t>(queue_.get().size()));
+      steps_pushed_++;
+      records_pushed_ += count;
+      current_step_ = {};
+      lock.unlock();
+      cv_.get().notify_all();
+      return;
     }
 
     if (stream_index == 0) {
@@ -159,6 +186,7 @@ private:
   std::reference_wrapper<bool> shutdown_requested_;
   bool paired_end_;
   size_t max_queue_size_;
+  int emit_stream_only_ = -1;
   StepPair current_step_;
   uint64_t steps_pushed_ = 0;
   uint64_t records_pushed_ = 0;
@@ -177,24 +205,22 @@ public:
   Impl(Impl &&) = delete;
   Impl &operator=(Impl &&) = delete;
 
-  Impl(std::string archive_path, int num_thr)
-      : archive_path_(std::move(archive_path)), user_num_thr_(num_thr) {
+  Impl(std::string archive_path, SpringReaderLane lane, int num_thr)
+      : archive_path_(std::move(archive_path)), lane_(lane),
+        user_num_thr_(num_thr) {
     artifact_.scratch_dir.clear();
     const auto manifest_contents =
         read_files_from_tar_memory(archive_path_, {kBundleManifestName});
     if (manifest_contents.contains(kBundleManifestName)) {
       const bundle_manifest manifest = read_bundle_manifest_from_string(
           manifest_contents.at(kBundleManifestName));
-      const auto grouped_archives = read_files_from_tar_memory(
-          archive_path_, {manifest.read_archive_name});
-      auto read_archive_it = grouped_archives.find(manifest.read_archive_name);
-      if (read_archive_it == grouped_archives.end()) {
-        throw std::runtime_error(
-            "Failed to read grouped archive metadata: read archive not found.");
-      }
-
-      artifact_.files = read_all_files_from_tar_bytes(read_archive_it->second);
+      open_grouped_member(manifest);
     } else {
+      if (lane_ != SpringReaderLane::Reads) {
+        throw std::runtime_error(
+            "SpringReaderLane::Read3 and SpringReaderLane::Index require a "
+            "grouped SPRING2 bundle archive.");
+      }
       artifact_.files = read_all_files_from_tar_memory(archive_path_);
     }
 
@@ -218,9 +244,10 @@ public:
 
     SPRING_LOG_DEBUG(
         "block_id=spring-reader:init, SpringReader init: archive=" +
-        archive_path_ + ", paired_end=" +
+        archive_path_ + ", lane=" + lane_name(lane_) + ", paired_end=" +
         std::string(params_.encoding.paired_end ? "true" : "false") +
-        ", long_mode=" +
+        ", expose_single_end=" +
+        std::string(expose_as_single_end_ ? "true" : "false") + ", long_mode=" +
         std::string(params_.encoding.long_flag ? "true" : "false") +
         ", archive_format_version=" +
         std::to_string(decompression_plan.archive_format_version) +
@@ -234,9 +261,11 @@ public:
     worker_thread_ = std::thread([this, decompression_plan]() {
       try {
         const auto worker_start = std::chrono::steady_clock::now();
+        const bool sink_paired_end =
+            params_.encoding.paired_end && emit_stream_only_ < 0;
         BufferDecompressionSink sink(
-            queue_, mutex_, cv_, shutdown_requested_, params_.encoding.paired_end,
-            2, params_.read_info.digest_length_framed);
+            queue_, mutex_, cv_, shutdown_requested_, sink_paired_end, 2,
+            params_.read_info.digest_length_framed, emit_stream_only_);
         execute_archive_decompression_plan(artifact_, sink, params_,
                                            decompression_plan, decode_num_thr_);
         sink.log_summary();
@@ -371,6 +400,16 @@ public:
 
   [[nodiscard]] const compression_params &params() const { return params_; }
 
+  [[nodiscard]] SpringReaderLane lane() const { return lane_; }
+
+  [[nodiscard]] bool expose_as_single_end() const {
+    return expose_as_single_end_;
+  }
+
+  [[nodiscard]] bool api_paired_end() const {
+    return params_.encoding.paired_end && !expose_as_single_end_;
+  }
+
   void get_digests(uint32_t seq_crc[2], uint32_t qual_crc[2],
                    uint32_t id_crc[2]) {
     std::scoped_lock<std::mutex> lock(mutex_);
@@ -392,11 +431,68 @@ public:
   }
 
 private:
+  static const char *lane_name(SpringReaderLane lane) {
+    switch (lane) {
+    case SpringReaderLane::Reads:
+      return "reads";
+    case SpringReaderLane::Read3:
+      return "read3";
+    case SpringReaderLane::Index:
+      return "index";
+    }
+    return "unknown";
+  }
+
+  void load_member_archive_bytes(const std::string &member_name) {
+    const auto grouped_archives =
+        read_files_from_tar_memory(archive_path_, {member_name});
+    auto member_it = grouped_archives.find(member_name);
+    if (member_it == grouped_archives.end()) {
+      throw std::runtime_error("Failed to read grouped archive member: " +
+                               member_name);
+    }
+    artifact_.files = read_all_files_from_tar_bytes(member_it->second);
+  }
+
+  void open_grouped_member(const bundle_manifest &manifest) {
+    switch (lane_) {
+    case SpringReaderLane::Reads:
+      load_member_archive_bytes(manifest.read_archive_name);
+      break;
+    case SpringReaderLane::Read3: {
+      if (!manifest.has_r3) {
+        throw std::runtime_error(
+            "Grouped archive does not contain an R3 lane.");
+      }
+      if (!manifest.read3_alias_source.empty()) {
+        // R3 aliases R1 or R2 from the primary read member: stream that mate
+        // alone via next(ReadRecord&).
+        load_member_archive_bytes(manifest.read_archive_name);
+        emit_stream_only_ = (manifest.read3_alias_source == "R2") ? 1 : 0;
+        expose_as_single_end_ = true;
+      } else {
+        load_member_archive_bytes(manifest.read3_archive_name);
+      }
+      break;
+    }
+    case SpringReaderLane::Index:
+      if (!manifest.has_index) {
+        throw std::runtime_error(
+            "Grouped archive does not contain an index lane.");
+      }
+      load_member_archive_bytes(manifest.index_archive_name);
+      break;
+    }
+  }
+
   std::string archive_path_;
+  SpringReaderLane lane_ = SpringReaderLane::Reads;
   decompression_archive_artifact artifact_;
   compression_params params_;
   int user_num_thr_;
   int decode_num_thr_ = 1;
+  int emit_stream_only_ = -1;
+  bool expose_as_single_end_ = false;
 
   std::thread worker_thread_;
   std::queue<BufferDecompressionSink::StepPair> queue_;
@@ -419,16 +515,23 @@ private:
 };
 
 SpringReader::SpringReader(const std::string &archive_path, int num_thr)
-    : impl_(std::make_unique<Impl>(archive_path, num_thr)) {}
+    : impl_(std::make_unique<Impl>(archive_path, SpringReaderLane::Reads,
+                                   num_thr)) {}
+
+SpringReader::SpringReader(const std::string &archive_path,
+                           SpringReaderLane lane, int num_thr)
+    : impl_(std::make_unique<Impl>(archive_path, lane, num_thr)) {}
 
 SpringReader::~SpringReader() = default;
+
+SpringReaderLane SpringReader::lane() const { return impl_->lane(); }
 
 const compression_params &SpringReader::params() const {
   return impl_->params();
 }
 
 bool SpringReader::next(ReadRecord &record) {
-  if (impl_->params().encoding.paired_end) {
+  if (impl_->api_paired_end()) {
     SPRING_LOG_DEBUG("block_id=spring-reader:api, SpringReader API mode "
                      "mismatch: next(record) called for paired-end archive");
     throw std::runtime_error("Archive is paired-end, use next(mate1, mate2)");
@@ -437,7 +540,7 @@ bool SpringReader::next(ReadRecord &record) {
 }
 
 bool SpringReader::next(ReadRecord &mate1, ReadRecord &mate2) {
-  if (!impl_->params().encoding.paired_end) {
+  if (!impl_->api_paired_end()) {
     SPRING_LOG_DEBUG(
         "block_id=spring-reader:api, SpringReader API mode mismatch: "
         "next(mate1,mate2) called for single-end archive");
