@@ -952,41 +952,33 @@ void compress_standard(const string_list &input_paths,
 
 } // namespace
 
-void compress(const std::vector<std::string> &input_paths,
-              const std::vector<std::string> &output_paths, const int num_thr,
-              const bool pairing_only_flag, const bool no_quality_flag,
-              const bool no_ids_flag,
-              const std::vector<std::string> &quality_options,
-              const int compression_level, const std::string &note,
-              const log_level verbosity_level, const bool audit_flag,
-              const std::string &r3_path, const std::string &i1_path,
-              const std::string &i2_path, const std::string &assay_type,
-              const std::string &cb_source_path, uint32_t cb_len,
-              const double memory_cap_gb) {
-  Logger::set_level(verbosity_level);
+void compress(const CompressOptions &options) {
+  Logger::set_level(options.verbosity);
   throw_if_interrupted();
-  if (num_thr <= 0) {
+  if (options.num_threads <= 0) {
     throw std::runtime_error(
         "Number of compression threads must be positive.");
   }
-  const compression_storage_plan storage_plan =
-      build_compression_storage_plan(input_paths, memory_cap_gb);
+  const compression_storage_plan storage_plan = build_compression_storage_plan(
+      options.input_paths, options.memory_cap_gb);
   if (storage_plan.selected_path == compression_storage_path::disk_path) {
     std::cout << "Disk-backed compression path selected based on estimated "
                  "peak working memory and available memory.\n";
   }
-  ProgressBar progress(verbosity_level == log_level::quiet);
+  ProgressBar progress(options.verbosity == log_level::quiet);
   ProgressBar::SetGlobalInstance(&progress);
   omp_set_dynamic(0);
 
   SPRING_LOG_INFO("Starting compression...");
   SPRING_LOG_DEBUG(
-      "Compression request: num_threads=" + std::to_string(num_thr) +
-      ", level=" + std::to_string(compression_level) +
-      ", strip_order=" + std::string(pairing_only_flag ? "true" : "false") +
-      ", strip_quality=" + std::string(no_quality_flag ? "true" : "false") +
-      ", strip_ids=" + std::string(no_ids_flag ? "true" : "false") +
-      ", audit=" + std::string(audit_flag ? "true" : "false"));
+      "Compression request: num_threads=" +
+      std::to_string(options.num_threads) +
+      ", level=" + std::to_string(options.compression_level) +
+      ", strip_order=" + std::string(options.strip_order ? "true" : "false") +
+      ", strip_quality=" +
+      std::string(options.strip_quality ? "true" : "false") + ", strip_ids=" +
+      std::string(options.strip_ids ? "true" : "false") +
+      ", audit=" + std::string(options.audit ? "true" : "false"));
 
   SPRING_LOG_INFO(
       "Compression storage path: " +
@@ -1005,39 +997,41 @@ void compress(const std::vector<std::string> &input_paths,
       ", available_memory_bytes=" +
       std::to_string(storage_plan.available_memory_bytes) + ")");
 
-  const bool has_r3 = !r3_path.empty();
-  const bool has_i1 = !i1_path.empty();
-  const bool has_i2 = !i2_path.empty();
+  const bool has_r3 = !options.r3_path.empty();
+  const bool has_i1 = !options.i1_path.empty();
+  const bool has_i2 = !options.i2_path.empty();
   const bool grouped_bundle = has_r3 || has_i1 || has_i2;
 
   if (grouped_bundle) {
-    if (input_paths.size() < 2) {
+    if (options.input_paths.size() < 2) {
       throw std::runtime_error(
           "Grouped compression requires at least R1 and R2.");
     }
-    if (output_paths.size() > 1) {
+    if (options.output_paths.size() > 1) {
       throw std::runtime_error(
           "Number of output files not equal to 1 for grouped compression.");
     }
 
     const std::string output_archive_path =
-        output_paths.empty() ? default_archive_name_from_input(input_paths[0])
-                             : output_paths[0];
-    validate_compression_target(input_paths, output_archive_path);
+        options.output_paths.empty()
+            ? default_archive_name_from_input(options.input_paths[0])
+            : options.output_paths[0];
+    validate_compression_target(options.input_paths, output_archive_path);
     const std::string read_archive_name = "reads_group.sp";
     const std::string read3_archive_name = "read3_group.sp";
     const std::string index_archive_name = "index_group.sp";
 
-    const string_list read_inputs = {input_paths[0], input_paths[1]};
+    const string_list read_inputs = {options.input_paths[0],
+                                     options.input_paths[1]};
     string_list read3_inputs;
     string_list index_inputs;
     if (has_r3) {
-      read3_inputs.push_back(r3_path);
+      read3_inputs.push_back(options.r3_path);
     }
     if (has_i1) {
-      index_inputs.push_back(i1_path);
+      index_inputs.push_back(options.i1_path);
       if (has_i2) {
-        index_inputs.push_back(i2_path);
+        index_inputs.push_back(options.i2_path);
       }
     }
 
@@ -1063,45 +1057,50 @@ void compress(const std::vector<std::string> &input_paths,
     };
 
     try {
-      compress_standard(read_inputs, {read_archive_path}, num_thr,
-                        pairing_only_flag, no_quality_flag, no_ids_flag,
-                        quality_options, compression_level, note,
-                        verbosity_level, false, "", i1_path, "", assay_type,
-                        i1_path, cb_len, nullptr, storage_plan.selected_path,
-                        storage_plan.available_memory_bytes);
+      compress_standard(
+          read_inputs, {read_archive_path}, options.num_threads,
+          options.strip_order, options.strip_quality, options.strip_ids,
+          options.quality_options, options.compression_level, options.note,
+          options.verbosity, false, "", options.i1_path, "", options.assay,
+          options.i1_path, options.cb_len, nullptr, storage_plan.selected_path,
+          storage_plan.available_memory_bytes);
 
       const std::string grouped_assay =
-          (assay_type == "auto") ? assay_from_archive_metadata_path(
-                                       read_archive_path, read_archive_name)
-                                 : assay_type;
+          (options.assay == "auto")
+              ? assay_from_archive_metadata_path(read_archive_path,
+                                                 read_archive_name)
+              : options.assay;
 
       std::string read3_alias_source;
       if (has_r3) {
-        if (paths_refer_to_same_file(r3_path, input_paths[0])) {
+        if (paths_refer_to_same_file(options.r3_path, options.input_paths[0])) {
           read3_alias_source = "R1";
-        } else if (paths_refer_to_same_file(r3_path, input_paths[1])) {
+        } else if (paths_refer_to_same_file(options.r3_path,
+                                            options.input_paths[1])) {
           read3_alias_source = "R2";
         } else {
-          compress_standard(read3_inputs, {read3_archive_path}, num_thr,
-                            pairing_only_flag, no_quality_flag, no_ids_flag,
-                            quality_options, compression_level,
-                            note.empty() ? std::string("read3-group")
-                                         : (note + " | read3-group"),
-                            verbosity_level, false, "", "", "", grouped_assay,
-                            "", cb_len, nullptr, storage_plan.selected_path,
-                            storage_plan.available_memory_bytes);
+          compress_standard(
+              read3_inputs, {read3_archive_path}, options.num_threads,
+              options.strip_order, options.strip_quality, options.strip_ids,
+              options.quality_options, options.compression_level,
+              options.note.empty() ? std::string("read3-group")
+                                   : (options.note + " | read3-group"),
+              options.verbosity, false, "", "", "", grouped_assay, "",
+              options.cb_len, nullptr, storage_plan.selected_path,
+              storage_plan.available_memory_bytes);
         }
       }
 
       if (has_i1) {
-        compress_standard(index_inputs, {index_archive_path}, num_thr,
-                          pairing_only_flag, no_quality_flag, no_ids_flag,
-                          quality_options, compression_level,
-                          note.empty() ? std::string("index-group")
-                                       : (note + " | index-group"),
-                          verbosity_level, false, "", "", "", grouped_assay, "",
-                          cb_len, nullptr, storage_plan.selected_path,
-                          storage_plan.available_memory_bytes);
+        compress_standard(
+            index_inputs, {index_archive_path}, options.num_threads,
+            options.strip_order, options.strip_quality, options.strip_ids,
+            options.quality_options, options.compression_level,
+            options.note.empty() ? std::string("index-group")
+                                 : (options.note + " | index-group"),
+            options.verbosity, false, "", "", "", grouped_assay, "",
+            options.cb_len, nullptr, storage_plan.selected_path,
+            storage_plan.available_memory_bytes);
       }
 
       const bundle_manifest manifest{
@@ -1115,13 +1114,23 @@ void compress(const std::vector<std::string> &input_paths,
           .has_index = has_i1,
           .index_archive_name = has_i1 ? index_archive_name : std::string(),
           .has_i2 = has_i2,
-          .r1_name = std::filesystem::path(input_paths[0]).filename().string(),
-          .r2_name = std::filesystem::path(input_paths[1]).filename().string(),
-          .r3_name = has_r3 ? std::filesystem::path(r3_path).filename().string()
+          .r1_name = std::filesystem::path(options.input_paths[0])
+                         .filename()
+                         .string(),
+          .r2_name = std::filesystem::path(options.input_paths[1])
+                         .filename()
+                         .string(),
+          .r3_name = has_r3 ? std::filesystem::path(options.r3_path)
+                                  .filename()
+                                  .string()
                             : std::string(),
-          .i1_name = has_i1 ? std::filesystem::path(i1_path).filename().string()
+          .i1_name = has_i1 ? std::filesystem::path(options.i1_path)
+                                  .filename()
+                                  .string()
                             : std::string(),
-          .i2_name = has_i2 ? std::filesystem::path(i2_path).filename().string()
+          .i2_name = has_i2 ? std::filesystem::path(options.i2_path)
+                                  .filename()
+                                  .string()
                             : std::string()};
       std::vector<tar_archive_source> bundle_sources;
       bundle_sources.push_back({.archive_path = read_archive_name,
@@ -1151,7 +1160,7 @@ void compress(const std::vector<std::string> &input_paths,
       });
       SPRING_LOG_DEBUG("Grouped archive created at: " + output_archive_path);
 
-      if (audit_flag) {
+      if (options.audit) {
         SPRING_LOG_DEBUG("Running post-compression audit for grouped archive.");
         perform_audit(output_archive_path);
       }
@@ -1167,9 +1176,11 @@ void compress(const std::vector<std::string> &input_paths,
   }
 
   compress_standard(
-      input_paths, output_paths, num_thr, pairing_only_flag, no_quality_flag,
-      no_ids_flag, quality_options, compression_level, note, verbosity_level,
-      audit_flag, r3_path, i1_path, i2_path, assay_type, cb_source_path, cb_len,
+      options.input_paths, options.output_paths, options.num_threads,
+      options.strip_order, options.strip_quality, options.strip_ids,
+      options.quality_options, options.compression_level, options.note,
+      options.verbosity, options.audit, options.r3_path, options.i1_path,
+      options.i2_path, options.assay, options.cb_source_path, options.cb_len,
       nullptr, storage_plan.selected_path, storage_plan.available_memory_bytes);
 }
 

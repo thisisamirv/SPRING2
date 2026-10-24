@@ -31,6 +31,7 @@
 ### Changed
 
 - Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
+- Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 
 ## V1.3.6
 

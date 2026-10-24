@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "params.h"
 #include "progress.h"
 
 namespace spring {
@@ -17,20 +18,30 @@ using read_range = std::vector<uint64_t>;
 
 void preview(const std::string &archive_path, bool audit_only);
 
-// Top-level compression and decompression entry points used by the CLI.
-void compress(const string_list &input_paths, const string_list &output_paths,
-              const int num_thr, const bool pairing_only_flag,
-              const bool no_quality_flag, const bool no_ids_flag,
-              const string_list &quality_options, const int compression_level,
-              const std::string &note,
-              const log_level verbosity_level = log_level::info,
-              const bool audit_flag = false,
-              const std::string &r3_path = std::string(),
-              const std::string &i1_path = std::string(),
-              const std::string &i2_path = std::string(),
-              const std::string &assay_type = "auto",
-              const std::string &cb_source_path = std::string(),
-              uint32_t cb_len = 16, double memory_cap_gb = 0.0);
+// Named options for compress(). Prefer setting fields by name (or C++20
+// designated initializers) so strip/audit/assay arguments cannot be swapped.
+struct CompressOptions {
+  string_list input_paths;
+  string_list output_paths;
+  int num_threads = 1;
+  bool strip_order = false;
+  bool strip_quality = false;
+  bool strip_ids = false;
+  string_list quality_options;
+  int compression_level = DEFAULT_COMPRESSION_LEVEL;
+  std::string note;
+  log_level verbosity = log_level::info;
+  bool audit = false;
+  std::string r3_path;
+  std::string i1_path;
+  std::string i2_path;
+  std::string assay = "auto";
+  std::string cb_source_path;
+  uint32_t cb_len = 16;
+  double memory_cap_gb = 0.0;
+};
+
+void compress(const CompressOptions &options);
 
 void decompress(const string_list &input_paths, const string_list &output_paths,
                 const int num_thr = 1,

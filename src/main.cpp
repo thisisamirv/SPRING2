@@ -649,15 +649,27 @@ void run_requested_mode(const command_line_options &options) {
   }
 
   if (options.compress_flag) {
-    spring::compress(
-        options.input_paths, options.output_paths, options.num_threads,
-        options.pairing_only_flag, options.no_quality_flag, options.no_ids_flag,
-        options.quality_options, options.compression_level, options.note,
-        options.log_level, options.audit_flag, options.r3_path, options.i1_path,
-        options.i2_path, options.assay,
-        options
-            .i1_path, // cb_source_path: use I1 lane for SC barcode extraction
-        options.cb_len, options.memory_cap_gb);
+    spring::compress({
+        .input_paths = options.input_paths,
+        .output_paths = options.output_paths,
+        .num_threads = options.num_threads,
+        .strip_order = options.pairing_only_flag,
+        .strip_quality = options.no_quality_flag,
+        .strip_ids = options.no_ids_flag,
+        .quality_options = options.quality_options,
+        .compression_level = options.compression_level,
+        .note = options.note,
+        .verbosity = options.log_level,
+        .audit = options.audit_flag,
+        .r3_path = options.r3_path,
+        .i1_path = options.i1_path,
+        .i2_path = options.i2_path,
+        .assay = options.assay,
+        // Use I1 lane for SC barcode extraction when present.
+        .cb_source_path = options.i1_path,
+        .cb_len = options.cb_len,
+        .memory_cap_gb = options.memory_cap_gb,
+    });
     return;
   }
 
