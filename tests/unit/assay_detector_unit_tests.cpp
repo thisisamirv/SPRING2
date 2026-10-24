@@ -89,6 +89,27 @@ TEST_CASE("Testing AssayDetector") {
     std::filesystem::remove(test_fq);
   }
 
+  SUBCASE("Bulk DNA with index lane stays dna not sc-dna") {
+    std::string test_fq = "test_bulk_dna_with_i1.fq";
+    std::ofstream out(test_fq);
+    for (int i = 0; i < 100; ++i) {
+      out << "@read" << i << "\n";
+      out << "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT\n";
+      out << "+\n";
+      out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+    }
+    out.close();
+
+    // Non-empty I1 path forces explicit_sc_layout; base assay is still dna.
+    AssayDetector::DetectionResult res =
+        detector.detect(test_fq, "", "", "unused_i1.fq", "");
+    CHECK(res.assay == "dna");
+    CHECK(res.assay != "sc-dna");
+    CHECK(res.confidence.find("sc:") == std::string::npos);
+
+    std::filesystem::remove(test_fq);
+  }
+
   SUBCASE("Test Bisulfite signature directly") {
     std::string test_fq = "test_bisulfite.fq";
     std::ofstream out(test_fq);

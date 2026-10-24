@@ -490,8 +490,13 @@ AssayDetector::evaluate_stages(const AssayDetectionStats &stats,
   SingleCellDetectionEvidence sc_layout =
       detect_single_cell_layout(stats, explicit_sc_layout);
 
-  // Apply single-cell modifier
-  res.assay = sc_layout.is_single_cell ? ("sc-" + base_assay) : base_assay;
+  // Only rna/atac/bisulfite have sc-* CLI/transform counterparts. Prefixing
+  // dna would invent "sc-dna", which is not a -y choice and arms nothing.
+  const bool promote_to_sc =
+      sc_layout.is_single_cell &&
+      (base_assay == "rna" || base_assay == "atac" ||
+       base_assay == "bisulfite");
+  res.assay = promote_to_sc ? ("sc-" + base_assay) : base_assay;
 
   // Build confidence string
   std::string confidence_detail;
@@ -501,7 +506,7 @@ AssayDetector::evaluate_stages(const AssayDetectionStats &stats,
     confidence_detail += evidence[i];
   }
 
-  if (sc_layout.is_single_cell && sc_layout.indicator_count > 0) {
+  if (promote_to_sc && sc_layout.indicator_count > 0) {
     confidence_detail += "; sc: ";
     for (size_t i = 0; i < sc_layout.evidence.size(); ++i) {
       if (i > 0)
