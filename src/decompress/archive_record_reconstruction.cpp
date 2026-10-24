@@ -45,6 +45,34 @@ void write_fastq_block(std::ostream &output_stream, std::string *id_buffer,
                        int compression_level, bool use_crlf, bool fasta_mode,
                        bool quality_header_has_id);
 
+// Applies noise-code deltas to a reconstructed read. Positions are cumulative
+// uint16 deltas (matching encoder writecontig). Bounds-check absolute positions
+// so a corrupt archive cannot write past the end of the read.
+void apply_noise_codes_to_read(
+    std::string &read, const std::string &noise_codes,
+    memory_cursor &noisepos_cursor,
+    const std::array<std::array<char, 128>, 128> &decoded_noise_table,
+    const char *position_label) {
+  uint32_t previous_noise_position = 0;
+  for (const char noise_code : noise_codes) {
+    const uint16_t noise_position_delta =
+        noisepos_cursor.read<uint16_t>(position_label);
+    const uint32_t noise_position =
+        previous_noise_position +
+        static_cast<uint32_t>(noise_position_delta);
+    if (noise_position >= read.size()) {
+      throw std::runtime_error(
+          "Corrupt archive: noise position " + std::to_string(noise_position) +
+          " is out of range for read of length " +
+          std::to_string(read.size()));
+    }
+    read[noise_position] =
+        decoded_noise_table[static_cast<uint8_t>(read[noise_position])]
+                           [static_cast<uint8_t>(noise_code)];
+    previous_noise_position = noise_position;
+  }
+}
+
 FileDecompressionSink::FileDecompressionSink(
     const std::string &outfile_1, const std::string &outfile_2,
     const compression_params &cp, const int decoding_thread_count,
@@ -414,17 +442,9 @@ void decompress_short(const decompression_archive_artifact &artifact,
                       seq.read(read_1_position, read_lengths_buffer_1[i]);
                   const std::string noise_codes =
                       noise_cursor.read_line("noise code stream");
-                  uint16_t previous_noise_position = 0;
-                  for (char noise_code : noise_codes) {
-                    uint16_t noise_position_delta =
-                        noisepos_cursor.read<uint16_t>("noise position delta");
-                    noise_position_delta += previous_noise_position;
-                    read[noise_position_delta] =
-                        decoded_noise_table[static_cast<uint8_t>(
-                            read[noise_position_delta])]
-                                           [static_cast<uint8_t>(noise_code)];
-                    previous_noise_position = noise_position_delta;
-                  }
+                  apply_noise_codes_to_read(read, noise_codes, noisepos_cursor,
+                                            decoded_noise_table,
+                                            "noise position delta");
                   read_buffer_1[i] =
                       (read_1_orientation == 'd')
                           ? read
@@ -474,18 +494,9 @@ void decompress_short(const decompression_archive_artifact &artifact,
                         seq.read(read_2_position, read_lengths_buffer_2[i]);
                     const std::string noise_codes =
                         noise_cursor.read_line("mate noise code stream");
-                    uint16_t previous_noise_position = 0;
-                    for (char noise_code : noise_codes) {
-                      uint16_t noise_position_delta =
-                          noisepos_cursor.read<uint16_t>(
-                              "mate noise position delta");
-                      noise_position_delta += previous_noise_position;
-                      read[noise_position_delta] =
-                          decoded_noise_table[static_cast<uint8_t>(
-                              read[noise_position_delta])]
-                                             [static_cast<uint8_t>(noise_code)];
-                      previous_noise_position = noise_position_delta;
-                    }
+                    apply_noise_codes_to_read(read, noise_codes, noisepos_cursor,
+                                              decoded_noise_table,
+                                              "mate noise position delta");
                     read_buffer_2[i] =
                         (read_2_orientation == 'd')
                             ? read
