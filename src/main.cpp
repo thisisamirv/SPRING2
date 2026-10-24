@@ -211,6 +211,10 @@ collect_option_values(const std::vector<std::string> &args, size_t &index) {
   return values;
 }
 
+bool is_verbose_level_token(const std::string &value) {
+  return value == "info" || value == "debug";
+}
+
 spring::log_level parse_log_level(const std::string &value) {
   if (value == "info")
     return spring::log_level::info;
@@ -334,13 +338,19 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
       }
     } else if (arg == "-b" || arg == "--cb-len") {
       require_value(args, index, "--cb-len");
-      const int raw = std::stoi(strip_quotes(args[index++]));
+      const int raw = spring::parse_int_or_throw(
+          strip_quotes(args[index++]),
+          "Invalid --cb-len value. Expected an integer between 1 and 64.");
       if (raw < 1 || raw > 64)
         throw std::runtime_error("--cb-len must be between 1 and 64.");
       options.cb_len = static_cast<uint32_t>(raw);
     } else if (arg == "-v" || arg == "--verbose") {
+      // Optional level arg: only consume the next token when it is a known
+      // level. Otherwise leave it as a positional path so
+      // `spring -d -v sample.sp` still treats sample.sp as the archive.
       options.log_level = spring::log_level::info;
-      if (index < args.size() && !is_option_token(args[index])) {
+      if (index < args.size() && !is_option_token(args[index]) &&
+          is_verbose_level_token(args[index])) {
         options.log_level = parse_log_level(args[index++]);
       }
     } else if (arg == "-a" || arg == "--audit") {

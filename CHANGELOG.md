@@ -11,6 +11,7 @@
 - Fixed an out-of-bounds write when applying noise-position deltas during short-read reconstruction: corrupt absolute positions now throw a clean archive-corruption error instead of writing past the end of the reconstructed read.
 - Fixed gzip input reading treating mid-stream `gzread` errors as EOF. `gzip_istreambuf::underflow` now checks `gzerror` and throws instead of silently truncating the FASTQ and continuing compression on partial data.
 - Fixed paired-id code 3 round-trips for headers with an earlier `" 1"` before the Illumina mate field (e.g. `@sample 1 1:N:0:AAAA`). Matching and `modify_id` now share the same mate-digit selection, preferring the first `" 1:"` token.
+- Fixed CLI parsing for `--cb-len` (invalid values now report a clean error via `parse_int_or_throw` instead of an uncaught `std::stoi` exception) and for `-v`/`--verbose` (the optional level is consumed only when the next token is `info` or `debug`, so `spring -d -v sample.sp` keeps `sample.sp` as the archive path).
 
 ## V1.3.6
 
