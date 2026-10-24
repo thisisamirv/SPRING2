@@ -158,15 +158,16 @@ spring2 -d -i multiome01_scatac.sp -o multiome01_scatac_R1.fastq.gz multiome01_s
 
 ## Single-Cell Bisulfite
 
-Single-cell bisulfite datasets can use explicit assay selection and optional
-barcode handling in the same way as other single-cell assays.
+Single-cell bisulfite datasets can use explicit assay selection. Unlike
+sc-RNA, SPRING2 does not strip an R1 cellular-barcode prefix for
+`sc-bisulfite` (protocols disagree on R1 layout), so `--cb-len` has no effect
+on that path.
 
 ```bash
 spring2 -c \
   --R1 scbs_R1.fastq.gz \
   --R2 scbs_R2.fastq.gz \
   --assay sc-bisulfite \
-  --cb-len 16 \
   --threads 12 \
   --note "assay=sc-bisulfite plate=P3" \
   -o plateP3_scbs.sp

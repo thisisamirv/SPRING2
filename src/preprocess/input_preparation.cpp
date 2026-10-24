@@ -5,7 +5,6 @@
 #include "assay_atac.h"
 #include "assay_rna.h"
 #include "assay_sc_atac.h"
-#include "assay_sc_bisulfite.h"
 #include "assay_sc_rna.h"
 #include "preprocess_artifacts.h"
 #include "progress.h"
@@ -459,24 +458,12 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
         std::to_string(kAtacAdapterStripMinSampleReads) + " non-N reads)");
   }
 
-  // Determine whether single-cell barcode prefix stripping should be applied.
-  // Only active for short-read, preserve_order archives when the assay keeps
-  // the CB in R1 instead of a separate index lane.
-  //
-  // For sc-RNA: explicit `-y sc-rna` allows the default/explicit --cb-len;
-  // auto-detected sc-rna also requires high confidence and an explicit
-  // --cb-len so a default of 16 cannot strip genomic R1 after a weak
-  // misclassification. With --I1, cb_prefix_source_external disables this.
-  //
-  // For sc-bisulfite, we disable CB stripping entirely as bisulfite protocols
-  // vary widely in their read structure - some use R1 for barcodes (like 10x),
-  // others use R1 for genomic sequence (like scSPLAT). Without a reliable
-  // heuristic to detect which structure is present, we conservatively skip CB
-  // extraction to avoid data corruption. Future work could add
-  // protocol-specific detection.
-  const bool apply_cb_strip =
-      should_enable_sc_rna_cb_prefix_stripping(cp) ||
-      should_enable_sc_bisulfite_cb_prefix_stripping(cp);
+  // sc-RNA R1 CB prefix strip only (sc-bisulfite does not implement this —
+  // protocols disagree on whether R1 starts with barcode vs genomic sequence).
+  // Explicit `-y sc-rna` allows default/explicit --cb-len; auto-detected
+  // sc-rna also needs high confidence and an explicit --cb-len. With --I1,
+  // cb_prefix_source_external disables stripping.
+  const bool apply_cb_strip = should_enable_sc_rna_cb_prefix_stripping(cp);
   const bool maybe_strip_grouped_index_id_suffix =
       should_enable_grouped_sc_rna_index_suffix_stripping(cp);
   // Paired index IDs use I1+I2; I2 is only available after stream 1 is read, so

@@ -31,8 +31,9 @@ For technical background on the assay reference, see
 
 ## Cellular Barcode Length
 
-Use `--cb-len` when single-cell assays store cellular barcodes in the start of
-R1 instead of a dedicated I1 lane:
+Use `--cb-len` when **sc-RNA** stores cellular barcodes in the start of R1
+instead of a dedicated I1 lane (`sc-bisulfite` does not extract an R1 CB
+prefix):
 
 ```bash
 spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --assay sc-rna --cb-len 16

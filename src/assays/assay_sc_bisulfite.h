@@ -11,8 +11,8 @@ namespace spring {
 
 [[nodiscard]] bool is_sc_bisulfite_assay(const compression_params &cp);
 
-[[nodiscard]] bool
-should_enable_sc_bisulfite_cb_prefix_stripping(const compression_params &cp);
+// Intentionally no CB-prefix strip helper: sc-bisulfite read layouts vary by
+// protocol, so R1 barcode extraction is not implemented (unlike sc-rna).
 
 void apply_sc_bisulfite_auto_config(
     compression_params &cp,

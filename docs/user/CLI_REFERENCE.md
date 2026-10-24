@@ -45,8 +45,8 @@ spring2 --preview -i <archive.sp> [--audit]
 - `-q`, `--qmod ...`: quality storage mode
 - `-n`, `--note <arg>`: store a custom note in archive metadata
 - `-y`, `--assay <arg>`: select assay mode
-- `-b`, `--cb-len <arg>`: cellular barcode length for eligible single-cell
-  assays
+- `-b`, `--cb-len <arg>`: cellular barcode length for sc-RNA R1 CB-prefix
+  stripping (ignored for `sc-bisulfite`; also ignored when `--I1` is present)
 - `-a`, `--audit`: run post-compression verification
 
 ## Decompression Options

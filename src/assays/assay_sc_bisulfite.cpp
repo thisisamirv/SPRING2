@@ -9,15 +9,6 @@ bool is_sc_bisulfite_assay(const compression_params &cp) {
   return cp.read_info.assay == "sc-bisulfite";
 }
 
-// TODO: sc-bisulfite CB-prefix stripping is not yet implemented (read
-// structure varies by protocol); wire this up once a reliable detection rule
-// exists, mirroring should_enable_sc_rna_cb_prefix_stripping.
-bool should_enable_sc_bisulfite_cb_prefix_stripping(
-    const compression_params &cp) {
-  (void)cp;
-  return false;
-}
-
 void apply_sc_bisulfite_auto_config(
     compression_params &cp,
     const AssayDetector::DetectionResult &detection_result) {
