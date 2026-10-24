@@ -45,7 +45,7 @@ void print_gzip_compression_info(const std::string &filename, bool was_gzipped,
   auto to_mb = [](uint64_t bytes) { return (double)bytes / (1024.0 * 1024.0); };
 
   auto get_suggested_uncomp_name = [](const std::string &path) {
-    if (path.size() >= 3 && path.substr(path.size() - 3) == ".gz")
+    if (path_has_gzip_suffix(path))
       return path.substr(0, path.size() - 3);
     return path;
   };

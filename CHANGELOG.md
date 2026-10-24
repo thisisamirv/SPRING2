@@ -14,6 +14,7 @@
 - Fixed CLI parsing for `--cb-len` (invalid values now report a clean error via `parse_int_or_throw` instead of an uncaught `std::stoi` exception) and for `-v`/`--verbose` (the optional level is consumed only when the next token is `info` or `debug`, so `spring -d -v sample.sp` keeps `sample.sp` as the archive path).
 - Fixed archive metadata `read_string` allocating from an unchecked length: truncated or corrupt string fields now throw instead of risking OOM or leaving `failbit` set so later optional metadata silently falls back to defaults.
 - Fixed BGZF writer `BSIZE` wrapping on incompressible data: uncompressed chunks are capped with htslib-style headroom, deflate output is limited to the 64 KiB block budget, and oversize attempts shrink and retry instead of emitting an invalid block.
+- Fixed case-sensitive `.gz` detection disagreeing with size planning on Windows (e.g. `reads.fastq.GZ`): gzip path checks now share case-insensitive `path_has_gzip_suffix` across preprocess, workflow, decompress output naming, and preview.
 
 ## V1.3.6
 

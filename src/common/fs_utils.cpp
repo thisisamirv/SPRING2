@@ -6,6 +6,7 @@
 #include "progress.h"
 #include <archive.h>
 #include <archive_entry.h>
+#include <cctype>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -40,16 +41,6 @@
 namespace spring {
 
 namespace {
-
-bool path_has_gzip_suffix(const std::string &path) {
-  std::string normalized_path = path;
-  for (char &character : normalized_path) {
-    character =
-        static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
-  }
-  return normalized_path.size() >= 3 &&
-         normalized_path.substr(normalized_path.size() - 3) == ".gz";
-}
 
 void validate_archive_entry_name(const std::string &entry_name) {
   if (entry_name.empty()) {
@@ -522,6 +513,16 @@ uint64_t detect_available_memory_bytes() noexcept {
   }
   return 0;
 #endif
+}
+
+bool path_has_gzip_suffix(const std::string &path) {
+  if (path.size() < 3) {
+    return false;
+  }
+  const unsigned char dot = static_cast<unsigned char>(path[path.size() - 3]);
+  const unsigned char g = static_cast<unsigned char>(path[path.size() - 2]);
+  const unsigned char z = static_cast<unsigned char>(path[path.size() - 1]);
+  return dot == '.' && std::tolower(g) == 'g' && std::tolower(z) == 'z';
 }
 
 uint64_t estimate_input_file_size_bytes(const std::string &input_path) {

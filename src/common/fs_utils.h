@@ -19,6 +19,9 @@ struct tar_archive_source {
 };
 
 uint64_t detect_available_memory_bytes() noexcept;
+// Case-insensitive ".gz" / ".GZ" / etc. suffix check for path-based gzip
+// detection (Windows-friendly; matches size planning and open paths).
+bool path_has_gzip_suffix(const std::string &path);
 uint64_t estimate_input_file_size_bytes(const std::string &input_path);
 uint64_t
 estimate_total_input_size_bytes(const std::vector<std::string> &input_paths);

@@ -420,8 +420,8 @@ std::string append_group_role_suffix(const std::string &path,
   const std::filesystem::path parent = file_path.parent_path();
   std::string filename = file_path.filename().string();
   std::string trailing_gzip_suffix;
-  if (filename.size() > 3 && filename.substr(filename.size() - 3) == ".gz") {
-    trailing_gzip_suffix = ".gz";
+  if (path_has_gzip_suffix(filename)) {
+    trailing_gzip_suffix = filename.substr(filename.size() - 3);
     filename.erase(filename.size() - 3);
   }
 
@@ -504,11 +504,11 @@ std::string to_ascii_lowercase(std::string value) {
 }
 
 bool is_gzip_input_path(const std::string &input_path) {
-  return has_suffix(input_path, ".gz");
+  return path_has_gzip_suffix(input_path);
 }
 
 std::string strip_gzip_suffix(const std::string &input_path) {
-  if (!is_gzip_input_path(input_path)) {
+  if (!path_has_gzip_suffix(input_path)) {
     return input_path;
   }
   return input_path.substr(0, input_path.size() - 3);

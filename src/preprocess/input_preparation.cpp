@@ -24,6 +24,7 @@
 #include <string_view>
 #include <vector>
 
+#include "fs_utils.h"
 #include "io_utils.h"
 #include "params.h"
 #include "parse_utils.h"
@@ -33,10 +34,6 @@ namespace spring {
 bool has_non_acgtn_symbol(const std::string &read);
 
 namespace {
-
-bool is_gzip_input_path(const std::string &path) {
-  return has_suffix(path, ".gz");
-}
 
 struct preprocess_paths {
   std::array<std::string, 2> input_paths;
@@ -307,7 +304,7 @@ void detect_input_properties_in_file(const std::string &path,
   std::istream *input_stream = nullptr;
   std::unique_ptr<gzip_istream> gzip_stream;
   open_input_stream(file_stream, input_stream, gzip_stream, path,
-                    is_gzip_input_path(path));
+                    path_has_gzip_suffix(path));
   if (input_stream == nullptr)
     throw std::runtime_error("Can't open file for pre-scan: " + path);
 
@@ -365,7 +362,7 @@ void detect_input_properties_in_file(const std::string &path,
   }
 
   close_input_stream(file_stream, input_stream, gzip_stream,
-                     is_gzip_input_path(path));
+                     path_has_gzip_suffix(path));
 }
 
 } // namespace
@@ -418,8 +415,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
       ", fasta_input=" + std::string(fasta_input ? "true" : "false"));
   const preprocess_paths paths = build_preprocess_paths(infile_1, infile_2);
   const std::array<bool, 2> input_gzip_enabled = {
-      is_gzip_input_path(infile_1),
-      cp.encoding.paired_end && is_gzip_input_path(infile_2)};
+      path_has_gzip_suffix(infile_1),
+      cp.encoding.paired_end && path_has_gzip_suffix(infile_2)};
   std::array<std::ifstream, 2> input_files;
   std::array<std::istream *, 2> input_streams = {nullptr, nullptr};
   std::array<std::unique_ptr<gzip_istream>, 2> gzip_streams{};

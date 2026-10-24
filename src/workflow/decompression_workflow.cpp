@@ -54,7 +54,7 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
                  : std::vector<std::string>{io_config.output_path_1});
 
   auto has_compressed_suffix = [](const std::string &path) {
-    return path.ends_with(".gz");
+    return path_has_gzip_suffix(path);
   };
 
   bool should_gzip[2] = {false, false};
@@ -175,7 +175,7 @@ void materialize_aliased_group_output_from_memory(
   int compression_levels[2] = {cp.encoding.compression_level,
                                cp.encoding.compression_level};
   write_enabled[selected_stream] = true;
-  if (!unzip_flag && alias_output_path.ends_with(".gz")) {
+  if (!unzip_flag && path_has_gzip_suffix(alias_output_path)) {
     should_gzip[selected_stream] = true;
     should_bgzf[selected_stream] = cp.gzip.streams[selected_stream].is_bgzf;
     compression_levels[selected_stream] = gzip_output_compression_level(
