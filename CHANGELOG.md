@@ -38,6 +38,7 @@
 - Fixed the `compress()` library API accepting `num_thr <= 0` (unlike `decompress()`), which could produce odd OpenMP behavior: compression now rejects non-positive thread counts.
 - Fixed mode-inappropriate CLI flags being accepted and silently ignored (e.g. `--unzip` on compress, `--strip`/`--qmod`/`--note`/`--level`/`--assay`/`--cb-len` on decompress or preview): those combinations now error instead of looking like success.
 - Fixed audit/decompress integrity reporting treating skipped digest checks as success: outcomes are now verified, skipped (lossy), or skipped (no stored digests). `--audit` fails on lossless archives without digests; decompression warns instead of claiming a pass.
+- Fixed quality-binned archives (`-q ill_bin` / `-q binary`) skipping all integrity checks and storing unused pre-bin quality CRCs: quality digests are no longer written when binning, and decompress/audit verify sequence (and ids when preserved) independently of quality mode.
 
 ## V1.3.6
 

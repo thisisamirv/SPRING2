@@ -599,9 +599,15 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
           (stream_index == 0) ? id_array_1.data() : id_array_2.data();
       uint8_t *contains_n_output =
           cp.encoding.long_flag ? nullptr : read_contains_N_array.data();
+      // Quality digests hash bit-exact restored quality. With ill_bin/binary
+      // binning the stored stream is lossy, so skip quality CRC (leave 0) and
+      // still accumulate sequence/id digests for independent verification.
+      const bool quality_binning =
+          cp.quality.ill_bin_flag || cp.quality.bin_thr_flag;
       uint32_t *quality_crc_output =
-          cp.encoding.preserve_quality ? &cp.read_info.quality_crc[stream_index]
-                                       : nullptr;
+          (cp.encoding.preserve_quality && !quality_binning)
+              ? &cp.read_info.quality_crc[stream_index]
+              : nullptr;
       uint32_t *id_crc_output = cp.encoding.preserve_id
                                     ? &cp.read_info.id_crc[stream_index]
                                     : nullptr;

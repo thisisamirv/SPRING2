@@ -436,18 +436,18 @@ public:
     uint32_t id_crc[2] = {0, 0};
     get_digests(seq_crc, qual_crc, id_crc);
 
-    const bool is_lossless =
-        params_.encoding.preserve_order && params_.encoding.preserve_quality &&
-        params_.encoding.preserve_id && !params_.quality.ill_bin_flag &&
-        !params_.quality.bin_thr_flag;
-    if (!is_lossless) {
+    const digest_verification_result result = verify_reconstructed_digests(
+        params_.encoding.preserve_order, params_.encoding.preserve_quality,
+        params_.encoding.preserve_id, params_.quality.ill_bin_flag,
+        params_.quality.bin_thr_flag, params_.read_info.digests_present,
+        params_.encoding.paired_end, params_.read_info.sequence_crc,
+        params_.read_info.quality_crc, params_.read_info.id_crc, seq_crc,
+        qual_crc, id_crc);
+    if (result.status == digest_check_status::skipped_lossy ||
+        result.status == digest_check_status::skipped_no_digests) {
       return {};
     }
-
-    return check_lossless_digests(
-        params_.read_info.digests_present, params_.encoding.paired_end,
-        params_.read_info.sequence_crc, params_.read_info.quality_crc,
-        params_.read_info.id_crc, seq_crc, qual_crc, id_crc);
+    return result.check;
   }
 
 private:

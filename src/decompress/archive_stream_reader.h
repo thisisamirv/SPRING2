@@ -116,10 +116,11 @@ public:
   /**
    * @brief Compare reconstructed digests to params().read_info CRCs.
    *
-   * Requires the same full-consume precondition as get_digests(). For lossy
-   * archives (stripped order/quality/ids or quality binning), returns an empty
-   * check with mismatch == false. When digests were not stored in metadata,
-   * also returns no mismatch.
+   * Requires the same full-consume precondition as get_digests(). Compares
+   * sequence always when order is preserved; quality only when preserved and
+   * not ill_bin/binary-binned; ids when preserved. Returns an empty check
+   * (mismatch == false) when no channels are verifiable or digests were not
+   * stored.
    */
   [[nodiscard]] lossless_digest_check verify_digests();
 

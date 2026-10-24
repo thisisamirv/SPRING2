@@ -82,6 +82,9 @@ This preserves qualities bit-for-bit.
 spring2 -c --R1 reads.fastq -o reads.sp -q ill_bin
 ```
 
+Lossy: quality digests are not stored. Decompress/audit still verify sequence
+(and ids when preserved).
+
 ### Binary Thresholding
 
 ```bash
@@ -89,6 +92,8 @@ spring2 -c --R1 reads.fastq -o reads.sp -q binary 20 30 10
 ```
 
 This maps qualities to `high` when `>= threshold` and to `low` otherwise.
+Same integrity rules as Illumina binning: no quality digest; sequence/id
+checks still apply.
 
 ## `--strip` Modes
 

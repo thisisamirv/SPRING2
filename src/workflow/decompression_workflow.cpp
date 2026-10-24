@@ -108,33 +108,36 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
                                      num_thr);
 
   run_timed_step("Verifying integrity ...", "Integrity check", [&] {
-    const bool is_lossless = archive_supports_lossless_digest_check(
+    const digest_channel_mask channels = digest_channels_for_archive(
         cp.encoding.preserve_order, cp.encoding.preserve_quality,
         cp.encoding.preserve_id, cp.quality.ill_bin_flag,
         cp.quality.bin_thr_flag);
     uint32_t seq_crc[2] = {0, 0};
     uint32_t qual_crc[2] = {0, 0};
     uint32_t id_crc[2] = {0, 0};
-    if (is_lossless) {
+    if (channels.any()) {
       sink->get_digests(seq_crc, qual_crc, id_crc);
     }
     const digest_verification_result result = verify_reconstructed_digests(
-        is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+        channels, cp.read_info.digests_present, cp.encoding.paired_end,
         cp.read_info.sequence_crc, cp.read_info.quality_crc,
         cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
 
     switch (result.status) {
     case digest_check_status::verified:
-      SPRING_LOG_DEBUG("Integrity digests verified for lossless archive.");
+      SPRING_LOG_DEBUG(
+          "Integrity digests verified (channels: sequence" +
+          std::string(result.channels.quality ? "+quality" : "") +
+          std::string(result.channels.id ? "+id" : "") + ").");
       break;
     case digest_check_status::skipped_lossy:
-      SPRING_LOG_DEBUG(
-          "Integrity digest check skipped: lossy archive (strip/bin).");
+      SPRING_LOG_DEBUG("Integrity digest check skipped: no verifiable "
+                       "channels (e.g. order stripped).");
       break;
     case digest_check_status::skipped_no_digests:
       Logger::log_warning(
-          "Lossless archive has no stored digests; integrity was not "
-          "verified.");
+          "Archive has verifiable channels but no stored digests; integrity "
+          "was not verified.");
       break;
     case digest_check_status::mismatch:
       for (int i = 0; i < result.check.stream_count; ++i) {
@@ -229,17 +232,17 @@ void materialize_aliased_group_output_from_memory(
   execute_archive_decompression_plan(artifact, sink, cp, decompression_plan,
                                      num_thr);
 
-  const bool is_lossless = archive_supports_lossless_digest_check(
+  const digest_channel_mask channels = digest_channels_for_archive(
       cp.encoding.preserve_order, cp.encoding.preserve_quality,
       cp.encoding.preserve_id, cp.quality.ill_bin_flag, cp.quality.bin_thr_flag);
   uint32_t seq_crc[2] = {0, 0};
   uint32_t qual_crc[2] = {0, 0};
   uint32_t id_crc[2] = {0, 0};
-  if (is_lossless) {
+  if (channels.any()) {
     sink.get_digests(seq_crc, qual_crc, id_crc);
   }
   const digest_verification_result result = verify_reconstructed_digests(
-      is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+      channels, cp.read_info.digests_present, cp.encoding.paired_end,
       cp.read_info.sequence_crc, cp.read_info.quality_crc, cp.read_info.id_crc,
       seq_crc, qual_crc, id_crc);
   switch (result.status) {
@@ -248,7 +251,8 @@ void materialize_aliased_group_output_from_memory(
     break;
   case digest_check_status::skipped_no_digests:
     Logger::log_warning(
-        "Lossless archive has no stored digests; integrity was not verified.");
+        "Archive has verifiable channels but no stored digests; integrity was "
+        "not verified.");
     break;
   case digest_check_status::mismatch:
     for (int i = 0; i < result.check.stream_count; ++i) {

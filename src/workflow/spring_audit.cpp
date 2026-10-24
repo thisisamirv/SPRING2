@@ -12,17 +12,17 @@ namespace {
 digest_verification_result
 verify_sink_digests(const NullDecompressionSink &sink,
                     const compression_params &cp) {
-  const bool is_lossless = archive_supports_lossless_digest_check(
+  const digest_channel_mask channels = digest_channels_for_archive(
       cp.encoding.preserve_order, cp.encoding.preserve_quality,
       cp.encoding.preserve_id, cp.quality.ill_bin_flag, cp.quality.bin_thr_flag);
   uint32_t seq_crc[2] = {0, 0};
   uint32_t qual_crc[2] = {0, 0};
   uint32_t id_crc[2] = {0, 0};
-  if (is_lossless) {
+  if (channels.any()) {
     sink.get_digests(seq_crc, qual_crc, id_crc);
   }
   return verify_reconstructed_digests(
-      is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+      channels, cp.read_info.digests_present, cp.encoding.paired_end,
       cp.read_info.sequence_crc, cp.read_info.quality_crc, cp.read_info.id_crc,
       seq_crc, qual_crc, id_crc);
 }
@@ -67,12 +67,13 @@ void finish_audit_digest_outcome(const std::string &archive_label,
               << std::endl;
     return;
   case digest_check_status::skipped_lossy:
-    std::cout << "Audit completed (digest check skipped: lossy archive): "
+    std::cout << "Audit completed (digest check skipped: no verifiable "
+                 "channels, e.g. order stripped): "
               << archive_label << std::endl;
     return;
   case digest_check_status::skipped_no_digests:
     throw std::runtime_error(
-        "Audit failed: lossless archive has no stored digests to verify (" +
+        "Audit failed: archive has verifiable channels but no stored digests (" +
         archive_label + ").");
   case digest_check_status::mismatch: {
     uint32_t seq_crc[2] = {0, 0};
