@@ -116,6 +116,8 @@ void initialize_optional_archive_metadata_defaults(compression_params &cp) {
   cp.read_info.quality_header_has_id = false;
   cp.encoding.atac_adapter_stripped = false;
   cp.encoding.index_id_suffix_reconstructed = false;
+  // Absent from older archives: they used unframed raw concatenation.
+  cp.read_info.digest_length_framed = false;
 }
 
 void write_archive_metadata_header(std::ostream &out, uint32_t version) {
@@ -239,6 +241,7 @@ void write_compression_params_body(std::ostream &out,
     write_bool(out, cp.encoding.use_crlf_by_stream[i]);
   for (int i = 0; i < 2; ++i)
     write_bool(out, cp.read_info.quality_header_has_id_by_stream[i]);
+  write_bool(out, cp.read_info.digest_length_framed);
 }
 
 void read_compression_params_body(std::istream &in, compression_params &cp,
@@ -355,6 +358,9 @@ void read_compression_params_body(std::istream &in, compression_params &cp,
                               read_bool(in);
                         }
                         has_stream_specific_fastq_metadata = true;
+                        if (in.peek() != std::char_traits<char>::eof()) {
+                          cp.read_info.digest_length_framed = read_bool(in);
+                        }
                       }
                     }
                   }

@@ -80,6 +80,7 @@ FileDecompressionSink::FileDecompressionSink(
     const bool (&bgzf)[2], const bool (&write_enabled)[2])
     : fasta_mode(cp.encoding.fasta_mode), num_thr(decoding_thread_count),
       paired_end(cp.encoding.paired_end) {
+  set_digest_length_framed(cp.read_info.digest_length_framed);
   should_gzip[0] = gzip[0];
   should_gzip[1] = gzip[1];
   should_bgzf[0] = bgzf[0];
@@ -112,11 +113,9 @@ void FileDecompressionSink::consume_step(std::string *id_buffer,
                                          const std::string *quality_buffer,
                                          uint32_t count, int stream_index) {
   for (uint32_t i = 0; i < count; ++i) {
-    update_record_crc(sequence_crc_[stream_index], read_buffer[i]);
-    if (quality_buffer) {
-      update_record_crc(quality_crc_[stream_index], quality_buffer[i]);
-    }
-    update_record_crc(id_crc_[stream_index], id_buffer[i]);
+    update_stream_digests(stream_index, read_buffer[i],
+                          quality_buffer ? &quality_buffer[i] : nullptr,
+                          id_buffer[i]);
   }
   if (!write_enabled_[stream_index]) {
     return;

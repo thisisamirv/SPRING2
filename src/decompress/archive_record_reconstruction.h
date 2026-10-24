@@ -68,7 +68,24 @@ public:
     }
   }
 
+  void set_digest_length_framed(bool length_framed) {
+    digest_length_framed_ = length_framed;
+  }
+
 protected:
+  void update_stream_digests(int stream_index, const std::string &sequence,
+                             const std::string *quality,
+                             const std::string &id) {
+    update_record_crc(sequence_crc_[stream_index], sequence,
+                      digest_length_framed_);
+    if (quality != nullptr) {
+      update_record_crc(quality_crc_[stream_index], *quality,
+                        digest_length_framed_);
+    }
+    update_record_crc(id_crc_[stream_index], id, digest_length_framed_);
+  }
+
+  bool digest_length_framed_ = true;
   uint32_t sequence_crc_[2] = {0, 0};
   uint32_t quality_crc_[2] = {0, 0};
   uint32_t id_crc_[2] = {0, 0};
@@ -115,11 +132,9 @@ public:
                     const std::string *quality_buffer, uint32_t count,
                     int stream_index) override {
     for (uint32_t i = 0; i < count; ++i) {
-      update_record_crc(sequence_crc_[stream_index], read_buffer[i]);
-      if (quality_buffer) {
-        update_record_crc(quality_crc_[stream_index], quality_buffer[i]);
-      }
-      update_record_crc(id_crc_[stream_index], id_buffer[i]);
+      update_stream_digests(stream_index, read_buffer[i],
+                            quality_buffer ? &quality_buffer[i] : nullptr,
+                            id_buffer[i]);
     }
   }
 };

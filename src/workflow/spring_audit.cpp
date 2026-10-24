@@ -22,6 +22,7 @@ void perform_audit_standard_artifact(
   ensure_archive_decompression_plan_supported(decompression_plan);
 
   NullDecompressionSink sink;
+  sink.set_digest_length_framed(cp.read_info.digest_length_framed);
   execute_archive_decompression_plan(artifact, sink, cp, decompression_plan);
 
   const bool is_lossless = cp.encoding.preserve_order &&

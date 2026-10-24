@@ -159,6 +159,10 @@ struct compression_params {
     // archive metadata. Zero is a valid CRC32, so presence must not be inferred
     // from the digest value itself.
     bool digests_present = false;
+    // When true, record CRCs mix in a little-endian length before each payload
+    // so boundary shifts between reads cannot collide. False for older archives
+    // that hashed raw concatenation only.
+    bool digest_length_framed = true;
     uint32_t sequence_crc[2] = {0, 0};
     uint32_t quality_crc[2] = {0, 0};
     uint32_t id_crc[2] = {0, 0};

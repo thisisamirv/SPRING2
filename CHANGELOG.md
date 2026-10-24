@@ -19,6 +19,7 @@
 - Fixed grouped sc-RNA paired index-ID stripping verifying only the I1 token before `+`: stripping now requires the full `I1+I2` suffix to match both index reads, so a mismatched I2 is no longer overwritten on restore.
 - Fixed `--memory` accepting non-finite values and undefined behavior when converting huge budgets to a thread cap: non-finite values are rejected, and thread counts are clamped to `INT_MAX` instead of `static_cast<int>` overflow.
 - Fixed encoder continuing after shard open or metadata-spill write failures and still packing an incomplete archive: those errors now abort encoding instead of only being printed.
+- Fixed integrity digests hashing raw record concatenation so boundary shifts between reads (e.g. `AA|TT` vs `A|ATT`) could still match: new archives length-frame each record in the CRC, with a metadata flag so older unframed digests keep verifying.
 
 ## V1.3.6
 

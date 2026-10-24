@@ -37,10 +37,13 @@ public:
 
   BufferDecompressionSink(std::queue<StepPair> &queue, std::mutex &mutex,
                           std::condition_variable &cv, bool &shutdown_requested,
-                          bool paired_end, size_t max_queue_size)
+                          bool paired_end, size_t max_queue_size,
+                          bool digest_length_framed)
       : queue_(queue), mutex_(mutex), cv_(cv),
         shutdown_requested_(shutdown_requested), paired_end_(paired_end),
-        max_queue_size_(max_queue_size) {}
+        max_queue_size_(max_queue_size) {
+    set_digest_length_framed(digest_length_framed);
+  }
 
   void consume_step(std::string *id_buffer, std::string *read_buffer,
                     const std::string *quality_buffer, uint32_t count,
@@ -65,11 +68,9 @@ public:
     }
 
     for (uint32_t i = 0; i < count; ++i) {
-      update_record_crc(sequence_crc_[stream_index], read_buffer[i]);
-      if (quality_buffer) {
-        update_record_crc(quality_crc_[stream_index], quality_buffer[i]);
-      }
-      update_record_crc(id_crc_[stream_index], id_buffer[i]);
+      update_stream_digests(stream_index, read_buffer[i],
+                            quality_buffer ? &quality_buffer[i] : nullptr,
+                            id_buffer[i]);
     }
 
     if (stream_index == 0) {
@@ -227,8 +228,9 @@ public:
     worker_thread_ = std::thread([this, decompression_plan]() {
       try {
         const auto worker_start = std::chrono::steady_clock::now();
-        BufferDecompressionSink sink(queue_, mutex_, cv_, shutdown_requested_,
-                                     params_.encoding.paired_end, 2);
+        BufferDecompressionSink sink(
+            queue_, mutex_, cv_, shutdown_requested_, params_.encoding.paired_end,
+            2, params_.read_info.digest_length_framed);
         execute_archive_decompression_plan(artifact_, sink, params_,
                                            decompression_plan, decode_num_thr_);
         sink.log_summary();

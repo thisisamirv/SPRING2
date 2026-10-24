@@ -45,6 +45,7 @@ spring::compression_params make_sample_params() {
   cp.read_info.id_crc[1] = 66;
   cp.read_info.quality_header_has_id_by_stream[0] = false;
   cp.read_info.quality_header_has_id_by_stream[1] = true;
+  cp.read_info.digest_length_framed = true;
   cp.gzip.streams[0].was_gzipped = true;
   cp.gzip.streams[1].was_gzipped = true;
   cp.gzip.streams[0].name = "reads_1.fastq";
@@ -226,6 +227,7 @@ TEST_CASE("Current archive metadata stores format header") {
   CHECK(parsed.read_info.archive_format_version ==
         spring::CURRENT_ARCHIVE_FORMAT_VERSION);
   CHECK(parsed.read_info.compressor_version == cp.read_info.compressor_version);
+  CHECK(parsed.read_info.digest_length_framed == true);
 
   const spring::archive_decompression_plan plan =
       spring::build_archive_decompression_plan(parsed);
@@ -246,6 +248,7 @@ TEST_CASE("Legacy archive metadata remains readable") {
   CHECK(parsed.read_info.archive_format_version ==
         spring::LEGACY_ARCHIVE_FORMAT_VERSION);
   CHECK(parsed.read_info.compressor_version == kExpectedLegacyArchiveVersion);
+  CHECK(parsed.read_info.digest_length_framed == false);
   CHECK(parsed.read_info.input_filename_1 == cp.read_info.input_filename_1);
   CHECK(parsed.read_info.input_filename_2 == cp.read_info.input_filename_2);
 

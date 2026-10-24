@@ -4,22 +4,49 @@
 #ifndef SPRING_INTEGRITY_UTILS_H_
 #define SPRING_INTEGRITY_UTILS_H_
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <zlib.h>
 
 namespace spring {
 
 /**
- * @brief Utility for updating a running CRC32 digest with record content.
+ * @brief Update a running CRC32 with one record.
  *
- * @param crc The running CRC32 value.
- * @param data The string content to add to the digest.
+ * When length_framed is true (new archives), a little-endian uint32 length is
+ * mixed in before the payload so boundary shifts between records (e.g. AA|TT
+ * vs A|ATT) cannot collide. When false, only the raw payload is hashed for
+ * compatibility with older archives.
+ *
+ * Payloads larger than zlib's uInt are fed in chunks.
  */
-inline void update_record_crc(uint32_t &crc, const std::string &data) {
-  crc = static_cast<uint32_t>(crc32(
-      static_cast<uLong>(crc), reinterpret_cast<const Bytef *>(data.data()),
-      static_cast<uInt>(data.size())));
+inline void update_record_crc(uint32_t &crc, const std::string &data,
+                              const bool length_framed = true) {
+  if (length_framed) {
+    const uint32_t len = static_cast<uint32_t>(std::min(
+        data.size(), static_cast<size_t>(std::numeric_limits<uint32_t>::max())));
+    const uint8_t len_bytes[4] = {
+        static_cast<uint8_t>(len),
+        static_cast<uint8_t>(len >> 8),
+        static_cast<uint8_t>(len >> 16),
+        static_cast<uint8_t>(len >> 24),
+    };
+    crc = static_cast<uint32_t>(
+        crc32(static_cast<uLong>(crc), len_bytes, sizeof(len_bytes)));
+  }
+
+  const Bytef *ptr = reinterpret_cast<const Bytef *>(data.data());
+  size_t remaining = data.size();
+  while (remaining > 0) {
+    const uInt chunk = static_cast<uInt>(std::min(
+        remaining, static_cast<size_t>(std::numeric_limits<uInt>::max())));
+    crc = static_cast<uint32_t>(
+        crc32(static_cast<uLong>(crc), ptr, chunk));
+    ptr += chunk;
+    remaining -= chunk;
+  }
 }
 
 /**
