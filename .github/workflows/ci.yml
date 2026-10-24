@@ -730,8 +730,8 @@ jobs:
           echo "--- paired-end FASTQ round-trip ---"
           run spring2 -c --R1 "$DATA/test_1.fastq" --R2 "$DATA/test_2.fastq" -o "$TMP/paired.sp"
           run spring2 -d -i "$TMP/paired.sp" -o "$TMP/paired_out"
-          diff "$DATA/test_1.fastq" "$TMP/paired_out.1"
-          diff "$DATA/test_2.fastq" "$TMP/paired_out.2"
+          diff "$DATA/test_1.fastq" "$TMP/paired_out.R1"
+          diff "$DATA/test_2.fastq" "$TMP/paired_out.R2"
 
           echo "--- single-end FASTA round-trip ---"
           run spring2 -c --R1 "$DATA/test_1.fasta" -o "$TMP/fasta.sp"

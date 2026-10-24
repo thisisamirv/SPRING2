@@ -560,6 +560,20 @@ elseif(
         set(OpenMP_RUNTIME_MSVC llvm)
         set(SPRING_OPENMP_COMPONENTS C CXX)
     endif()
+elseif(
+    WIN32
+    AND (
+        CMAKE_C_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+    )
+)
+    # CMake FindOpenMP on MinGW/WinLibs often fails the C language probe even
+    # when -fopenmp works for both C and CXX. Require CXX, then reuse for C.
+    message(
+        NOTICE
+        "Configuring OpenMP for Windows GCC via CXX (reuse settings for C)"
+    )
+    set(SPRING_OPENMP_COMPONENTS CXX)
 else()
     set(SPRING_OPENMP_COMPONENTS C CXX)
 endif()
@@ -641,10 +655,18 @@ if(NOT SPRING_DISABLE_OPENMP)
 
     if(NOT OpenMP_C_FOUND AND OpenMP_CXX_FOUND)
         message(NOTICE "Reusing OpenMP CXX settings for C sources")
+        set(OpenMP_C_FOUND TRUE)
         set(OpenMP_C_FLAGS "${OpenMP_CXX_FLAGS}")
         set(OpenMP_C_LIB_NAMES "${OpenMP_CXX_LIB_NAMES}")
         set(OpenMP_C_LIBRARIES "${OpenMP_CXX_LIBRARIES}")
         set(OpenMP_C_INCLUDE_DIRS "${OpenMP_CXX_INCLUDE_DIRS}")
+        if(NOT TARGET OpenMP::OpenMP_C AND TARGET OpenMP::OpenMP_CXX)
+            add_library(OpenMP::OpenMP_C INTERFACE IMPORTED)
+            set_target_properties(
+                OpenMP::OpenMP_C
+                PROPERTIES INTERFACE_LINK_LIBRARIES OpenMP::OpenMP_CXX
+            )
+        endif()
     endif()
 
     message(NOTICE "OPENMP FOUND")
