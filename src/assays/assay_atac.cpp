@@ -56,10 +56,19 @@ AssayScoreBreakdown score_atac_assay(const AssayDetectionStats &stats,
 }
 
 bool has_atac_adapter(const std::string &seq) {
-  constexpr std::string_view kmer1 = "CTGTCTCTTATA";
-  constexpr std::string_view kmer2 = "TATACACATCTC";
-  return seq.find(kmer1) != std::string::npos ||
-         seq.find(kmer2) != std::string::npos;
+  // Match a prefix kmer from each Tn5 mosaic-end orientation so reverse-
+  // adapter reads are counted. The previous reverse kmer (TATACACATCTC) was
+  // not a substring of either adapter and missed AGATGTGTATAAGAGACAG.
+  constexpr size_t kKmerLen = 12;
+  for (const std::string_view adapter : kAtacAdapters) {
+    if (adapter.size() < kKmerLen) {
+      continue;
+    }
+    if (seq.find(adapter.substr(0, kKmerLen)) != std::string::npos) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool should_consider_atac_adapter_stripping(const compression_params &cp,
