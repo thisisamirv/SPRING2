@@ -1019,6 +1019,12 @@ std::vector<tar_archive_source> build_archive_sources(
                        .contents = contents,
                        .from_memory = true});
   }
+  // unordered_map iteration order is not part of the C++ contract; sort so
+  // tar member order is bit-stable across runs and standard libraries.
+  std::sort(sources.begin(), sources.end(),
+            [](const tar_archive_source &left, const tar_archive_source &right) {
+              return left.archive_path < right.archive_path;
+            });
   return sources;
 }
 
@@ -1032,6 +1038,10 @@ std::vector<tar_archive_source> build_archive_sources_from_disk(
                        .contents = std::string(),
                        .from_memory = false});
   }
+  std::sort(sources.begin(), sources.end(),
+            [](const tar_archive_source &left, const tar_archive_source &right) {
+              return left.archive_path < right.archive_path;
+            });
   return sources;
 }
 

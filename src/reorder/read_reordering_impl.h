@@ -1094,7 +1094,8 @@ void reorder_fast_low_diversity(bbhashdict *dict, uint16_t *read_lengths,
 
   // aligned_shards must be sized before the parallel region accesses it by
   // thread index.  reorder() normally does this, but the fast path bypasses
-  // reorder(), so we initialise it here.
+  // reorder(), so we initialise it here. Keep empty non-zero shards so the
+  // encoder's per-thread layout stays consistent with -t N.
   artifact.aligned_shards.assign(static_cast<size_t>(rg.num_thr), {});
 
   // Each read appears in exactly one bucket in dict[0] (or none if too
@@ -1102,38 +1103,31 @@ void reorder_fast_low_diversity(bbhashdict *dict, uint16_t *read_lengths,
   auto placed = std::make_unique<bool[]>(rg.numreads);
   std::fill(placed.get(), placed.get() + rg.numreads, false);
 
-#pragma omp parallel num_threads(rg.num_thr)
-  {
-    const int tid = omp_get_thread_num();
-    reorder_encoder_shard &shard =
-        artifact.aligned_shards[static_cast<size_t>(tid)];
+  // Serialize chain building onto shard 0. Dynamic OpenMP bucket assignment
+  // previously made which shard owned which chain schedule-dependent.
+  reorder_encoder_shard &shard = artifact.aligned_shards[0];
+  for (uint32_t bucket_idx = 0; bucket_idx < dict[0].numkeys; ++bucket_idx) {
+    int64_t bucket_range[2];
+    dict[0].findpos(bucket_range, static_cast<uint64_t>(bucket_idx));
+    if (!detail::valid_bucket_range(dict[0], bucket_range))
+      continue;
 
-    // Distribute buckets across threads; each bucket forms one contiguous
-    // chain so we use dynamic scheduling to balance unequal bucket sizes.
-#pragma omp for schedule(dynamic, 1)
-    for (uint32_t bucket_idx = 0; bucket_idx < dict[0].numkeys; ++bucket_idx) {
-      int64_t bucket_range[2];
-      dict[0].findpos(bucket_range, static_cast<uint64_t>(bucket_idx));
-      if (!detail::valid_bucket_range(dict[0], bucket_range))
-        continue;
+    // First read in bucket starts a new chain (flag '0'); subsequent reads
+    // align at position 0 / shift 0 (flag '1').
+    bool first_in_bucket = true;
+    for (int64_t pos = bucket_range[0]; pos < bucket_range[1]; ++pos) {
+      const uint32_t read_id = dict[0].read_id[static_cast<size_t>(pos)];
+      placed[read_id] = true;
 
-      // First read in bucket starts a new chain (flag '0'); subsequent reads
-      // align at position 0 / shift 0 (flag '1').
-      bool first_in_bucket = true;
-      for (int64_t pos = bucket_range[0]; pos < bucket_range[1]; ++pos) {
-        const uint32_t read_id = dict[0].read_id[static_cast<size_t>(pos)];
-        placed[read_id] = true;
-
-        shard.orientation_bytes.push_back('d');
-        detail::append_binary(shard.order_bytes, read_id);
-        shard.flag_bytes.push_back(first_in_bucket ? '0' : '1');
-        const int64_t p = 0;
-        detail::append_binary(shard.position_bytes, p);
-        detail::append_binary(shard.read_length_bytes, read_lengths[read_id]);
-        first_in_bucket = false;
-      }
+      shard.orientation_bytes.push_back('d');
+      detail::append_binary(shard.order_bytes, read_id);
+      shard.flag_bytes.push_back(first_in_bucket ? '0' : '1');
+      const int64_t p = 0;
+      detail::append_binary(shard.position_bytes, p);
+      detail::append_binary(shard.read_length_bytes, read_lengths[read_id]);
+      first_in_bucket = false;
     }
-  } // implicit barrier: placed[] writes visible to the main thread below
+  }
 
   // Reads absent from dict[0] (too short for its key window) become
   // singletons so no reads are silently dropped.

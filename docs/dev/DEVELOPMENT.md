@@ -135,7 +135,7 @@ That same `out/build` tree is also the default source for `out/clangd/compile_co
 - **Unit Tests**: `tests/unit/*.cpp` (Split by low-level helpers and assay detection behavior).
 - **Integration Tests**: `tests/integration/*.cpp` (Split by archive integrity, reader behavior, assay workflows, and grouped archive scenarios).
 - **Smoke Tests**: `tests/smoke/*.cpp` (Split C++ CLI behavioral validation executed through the `smoke-tests` binary).
-- **Determinism**: `tests/smoke/determinism_smoke_tests.cpp` asserts bit-identical dual compress for `-t 1` and multi-thread, and that multi-thread decompresses to the same mates as `-t 1` (paired `test_3` fixture).
+- **Determinism**: `tests/smoke/determinism_smoke_tests.cpp` asserts bit-identical dual compress for short-read (`test_3`) and long-read (`sample.fastq`) paths at `-t 1` and multi-thread, and that short-read multi-thread decompresses to the same mates as `-t 1`.
 
 ### Archive Metadata Version Compatibility
 

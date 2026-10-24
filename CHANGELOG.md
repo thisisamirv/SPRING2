@@ -6,7 +6,7 @@
 
 ### Added
 
-- Added smoke regressions that require bit-identical archives across dual compress runs for `-t 1` and default multi-thread, plus a check that multi-thread and `-t 1` decompress to identical mates on the paired bisulfite fixture (`test_3`).
+- Added smoke regressions that require bit-identical archives across dual compress runs for short-read (`test_3`) and long-read (`sample.fastq`) at `-t 1` and multi-thread, plus a check that short-read multi-thread and `-t 1` decompress to identical mates.
 - Added advanced compression routing controls: `-r/--compression-route auto|memory|disk` forces the memory or disk intermediate path (default remains automatic), and `-w/--tmp-dir <path>` places disk-path workspaces (`.work-tmp` / `.grouped-tmp`) under a chosen directory (e.g. `/dev/shm`). Both are also exposed on `CompressOptions` (`compression_route`, `temp_dir`).
 - Added per-member SHA-256 container integrity: new `.sp` archives embed `integrity.meta` with a SHA-256 of every tar member payload plus a root hash of the sorted digest list. Decompress, audit, and `SpringReader` verify the manifest (legacy archives without it warn and skip).
 - Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
@@ -14,7 +14,7 @@
 
 ### Changed
 
-- Made short-read reordering always deterministic so multi-thread compression produces bit-identical archives for a given thread count.
+- Made compression always bit-deterministic for a given thread count across short-read and long-read paths: serialized short-read match selection and low-diversity chain building, wait on encoder singleton locks instead of skipping, and sort tar members before packing.
 - Renamed the manual `comparison.yml` workflow to `benchmark.yml` and expanded it to run `tests/bench/small_bench.py`, `big_bench.py --no_debug`, and `comparison_bench.py` after a shared build/install.
 - Dropped the `macOS x64 Clang` CI job (`macos-15-intel`); macOS coverage is ARM64 only.
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.

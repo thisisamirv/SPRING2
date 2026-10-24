@@ -560,10 +560,11 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                   if (bucket_start_index >=
                       dictionaries[dictionary_index].numkeys)
                     continue;
-                  if (!omp_test_lock(dictionary_locks[detail::lock_shard(
-                                                          bucket_start_index)]
-                                         .get()))
-                    continue;
+                  // Wait for the lock instead of skipping: try-lock skips made
+                  // singleton absorption schedule-dependent across threads.
+                  omp_set_lock(dictionary_locks[detail::lock_shard(
+                                                    bucket_start_index)]
+                                   .get());
                   dictionaries[dictionary_index].findpos(bucket_range,
                                                          bucket_start_index);
                   if (dictionaries[dictionary_index]
@@ -609,9 +610,8 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                                              read_lengths[read_id]])
                                 .count());
                       if (hamming <= thresh_s) {
-                        if (!omp_test_lock(
-                                read_locks[detail::lock_shard(read_id)].get()))
-                          continue;
+                        omp_set_lock(
+                            read_locks[detail::lock_shard(read_id)].get());
                         if (remaining_reads[read_id]) {
                           remaining_reads[read_id] = 0;
                           matched_read = 1;
@@ -667,13 +667,10 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                                        .to_ullong();
                       bucket_start_index =
                           (*dictionaries[delete_dict_index].bphf)(lookup_key);
-                      if (!omp_test_lock(
-                              dictionary_locks[detail::lock_shard(
-                                                   bucket_start_index)]
-                                  .get())) {
-                        ++deleted_it;
-                        continue;
-                      }
+                      omp_set_lock(
+                          dictionary_locks[detail::lock_shard(
+                                               bucket_start_index)]
+                              .get());
                       dictionaries[delete_dict_index].findpos(
                           bucket_range, bucket_start_index);
                       // Remove matched singletons once they have been absorbed.

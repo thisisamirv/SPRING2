@@ -41,6 +41,21 @@ TEST_CASE("Smoke multi-thread compress is bit-identical by default") {
       workspace.path("a.sp"), workspace.path("b.sp"));
 }
 
+TEST_CASE("Smoke long-read compress is bit-identical (single-thread)") {
+  SmokeWorkspace workspace("determinism_long_t1");
+  compress_twice_expect_identical(
+      {"-c", "--R1", asset_path("sample.fastq"), "-t", "1"},
+      workspace.path("a.sp"), workspace.path("b.sp"));
+}
+
+TEST_CASE("Smoke long-read compress is bit-identical (multi-thread)") {
+  SmokeWorkspace workspace("determinism_long_mt");
+  const std::string threads = std::to_string(smoke_compress_threads());
+  compress_twice_expect_identical(
+      {"-c", "--R1", asset_path("sample.fastq"), "-t", threads},
+      workspace.path("a.sp"), workspace.path("b.sp"));
+}
+
 TEST_CASE("Smoke multi-thread round-trips like single-thread") {
   // Archive packaging still carries the requested thread count (shard layout),
   // so MT bytes need not match -t 1. Decompressed mates must match.
