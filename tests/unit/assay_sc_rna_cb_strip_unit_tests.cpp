@@ -3,8 +3,12 @@
 #include "assay_sc_rna.h"
 #include "params.h"
 
+#include <stdexcept>
+
+using spring::append_grouped_sc_rna_index_suffix_to_id;
 using spring::compression_params;
 using spring::should_enable_sc_rna_cb_prefix_stripping;
+using spring::strip_grouped_sc_rna_index_suffix_from_id;
 
 namespace {
 
@@ -55,4 +59,37 @@ TEST_CASE("Index-group archives do not strip R1 CB prefix") {
       make_sc_rna_cp("N/A", /*cb_len_was_explicit=*/true);
   cp.read_info.note = "index-group";
   CHECK_FALSE(should_enable_sc_rna_cb_prefix_stripping(cp));
+}
+
+TEST_CASE("Grouped index-ID strip matches paired I1+I2 suffix") {
+  std::string id = "@r 1:N:0:ACGT+TGCA";
+  const std::string i1 = "ACGT";
+  const std::string i2 = "TGCA";
+  CHECK(strip_grouped_sc_rna_index_suffix_from_id(id, i1, &i2));
+  CHECK(id == "@r 1:N:0:");
+  append_grouped_sc_rna_index_suffix_to_id(id, i1, &i2);
+  CHECK(id == "@r 1:N:0:ACGT+TGCA");
+}
+
+TEST_CASE("Grouped index-ID strip rejects I2 mismatch") {
+  std::string id = "@r 1:N:0:ACGT+TGCA";
+  const std::string i1 = "ACGT";
+  const std::string i2 = "AAAA";
+  CHECK_FALSE(strip_grouped_sc_rna_index_suffix_from_id(id, i1, &i2));
+  CHECK(id == "@r 1:N:0:ACGT+TGCA");
+}
+
+TEST_CASE("Grouped index-ID restore is no-op for unstripped IDs") {
+  std::string id = "@r 1:N:0:ACGT+TGCA";
+  const std::string i1 = "ACGT";
+  const std::string i2 = "TGCA";
+  append_grouped_sc_rna_index_suffix_to_id(id, i1, &i2);
+  CHECK(id == "@r 1:N:0:ACGT+TGCA");
+}
+
+TEST_CASE("Grouped index-ID restore throws on empty ID") {
+  std::string id;
+  const std::string i1 = "ACGT";
+  CHECK_THROWS_AS(append_grouped_sc_rna_index_suffix_to_id(id, i1, nullptr),
+                  std::runtime_error);
 }

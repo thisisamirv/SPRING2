@@ -483,9 +483,11 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
   // stream-0 ID compression is deferred until both mates can be verified.
   const bool defer_stream0_id_write_for_index_suffix =
       maybe_strip_grouped_index_id_suffix && cp.encoding.paired_end;
+  // Latch true on the first fully-matching batch; earlier non-matching batches
+  // stay unstripped (decompress skips restore when the stored ID has no
+  // trailing ':'). Do not permanently disable on the first miss — that would
+  // skip the optimization for the rest of the index archive.
   bool grouped_index_id_suffix_strip_active = false;
-  bool grouped_index_id_suffix_strip_decided =
-      !maybe_strip_grouped_index_id_suffix;
   std::vector<std::string> index_id_strip_i1_seqs;
   uint32_t deferred_stream0_id_reads_in_step = 0;
 
@@ -764,8 +766,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                 "Grouped sc-RNA index-ID suffix stripping requires equal "
                 "I1/I2 read counts in each step.");
           }
-          if (!grouped_index_id_suffix_strip_decided) {
-            grouped_index_id_suffix_strip_active = true;
+          if (!grouped_index_id_suffix_strip_active) {
+            bool batch_matches = true;
             for (uint32_t ri = 0; ri < reads_in_step; ++ri) {
               std::string candidate_id = strip_ids[ri];
               const std::string &seq1 =
@@ -774,12 +776,12 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                   (stream_index == 1) ? &read_array[ri] : nullptr;
               if (!strip_grouped_sc_rna_index_suffix_from_id(candidate_id, seq1,
                                                              seq2)) {
-                grouped_index_id_suffix_strip_active = false;
+                batch_matches = false;
                 break;
               }
             }
-            grouped_index_id_suffix_strip_decided = true;
-            if (grouped_index_id_suffix_strip_active) {
+            if (batch_matches) {
+              grouped_index_id_suffix_strip_active = true;
               SPRING_LOG_DEBUG(
                   "Grouped sc-RNA index-ID suffix stripping enabled "
                   "(reconstruct trailing I1/I2 token from index reads)");

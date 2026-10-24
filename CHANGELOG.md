@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed grouped sc-RNA index-ID suffix stripping locking disable on the first non-matching preprocess batch: enablement now latches on the first fully-matching batch (later mismatches still throw), and decompress skips restore for unstripped IDs that do not end in `:`.
 - Fixed auto-detected sc-rna applying the default `--cb-len 16` R1 prefix strip without chemistry confirmation: auto mode now requires high confidence and an explicit `--cb-len` before stripping (explicit `-y sc-rna` still allows the default length; `--I1` still disables R1 CB strip).
 - Fixed PE bisulfite using a single `depleted_base` for both mates: detection now records per-stream C/G depletion, archives store the mate field, and reorder/dictionary matching applies the depleted-base mask per mate (directional PE with C-depleted R1 and G-depleted R2).
 - Fixed ATAC/sc-ATAC adapter stripping locking enable/disable on the first preprocess step with any reads (including all-N steps): accumulate a minimum non-N sample across steps/streams before deciding, decide on short EOF steps so small inputs can still strip, and require high (or explicit `-y`) confidence before arming strip consideration.

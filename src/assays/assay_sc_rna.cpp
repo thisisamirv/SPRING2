@@ -76,9 +76,13 @@ bool strip_grouped_sc_rna_index_suffix_from_id(
 void append_grouped_sc_rna_index_suffix_to_id(std::string &id,
                                               const std::string &index_read_1,
                                               const std::string *index_read_2) {
-  if (id.empty() || id.back() != ':') {
-    throw std::runtime_error("Corrupt grouped sc-RNA index metadata: stripped "
-                             "ID prefix missing ':'");
+  if (id.empty()) {
+    throw std::runtime_error("Corrupt grouped sc-RNA index metadata: empty ID");
+  }
+  // IDs that still carry the barcode (written before strip enablement latched)
+  // do not end in ':'; leave them unchanged. Stripped IDs end with ':'.
+  if (id.back() != ':') {
+    return;
   }
 
   id.append(index_read_1);

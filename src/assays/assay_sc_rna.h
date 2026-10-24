@@ -26,6 +26,8 @@ bool strip_grouped_sc_rna_index_suffix_from_id(
     std::string &id, const std::string &stream_1_seq,
     const std::string *stream_2_seq);
 
+// Restores a stripped trailing index token. No-op when id does not end in ':'
+// (unstripped IDs written before strip enablement). Empty ids throw.
 void append_grouped_sc_rna_index_suffix_to_id(std::string &id,
                                               const std::string &index_read_1,
                                               const std::string *index_read_2);
