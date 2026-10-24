@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <stdexcept>
 #include <string_view>
 
@@ -56,19 +57,14 @@ AssayScoreBreakdown score_atac_assay(const AssayDetectionStats &stats,
 }
 
 bool has_atac_adapter(const std::string &seq) {
-  // Match a prefix kmer from each Tn5 mosaic-end orientation so reverse-
-  // adapter reads are counted. The previous reverse kmer (TATACACATCTC) was
-  // not a substring of either adapter and missed AGATGTGTATAAGAGACAG.
-  constexpr size_t kKmerLen = 12;
-  for (const std::string_view adapter : kAtacAdapters) {
-    if (adapter.size() < kKmerLen) {
-      continue;
-    }
-    if (seq.find(adapter.substr(0, kKmerLen)) != std::string::npos) {
-      return true;
-    }
+  // Same criterion as terminal strip: only a read-end Tn5/Nextera overlap
+  // counts. Anywhere-in-read 12-mers can hit genomic sequence, inflate ATAC
+  // classification, and then strip little or nothing.
+  if (seq.size() > std::numeric_limits<uint32_t>::max()) {
+    return false;
   }
-  return false;
+  return detect_atac_adapter_tail_info(
+             seq, static_cast<uint32_t>(seq.size())) != 0;
 }
 
 bool should_consider_atac_adapter_stripping(const compression_params &cp,

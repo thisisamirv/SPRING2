@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed ATAC assay detection counting anywhere-in-read Tn5 12-mers while stripping only terminal overlap: `has_atac_adapter` now uses the same read-end mosaic-end match as strip, so internal genomic hits no longer inflate ATAC classification (medium-confidence auto-ATAC already does not arm stripping).
 - Fixed grouped sc-RNA index-ID suffix stripping locking disable on the first non-matching preprocess batch: enablement now latches on the first fully-matching batch (later mismatches still throw), and decompress skips restore for unstripped IDs that do not end in `:`.
 - Fixed auto-detected sc-rna applying the default `--cb-len 16` R1 prefix strip without chemistry confirmation: auto mode now requires high confidence and an explicit `--cb-len` before stripping (explicit `-y sc-rna` still allows the default length; `--I1` still disables R1 CB strip).
 - Fixed PE bisulfite using a single `depleted_base` for both mates: detection now records per-stream C/G depletion, archives store the mate field, and reorder/dictionary matching applies the depleted-base mask per mate (directional PE with C-depleted R1 and G-depleted R2).

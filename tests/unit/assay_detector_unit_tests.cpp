@@ -71,9 +71,11 @@ TEST_CASE("Testing AssayDetector") {
   SUBCASE("Test ATAC Tn5 detection signature directly") {
     std::string test_fq = "test_sc_atac.fq";
     std::ofstream out(test_fq);
+    // Terminal mosaic-end overlap (matches strip); internal-only 12-mers must
+    // not classify ATAC.
     for (int i = 0; i < 100; ++i) {
       out << "@read" << i << "\n";
-      out << "GCTAGCTAGCTCTGTCTCTTATAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAG\n";
+      out << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTCTTATACACATCT\n";
       out << "+\n";
       out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
     }

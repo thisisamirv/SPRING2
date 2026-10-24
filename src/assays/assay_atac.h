@@ -18,6 +18,8 @@ grouped_archive_allows_atac_adapter_stripping(const std::string &archive_note);
 [[nodiscard]] AssayScoreBreakdown
 score_atac_assay(const AssayDetectionStats &stats, bool reference_loaded);
 
+// True when the read ends with a Tn5/Nextera mosaic-end overlap of at least
+// ATAC_ADAPTER_MIN_MATCH bases (same rule as terminal adapter stripping).
 [[nodiscard]] bool has_atac_adapter(const std::string &seq);
 
 [[nodiscard]] bool

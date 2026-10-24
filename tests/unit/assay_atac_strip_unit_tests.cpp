@@ -5,6 +5,7 @@
 
 using spring::AtacAdapterStripSample;
 using spring::compression_params;
+using spring::has_atac_adapter;
 using spring::kAtacAdapterStripMinSampleReads;
 using spring::should_consider_atac_adapter_stripping;
 using spring::update_atac_adapter_strip_sample;
@@ -72,4 +73,18 @@ TEST_CASE("Auto medium-confidence ATAC does not arm stripping") {
 
   cp.read_info.assay_confidence = "N/A";
   CHECK(should_consider_atac_adapter_stripping(cp, false, true));
+}
+
+TEST_CASE("ATAC adapter detection matches terminal strip, not internal kmers") {
+  const std::string internal_only =
+      "GCTAGCTAGCTCTGTCTCTTATAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAG";
+  CHECK_FALSE(has_atac_adapter(internal_only));
+
+  const std::string terminal =
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTCTTATACACATCT";
+  CHECK(has_atac_adapter(terminal));
+
+  const std::string reverse_terminal =
+      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGATGTGTATAAGAGACAG";
+  CHECK(has_atac_adapter(reverse_terminal));
 }
