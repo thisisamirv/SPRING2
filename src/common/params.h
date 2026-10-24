@@ -84,7 +84,10 @@ struct compression_params {
     uint32_t cb_len = 16;      // CB length for extraction/display.
     bool barcode_sort = false; // Legacy field; always false in new archives.
     bool bisulfite_ternary = false;
-    char depleted_base = 'N';
+    // Per-stream depleted base for bisulfite ternary reorder modeling.
+    // [0]=R1/SE, [1]=R2. Older archives stored only [0]; readers copy it to
+    // [1] when the mate field is absent.
+    char depleted_base_by_stream[2] = {'N', 'N'};
     bool cb_prefix_source_external =
         false; // Compression-time only: CB comes from I1/external lane.
     bool poly_at_stripped = false; // True when poly-A/T tail stripping was

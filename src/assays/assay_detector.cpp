@@ -439,7 +439,8 @@ AssayDetector::evaluate_stages(const AssayDetectionStats &stats,
 
   res.c_ratio = bisulfite.c_ratio;
   res.g_ratio = bisulfite.g_ratio;
-  res.depleted_base = bisulfite.depleted_base;
+  res.depleted_base_by_stream[0] = bisulfite.depleted_base_by_stream[0];
+  res.depleted_base_by_stream[1] = bisulfite.depleted_base_by_stream[1];
 
   const double bisulfite_score = bisulfite.breakdown.score;
   const double atac_score = atac.score;

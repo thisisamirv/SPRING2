@@ -87,22 +87,36 @@ inline bool valid_bucket_range(const bbhashdict &dictionary,
   return begin < dictionary.dict_numreads && end <= dictionary.dict_numreads;
 }
 
+inline void apply_bisulfite_depleted_key_mask(uint64_t &key,
+                                              const char depleted_base) {
+  if (depleted_base == 'C') {
+    key &= ~((key >> 1) & 0x5555555555555555ULL);
+  } else if (depleted_base == 'G') {
+    key &= ~((~key >> 1) & 0x5555555555555555ULL);
+  }
+}
+
 template <size_t bitset_size>
-void compute_dictionary_keys(std::bitset<bitset_size> *read_bits,
-                             const std::bitset<bitset_size> &index_mask,
-                             const int start_base, const uint32_t read_count,
-                             const int bits_per_base, uint64_t *dictionary_keys,
-                             const char depleted_base = 'N') {
+void compute_dictionary_keys(
+    std::bitset<bitset_size> *read_bits,
+    const std::bitset<bitset_size> &index_mask, const int start_base,
+    const uint32_t read_count, const int bits_per_base,
+    uint64_t *dictionary_keys, const char depleted_base_by_stream[2],
+    const uint32_t stream0_read_count) {
   const std::bitset<bitset_size> local_index_mask = index_mask;
   const uint32_t local_read_count = read_count;
   const int local_bits_per_base = bits_per_base;
   const int local_start_base = start_base;
+  const uint32_t local_stream0_read_count = stream0_read_count;
+  const char depleted0 = depleted_base_by_stream[0];
+  const char depleted1 = depleted_base_by_stream[1];
   std::bitset<bitset_size> *local_read_bits = read_bits;
   uint64_t *local_dictionary_keys = dictionary_keys;
 #pragma omp parallel for default(none)                                         \
     shared(local_read_bits, local_dictionary_keys)                             \
     firstprivate(local_index_mask, local_read_count, local_bits_per_base,      \
-                     local_start_base, depleted_base)
+                     local_start_base, local_stream0_read_count, depleted0,    \
+                     depleted1)
   for (int64_t read_index = 0;
        read_index < static_cast<int64_t>(local_read_count); read_index++) {
     std::bitset<bitset_size> masked_read_bits =
@@ -110,11 +124,11 @@ void compute_dictionary_keys(std::bitset<bitset_size> *read_bits,
     uint64_t key =
         (masked_read_bits >> (local_bits_per_base * local_start_base))
             .to_ullong();
-    if (depleted_base == 'C') {
-      key &= ~((key >> 1) & 0x5555555555555555ULL);
-    } else if (depleted_base == 'G') {
-      key &= ~((~key >> 1) & 0x5555555555555555ULL);
-    }
+    const char depleted_base =
+        static_cast<uint32_t>(read_index) < local_stream0_read_count
+            ? depleted0
+            : depleted1;
+    apply_bisulfite_depleted_key_mask(key, depleted_base);
     local_dictionary_keys[read_index] = key;
   }
 }
@@ -445,7 +459,8 @@ template <size_t bitset_size>
 void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
                          uint16_t *read_lengths, const int numdict,
                          const uint32_t numreads, const int bpb,
-                         const char depleted_base = 'N',
+                         const char depleted_base_by_stream[2],
+                         const uint32_t stream0_read_count,
                          const bool use_external_mphf = false,
                          const std::string &mphf_tmp_dir = "") {
   auto format_seconds = [](const std::chrono::steady_clock::duration &value) {
@@ -468,7 +483,7 @@ void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
 
     detail::compute_dictionary_keys<bitset_size>(
         read, index_masks[dict_index], current_dict.start, numreads, bpb,
-        dictionary_keys_data, depleted_base);
+        dictionary_keys_data, depleted_base_by_stream, stream0_read_count);
 
     // Keep only reads that are long enough for this dictionary.
     current_dict.dict_numreads = detail::compact_dictionary_keys(

@@ -112,7 +112,8 @@ void initialize_optional_archive_metadata_defaults(compression_params &cp) {
   cp.encoding.barcode_sort = false;
   cp.encoding.cb_len = 16;
   cp.encoding.bisulfite_ternary = false;
-  cp.encoding.depleted_base = 'N';
+  cp.encoding.depleted_base_by_stream[0] = 'N';
+  cp.encoding.depleted_base_by_stream[1] = 'N';
   cp.encoding.poly_at_stripped = false;
   cp.encoding.cb_prefix_stripped = false;
   cp.encoding.cb_prefix_len = 0;
@@ -242,7 +243,7 @@ void write_extension_fields_after_digests(std::ostream &out,
   write_bool(out, cp.encoding.barcode_sort);
   out.write(byte_ptr(&cp.encoding.cb_len), sizeof(uint32_t));
   write_bool(out, cp.encoding.bisulfite_ternary);
-  out.write(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
+  out.write(byte_ptr(&cp.encoding.depleted_base_by_stream[0]), sizeof(char));
   write_bool(out, cp.encoding.poly_at_stripped);
   write_bool(out, cp.encoding.cb_prefix_stripped);
   out.write(byte_ptr(&cp.encoding.cb_prefix_len), sizeof(uint32_t));
@@ -254,6 +255,9 @@ void write_extension_fields_after_digests(std::ostream &out,
   for (int i = 0; i < 2; ++i)
     write_bool(out, cp.read_info.quality_header_has_id_by_stream[i]);
   write_bool(out, cp.read_info.digest_length_framed);
+  // Appended after the v2 fixed fields so older readers that stop at
+  // digest_length_framed still parse; mate defaults to stream 0 when absent.
+  out.write(byte_ptr(&cp.encoding.depleted_base_by_stream[1]), sizeof(char));
 }
 
 // Format v2+ trailer: explicit digests_present, then optional digests, then the
@@ -314,7 +318,7 @@ void read_extension_fields_after_digests(
   cp.encoding.barcode_sort = read_bool(in);
   in.read(byte_ptr(&cp.encoding.cb_len), sizeof(uint32_t));
   cp.encoding.bisulfite_ternary = read_bool(in);
-  in.read(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
+  in.read(byte_ptr(&cp.encoding.depleted_base_by_stream[0]), sizeof(char));
   cp.encoding.poly_at_stripped = read_bool(in);
   cp.encoding.cb_prefix_stripped = read_bool(in);
   in.read(byte_ptr(&cp.encoding.cb_prefix_len), sizeof(uint32_t));
@@ -330,6 +334,18 @@ void read_extension_fields_after_digests(
   if (!in) {
     throw std::runtime_error(
         "Corrupt archive: truncated metadata extension fields.");
+  }
+  // Optional mate depleted base (absent in archives written before per-stream
+  // bisulfite support).
+  if (in.peek() != std::char_traits<char>::eof()) {
+    in.read(byte_ptr(&cp.encoding.depleted_base_by_stream[1]), sizeof(char));
+    if (!in) {
+      throw std::runtime_error(
+          "Corrupt archive: truncated mate depleted_base in metadata.");
+    }
+  } else {
+    cp.encoding.depleted_base_by_stream[1] =
+        cp.encoding.depleted_base_by_stream[0];
   }
 }
 
@@ -387,7 +403,10 @@ void read_extension_trailer_legacy_peek(
     if (in.peek() != std::char_traits<char>::eof()) {
       cp.encoding.bisulfite_ternary = read_bool(in);
       if (in.peek() != std::char_traits<char>::eof()) {
-        in.read(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
+        in.read(byte_ptr(&cp.encoding.depleted_base_by_stream[0]),
+                sizeof(char));
+        cp.encoding.depleted_base_by_stream[1] =
+            cp.encoding.depleted_base_by_stream[0];
         if (in.peek() != std::char_traits<char>::eof()) {
           cp.encoding.poly_at_stripped = read_bool(in);
           if (in.peek() != std::char_traits<char>::eof()) {

@@ -1046,9 +1046,10 @@ encoder_main(const reorder_encoder_artifact &reorder_artifact,
   if (singleton_pool_size > 0) {
     SPRING_LOG_INFO("Building encoder dictionary for " +
                     std::to_string(singleton_pool_size) + " singletons...");
+    static constexpr char kNoDepletion[2] = {'N', 'N'};
     constructdictionary<bitset_size>(
         read.data(), dict.data(), read_lengths_s.data(), eg.numdict_s,
-        singleton_pool_size, 3, /*depleted_base=*/'N',
+        singleton_pool_size, 3, kNoDepletion, singleton_pool_size,
         cp.encoding.use_external_mphf, cp.encoding.mphf_tmp_dir);
   }
   SPRING_LOG_INFO("Starting main encoding loop...");

@@ -26,7 +26,10 @@ void apply_sc_bisulfite_auto_config(
   }
   if (detection_result.c_ratio < 0.05 || detection_result.g_ratio < 0.05) {
     cp.encoding.bisulfite_ternary = true;
-    cp.encoding.depleted_base = detection_result.depleted_base;
+    cp.encoding.depleted_base_by_stream[0] =
+        detection_result.depleted_base_by_stream[0];
+    cp.encoding.depleted_base_by_stream[1] =
+        detection_result.depleted_base_by_stream[1];
   }
 }
 

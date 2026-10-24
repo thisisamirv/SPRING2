@@ -102,7 +102,8 @@ TEST_CASE("Testing AssayDetector") {
         detector.detect(test_fq, "", "", "", "");
     CHECK(res.assay == "bisulfite");
     CHECK(res.confidence.find("-depletion") != std::string::npos);
-    CHECK(res.depleted_base == 'C');
+    CHECK(res.depleted_base_by_stream[0] == 'C');
+    CHECK(res.depleted_base_by_stream[1] == 'C');
 
     std::filesystem::remove(test_fq);
   }

@@ -55,13 +55,17 @@ template <size_t bitset_size> struct reorder_global {
   bool paired_end;
   std::bitset<bitset_size> mask64;
   std::bitset<bitset_size> mask_lsb;
-  char depleted_base;
+  char depleted_base_by_stream[2];
   std::vector<std::array<std::bitset<bitset_size>, 128>> basemask;
   std::vector<std::bitset<bitset_size> *> basemask_ptrs;
+  [[nodiscard]] char depleted_base_for_read(uint32_t read_id) const {
+    return read_id < numreads_array[0] ? depleted_base_by_stream[0]
+                                       : depleted_base_by_stream[1];
+  }
   reorder_global(int max_readlen_param)
       : numreads(0), numreads_array{0, 0}, maxshift(0), shift_step(1),
         num_thr(0), max_readlen(max_readlen_param), numdict(NUM_DICT_REORDER),
-        paired_end(false), depleted_base('N') {
+        paired_end(false), depleted_base_by_stream{'N', 'N'} {
     mask_lsb.reset();
     for (int i = 0; i < max_readlen_param * 2; i += 2)
       mask_lsb[i] = 1;
@@ -415,9 +419,11 @@ bool search_match(const std::bitset<bitset_size> &ref,
                   std::bitset<bitset_size> *reads, bbhashdict *dict,
                   uint32_t &matched_read_id, const bool use_reverse_match,
                   const int shift, const int &ref_len,
-                  const reorder_global<bitset_size> &rg) {
+                  const reorder_global<bitset_size> &rg,
+                  const uint32_t ref_read_id) {
   static const unsigned int thresh = THRESH_REORDER;
   const int maxsearch = MAX_SEARCH_REORDER;
+  const char ref_depleted = rg.depleted_base_for_read(ref_read_id);
   std::bitset<bitset_size> masked_ref_bits;
   uint64_t lookup_key;
   int64_t bucket_range[2];
@@ -437,11 +443,7 @@ bool search_match(const std::bitset<bitset_size> &ref,
     masked_ref_bits = ref & index_masks[dictionary_index];
     lookup_key =
         (masked_ref_bits >> 2 * dict[dictionary_index].start).to_ullong();
-    if (rg.depleted_base == 'C') {
-      lookup_key &= ~((lookup_key >> 1) & 0x5555555555555555ULL);
-    } else if (rg.depleted_base == 'G') {
-      lookup_key &= ~((~lookup_key >> 1) & 0x5555555555555555ULL);
-    }
+    apply_bisulfite_depleted_key_mask(lookup_key, ref_depleted);
     bucket_start_index = (*dict[dictionary_index].bphf)(lookup_key);
     if (bucket_start_index >= dict[dictionary_index].numkeys)
       continue;
@@ -461,16 +463,14 @@ bool search_match(const std::bitset<bitset_size> &ref,
       omp_unset_lock(dict_locks[detail::lock_shard(bucket_start_index)].get());
       continue;
     }
+    const uint32_t first_candidate_id =
+        dict[dictionary_index].read_id[bucket_range[0]];
     uint64_t candidate_key =
-        ((reads[dict[dictionary_index].read_id[bucket_range[0]]] &
-          index_masks[dictionary_index]) >>
+        ((reads[first_candidate_id] & index_masks[dictionary_index]) >>
          2 * dict[dictionary_index].start)
             .to_ullong();
-    if (rg.depleted_base == 'C') {
-      candidate_key &= ~((candidate_key >> 1) & 0x5555555555555555ULL);
-    } else if (rg.depleted_base == 'G') {
-      candidate_key &= ~((~candidate_key >> 1) & 0x5555555555555555ULL);
-    }
+    apply_bisulfite_depleted_key_mask(
+        candidate_key, rg.depleted_base_for_read(first_candidate_id));
     if (lookup_key == candidate_key) {
       bucket_matches_lookup = true;
       for (int64_t bucket_index = bucket_range[1] - 1;
@@ -493,9 +493,9 @@ bool search_match(const std::bitset<bitset_size> &ref,
       const auto read_id = candidate_ids[candidate_index];
       size_t hamming;
       std::bitset<bitset_size> diff = ref ^ reads[read_id];
-      if (rg.depleted_base == 'C') {
+      if (ref_depleted == 'C') {
         diff &= ~((ref >> 1) & (reads[read_id] >> 1) & rg.mask_lsb);
-      } else if (rg.depleted_base == 'G') {
+      } else if (ref_depleted == 'G') {
         diff &= ~((~ref >> 1) & (~reads[read_id] >> 1) & rg.mask_lsb);
       }
 
@@ -787,11 +787,9 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
               read[current_read_id] & index_masks_data[dictionary_index];
           lookup_key = (masked_read_bits >> 2 * dict[dictionary_index].start)
                            .to_ullong();
-          if (rg.depleted_base == 'C') {
-            lookup_key &= ~((lookup_key >> 1) & 0x5555555555555555ULL);
-          } else if (rg.depleted_base == 'G') {
-            lookup_key &= ~((~lookup_key >> 1) & 0x5555555555555555ULL);
-          }
+          detail::apply_bisulfite_depleted_key_mask(
+              lookup_key, rg.depleted_base_for_read(
+                              static_cast<uint32_t>(current_read_id)));
           bucket_start_index = (*dict[dictionary_index].bphf)(lookup_key);
           if (bucket_start_index >= dict[dictionary_index].numkeys ||
               dict[dictionary_index].empty_bin[bucket_start_index])
@@ -829,7 +827,8 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
           found_match = detail::search_match<bitset_size>(
               reference_read, index_masks_data, dict_locks_data,
               read_locks_data, length_masks_data, read_lengths, remaining_reads,
-              read, dict, matched_read_id, false, shift, reference_length, rg);
+              read, dict, matched_read_id, false, shift, reference_length, rg,
+              static_cast<uint32_t>(current_read_id));
           if (found_match == 1) {
             current_read_id = matched_read_id;
             int previous_reference_length = reference_length;
@@ -874,7 +873,8 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
           found_match = detail::search_match<bitset_size>(
               reverse_reference_read, index_masks_data, dict_locks_data,
               read_locks_data, length_masks_data, read_lengths, remaining_reads,
-              read, dict, matched_read_id, true, shift, reference_length, rg);
+              read, dict, matched_read_id, true, shift, reference_length, rg,
+              static_cast<uint32_t>(current_read_id));
           if (found_match == 1) {
             current_read_id = matched_read_id;
             int previous_reference_length = reference_length;
@@ -1180,7 +1180,8 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
 
   reorder_global<bitset_size> rg(cp.read_info.max_readlen);
   rg.paired_end = cp.encoding.paired_end;
-  rg.depleted_base = cp.encoding.depleted_base;
+  rg.depleted_base_by_stream[0] = cp.encoding.depleted_base_by_stream[0];
+  rg.depleted_base_by_stream[1] = cp.encoding.depleted_base_by_stream[1];
 
   rg.max_readlen = cp.read_info.max_readlen;
   rg.num_thr = cp.encoding.num_thr;
@@ -1380,8 +1381,9 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
       const auto dictionary_stage_start = std::chrono::steady_clock::now();
       constructdictionary<bitset_size>(
           chunk_read.data(), chunk_dict.data(), chunk_read_lengths.data(),
-          rg.numdict, rg.numreads, 2, rg.depleted_base,
-          cp.encoding.use_external_mphf, cp.encoding.mphf_tmp_dir);
+          rg.numdict, rg.numreads, 2, rg.depleted_base_by_stream,
+          rg.numreads_array[0], cp.encoding.use_external_mphf,
+          cp.encoding.mphf_tmp_dir);
       const auto dictionary_stage_end = std::chrono::steady_clock::now();
       SPRING_LOG_INFO(
           "Dictionary stage time: " +

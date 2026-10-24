@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed PE bisulfite using a single `depleted_base` for both mates: detection now records per-stream C/G depletion, archives store the mate field, and reorder/dictionary matching applies the depleted-base mask per mate (directional PE with C-depleted R1 and G-depleted R2).
 - Fixed ATAC/sc-ATAC adapter stripping locking enable/disable on the first preprocess step with any reads (including all-N steps): accumulate a minimum non-N sample across steps/streams before deciding, decide on short EOF steps so small inputs can still strip, and require high (or explicit `-y`) confidence before arming strip consideration.
 - Fixed Windows MinGW/WinLibs CMake configure failing `find_package(OpenMP)` on the C language probe: require OpenMP CXX and reuse those flags/libs for C.
 - Fixed decompression always showing a timed "Verifying integrity" step even when digest comparison is skipped (order stripped / no stored digests): the step now runs only when a real CRC compare will execute.

@@ -38,7 +38,7 @@ struct BisulfiteDetectionScore {
   AssayScoreBreakdown breakdown;
   double c_ratio = 1.0;
   double g_ratio = 1.0;
-  char depleted_base = 'N';
+  char depleted_base_by_stream[2] = {'N', 'N'};
 };
 
 struct SingleCellDetectionEvidence {
@@ -62,7 +62,7 @@ public:
     std::string confidence;
     double c_ratio = 1.0;
     double g_ratio = 1.0;
-    char depleted_base = 'N';
+    char depleted_base_by_stream[2] = {'N', 'N'};
   };
 
   struct StartupAnalysisResult {
