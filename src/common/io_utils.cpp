@@ -296,12 +296,23 @@ gzip_istreambuf::int_type gzip_istreambuf::underflow() {
 
   const int bytes_read =
       gzread(file_, buffer_, static_cast<unsigned int>(kBufferSize));
-  if (bytes_read <= 0) {
-    return traits_type::eof();
+  if (bytes_read > 0) {
+    setg(buffer_, buffer_, buffer_ + bytes_read);
+    return traits_type::to_int_type(*gptr());
   }
 
-  setg(buffer_, buffer_, buffer_ + bytes_read);
-  return traits_type::to_int_type(*gptr());
+  // gzread returns -1 on error and 0 (or a short read already consumed) at
+  // EOF. Treat only true EOF as end-of-stream; mid-stream zlib/disk errors
+  // must not look like a clean truncated FASTQ.
+  if (bytes_read < 0) {
+    throw gzip_runtime_error(file_, "Failed to read gzip input");
+  }
+  int error_code = Z_OK;
+  gzerror(file_, &error_code);
+  if (error_code != Z_OK && error_code != Z_STREAM_END) {
+    throw gzip_runtime_error(file_, "Failed to read gzip input");
+  }
+  return traits_type::eof();
 }
 
 gzip_istream::gzip_istream() : std::istream(&buffer_) {}
