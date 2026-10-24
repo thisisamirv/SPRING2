@@ -340,6 +340,9 @@ void compress_block_batch(
   // Use parallel for so every batch block is processed even when
   // ClangCL/libomp on Windows creates fewer threads than requested inside
   // a bare #pragma omp parallel region that strides by requested num_threads.
+  // omp_set_num_threads also keeps ClangCL from treating num_threads as unused
+  // (OpenMP clause references alone do not silence -Wunused-parameter).
+  omp_set_num_threads(num_threads);
 #pragma omp parallel for schedule(static, 1) num_threads(num_threads)
   for (int64_t block_index_i = 0;
        block_index_i < static_cast<int64_t>(num_blocks_in_batch);

@@ -6,7 +6,7 @@
 
 ### Fixed
 
-- Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size.
+- Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size. Quality/ID batch compression also calls `omp_set_num_threads` so ClangCL `/WX` does not treat the `num_threads` parameter as unused when it appears only in an OpenMP clause.
 - Fixed lossless integrity checks treating a stored CRC32 of 0 as "absent" and skipping comparison. Archive metadata now tracks whether the digest block was present, and decompression/audit always compare digests (including a valid zero digest) when that block exists.
 - Fixed an out-of-bounds write when applying noise-position deltas during short-read reconstruction: corrupt absolute positions now throw a clean archive-corruption error instead of writing past the end of the reconstructed read.
 - Fixed gzip input reading treating mid-stream `gzread` errors as EOF. `gzip_istreambuf::underflow` now checks `gzerror` and throws instead of silently truncating the FASTQ and continuing compression on partial data.
