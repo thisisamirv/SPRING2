@@ -25,6 +25,7 @@
 - Fixed paired `SpringReader::next` indexing mate-2 without checking step sizes: mismatched mate counts now throw instead of reading past the end of the mate-2 batch.
 - Fixed `-q`/`--qmod` greedily consuming every following non-option token so a path after `lossless`/`ill_bin` could be swallowed: parsing now takes a fixed arity per mode (`lossless`/`ill_bin`: mode only; `binary`: thr high low).
 - Fixed SIGINT handling calling `std::cout`/`std::exit` from the signal handler (not async-signal-safe): Ctrl+C now sets an atomic flag, and compression/decompression abort cooperatively at stage boundaries with exit code 130; a second Ctrl+C force-terminates.
+- Fixed the `compress()` library API accepting `num_thr <= 0` (unlike `decompress()`), which could produce odd OpenMP behavior: compression now rejects non-positive thread counts.
 
 ### Changed
 

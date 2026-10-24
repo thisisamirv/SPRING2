@@ -965,6 +965,10 @@ void compress(const std::vector<std::string> &input_paths,
               const double memory_cap_gb) {
   Logger::set_level(verbosity_level);
   throw_if_interrupted();
+  if (num_thr <= 0) {
+    throw std::runtime_error(
+        "Number of compression threads must be positive.");
+  }
   const compression_storage_plan storage_plan =
       build_compression_storage_plan(input_paths, memory_cap_gb);
   if (storage_plan.selected_path == compression_storage_path::disk_path) {
