@@ -1,10 +1,13 @@
 #include "integration_test_support.h"
 
+#include "common/archive_integrity.h"
 #include "common/fs_utils.h"
 #include "common/params.h"
 
 #include <filesystem>
+#include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 using namespace spring;
@@ -173,6 +176,29 @@ TEST_CASE("Paired gzip outputs preserve per-stream compression profile") {
                             std::ios::binary | std::ios::trunc);
     REQUIRE(cp_output.is_open());
     write_compression_params(cp_output, cp);
+  }
+
+  // Mutating cp.bin invalidates the stored member digest; rebuild
+  // integrity.meta so decompress still passes container SHA-256 checks.
+  {
+    std::unordered_map<std::string, std::string> members;
+    for (const auto &entry : fs::directory_iterator(extract_dir)) {
+      if (!entry.is_regular_file()) {
+        continue;
+      }
+      const std::string name = entry.path().filename().string();
+      if (name == kIntegrityManifestName || name == "_repack_tmp.tar") {
+        continue;
+      }
+      members[name] = read_file_binary(entry.path().string());
+    }
+    const archive_integrity_manifest manifest =
+        build_integrity_manifest_from_memory(members);
+    std::ofstream meta_output(extract_dir + "/" + kIntegrityManifestName,
+                              std::ios::binary | std::ios::trunc);
+    REQUIRE(meta_output.is_open());
+    meta_output << serialize_integrity_manifest(manifest);
+    REQUIRE(meta_output.good());
   }
 
   fs::remove(fs::path(extract_dir) / "_repack_tmp.tar");
