@@ -156,10 +156,11 @@ There are three layers to keep straight:
 
 **End-to-end decompress coverage** lives in `tests/data/compat/` and
 `tests/integration/compat_archive_integration_tests.cpp`. The TSV manifest lists
-frozen archives (`compat/legacy/*.spring` for original Spring, plus SPRING2
-`compat/<version>/*.sp`) and the checks to run (`decompress`, `preview`,
-`audit`, `reader`). Keep that harness as the single place for historical
-archive round-trips. Mint a new SPRING2 golden set before tagging a release:
+frozen archives (`compat/legacy/*.spring` for original Spring, plus assay-named
+SPRING2 `compat/<version>/{dna_*,bisulfite_*,sc_atac,sc_rna,sc_bisulfite_*}.sp`)
+and the checks to run (`decompress`, `preview`, `audit`, `reader`). Keep that
+harness as the single place for historical archive round-trips. Mint a new
+SPRING2 golden set before tagging a release:
 
 ```bash
 python tools/dev/mint_compat_fixtures.py --spring2 path/to/spring2

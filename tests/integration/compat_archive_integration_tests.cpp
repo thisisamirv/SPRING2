@@ -26,8 +26,12 @@ struct CompatFixture {
   std::string expected_version;
   std::string ref_r1;
   std::string ref_r2;
+  std::string ref_r3;
+  std::string ref_i1;
+  std::string ref_i2;
   bool refs_gzipped = false;
   std::vector<std::string> checks;
+  std::string expected_assay;
 };
 
 std::string data_root() {
@@ -91,9 +95,27 @@ std::string load_reference_bytes(const std::string &relative_path,
   const std::string path = asset_path(relative_path);
   REQUIRE(fs::exists(path));
   if (gzipped) {
-    return read_gzip_file_binary(path);
+    return normalize_newlines(read_gzip_file_binary(path));
   }
   return normalize_newlines(read_file_binary(path));
+}
+
+std::string load_restored_bytes(const fs::path &path) {
+  if (fs::exists(path)) {
+    const std::string bytes = read_file_binary(path.generic_string());
+    if (bytes.size() >= 2 && static_cast<unsigned char>(bytes[0]) == 0x1f &&
+        static_cast<unsigned char>(bytes[1]) == 0x8b) {
+      // decompress(..., unzip=false) may still emit gzip when the archive
+      // recorded gzipped inputs; compare the inflated payload.
+      return normalize_newlines(read_gzip_file_binary(path.generic_string()));
+    }
+    return normalize_newlines(bytes);
+  }
+  const fs::path gzip_path = path.generic_string() + ".gz";
+  REQUIRE_MESSAGE(fs::exists(gzip_path),
+                  "Missing restored output " << path.generic_string() << " or "
+                                             << gzip_path.generic_string());
+  return normalize_newlines(read_gzip_file_binary(gzip_path.generic_string()));
 }
 
 std::vector<CompatFixture> load_compat_manifest() {
@@ -122,7 +144,7 @@ std::vector<CompatFixture> load_compat_manifest() {
       }
     }
     const auto cols = split(line, '\t');
-    REQUIRE_MESSAGE(cols.size() >= 8, "Bad manifest row: " << line);
+    REQUIRE_MESSAGE(cols.size() >= 12, "Bad manifest row: " << line);
     CompatFixture fixture;
     fixture.id = trim(cols[0]);
     fixture.kind = trim(cols[1]);
@@ -130,17 +152,31 @@ std::vector<CompatFixture> load_compat_manifest() {
     fixture.expected_version = trim(cols[3]);
     fixture.ref_r1 = trim(cols[4]);
     fixture.ref_r2 = trim(cols[5]);
-    fixture.refs_gzipped = trim(cols[6]) == "1";
-    for (std::string check : split(cols[7], ',')) {
+    fixture.ref_r3 = trim(cols[6]);
+    fixture.ref_i1 = trim(cols[7]);
+    fixture.ref_i2 = trim(cols[8]);
+    fixture.refs_gzipped = trim(cols[9]) == "1";
+    for (std::string check : split(cols[10], ',')) {
       check = trim(check);
       if (!check.empty()) {
         fixture.checks.push_back(check);
       }
     }
+    fixture.expected_assay = trim(cols[11]);
     fixtures.push_back(std::move(fixture));
   }
   REQUIRE_FALSE(fixtures.empty());
   return fixtures;
+}
+
+void check_lane(const CompatFixture &fixture, const fs::path &output,
+                const std::string &ref_rel, const char *lane_label) {
+  if (ref_rel.empty()) {
+    return;
+  }
+  check_bytes_equal(load_restored_bytes(output),
+                    load_reference_bytes(ref_rel, fixture.refs_gzipped),
+                    (fixture.id + " " + lane_label).c_str());
 }
 
 void check_decompress(const CompatFixture &fixture) {
@@ -151,27 +187,33 @@ void check_decompress(const CompatFixture &fixture) {
   fs::remove_all(work);
   fs::create_directories(work);
 
-  if (fixture.ref_r2.empty()) {
+  const bool multi_lane = !fixture.ref_r2.empty() || !fixture.ref_r3.empty() ||
+                          !fixture.ref_i1.empty() || !fixture.ref_i2.empty();
+
+  if (!multi_lane) {
     const fs::path output = work / "restored";
-    CHECK_NOTHROW(decompress({archive_path}, {output.generic_string()}));
-    const std::string restored =
-        normalize_newlines(read_file_binary(output.generic_string()));
-    const std::string reference =
-        load_reference_bytes(fixture.ref_r1, fixture.refs_gzipped);
-    check_bytes_equal(restored, reference, fixture.id.c_str());
+    CHECK_NOTHROW(decompress({archive_path}, {output.generic_string()}, 1,
+                             log_level::info, fixture.refs_gzipped));
+    check_lane(fixture, output, fixture.ref_r1, "R1");
+  } else if (!fixture.ref_r3.empty() || !fixture.ref_i1.empty() ||
+             !fixture.ref_i2.empty()) {
+    // Grouped: single -o prefix writes role suffixes (.R1/.R2/.R3/.I1/.I2).
+    const fs::path prefix = work / "restored";
+    CHECK_NOTHROW(decompress({archive_path}, {prefix.generic_string()}, 1,
+                             log_level::info, fixture.refs_gzipped));
+    check_lane(fixture, work / "restored.R1", fixture.ref_r1, "R1");
+    check_lane(fixture, work / "restored.R2", fixture.ref_r2, "R2");
+    check_lane(fixture, work / "restored.R3", fixture.ref_r3, "R3");
+    check_lane(fixture, work / "restored.I1", fixture.ref_i1, "I1");
+    check_lane(fixture, work / "restored.I2", fixture.ref_i2, "I2");
   } else {
-    const fs::path output_r1 = work / "restored.R1";
-    const fs::path output_r2 = work / "restored.R2";
-    CHECK_NOTHROW(decompress({archive_path}, {output_r1.generic_string(),
-                                              output_r2.generic_string()}));
-    check_bytes_equal(
-        normalize_newlines(read_file_binary(output_r1.generic_string())),
-        load_reference_bytes(fixture.ref_r1, fixture.refs_gzipped),
-        (fixture.id + " R1").c_str());
-    check_bytes_equal(
-        normalize_newlines(read_file_binary(output_r2.generic_string())),
-        load_reference_bytes(fixture.ref_r2, fixture.refs_gzipped),
-        (fixture.id + " R2").c_str());
+    const fs::path out_r1 = work / "restored.R1";
+    const fs::path out_r2 = work / "restored.R2";
+    CHECK_NOTHROW(decompress(
+        {archive_path}, {out_r1.generic_string(), out_r2.generic_string()}, 1,
+        log_level::info, fixture.refs_gzipped));
+    check_lane(fixture, out_r1, fixture.ref_r1, "R1");
+    check_lane(fixture, out_r2, fixture.ref_r2, "R2");
   }
 
   fs::remove_all(work);
@@ -199,14 +241,19 @@ void check_preview(const CompatFixture &fixture) {
     CHECK(output.find(
               "Assay Type:        Unavailable in legacy spring archives") !=
           std::string::npos);
+  } else if (!fixture.expected_assay.empty()) {
+    const std::string assay_needle =
+        "Assay Type:        " + fixture.expected_assay;
+    CHECK_MESSAGE(output.find(assay_needle) != std::string::npos,
+                  "Preview missing '" << assay_needle << "' for " << fixture.id
+                                      << "\n--- preview ---\n"
+                                      << output);
   }
 }
 
 void check_audit(const CompatFixture &fixture) {
   const std::string archive_path = asset_path(fixture.archive);
   REQUIRE(fs::exists(archive_path));
-  // Library preview with audit enabled exercises the same integrity path as
-  // `spring2 -p -a` for current archives.
   CHECK_NOTHROW(preview(archive_path, true));
 }
 
@@ -229,7 +276,8 @@ void check_reader(const CompatFixture &fixture) {
   REQUIRE(fs::exists(archive_path));
   SpringReader reader(archive_path, 1);
 
-  if (!fixture.ref_r2.empty()) {
+  if (!fixture.ref_r2.empty() && fixture.ref_r3.empty() &&
+      fixture.ref_i1.empty() && fixture.ref_i2.empty()) {
     std::istringstream r1_stream(
         load_reference_bytes(fixture.ref_r1, fixture.refs_gzipped));
     std::istringstream r2_stream(

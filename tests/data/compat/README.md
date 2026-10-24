@@ -8,8 +8,9 @@ preview, and (when applicable) audit and stream.
 - `manifest.tsv` — one row per fixture (tab-separated). Integration tests load
   this file and run the listed checks.
 - `legacy/` — original Spring (SPRING1) archives with a `.spring` extension.
-- `<creator_version>/` — SPRING2 `.sp` goldens minted by that creator version.
-  Never regenerate an older directory with a newer binary.
+- `<creator_version>/` — SPRING2 `.sp` goldens minted by that creator version,
+  named by assay (for example `dna_se_fastq.sp`, `bisulfite_pe_fastq.sp`,
+  `sc_rna.sp`). Never regenerate an older directory with a newer binary.
 
 ## Minting a new SPRING2 golden set
 
@@ -20,8 +21,21 @@ backward-compatible way you still want locked):
 python tools/dev/mint_compat_fixtures.py --spring2 path/to/spring2
 ```
 
-That writes `compat/<VERSION>/` archives with `-t 1` and upserts the matching
-manifest rows. Commit the new directory and the updated `manifest.tsv`.
+That writes assay-specific `compat/<VERSION>/` archives with `-t 1` and
+explicit `-y <assay>`, then upserts the matching manifest rows. Commit the new
+directory and the updated `manifest.tsv`.
+
+Current SPRING2 cases:
+
+| Archive | Assay | Inputs |
+| --- | --- | --- |
+| `dna_se_fastq.sp` | dna | `test_1.fastq` |
+| `dna_pe_fastq.sp` | dna | `test_1.fastq` + `test_2.fastq` |
+| `dna_se_fasta.sp` | dna | `test_1.fasta` |
+| `bisulfite_pe_fastq.sp` | bisulfite | `test_3_R*.fastq.gz` |
+| `sc_atac.sp` | sc-atac | `test_4` R1/R2/R3/I1 |
+| `sc_rna.sp` | sc-rna | `test_5` R1/R2/I1/I2 |
+| `sc_bisulfite_pe_fastq.sp` | sc-bisulfite | `test_6_R*.fastq.gz` |
 
 ## Rules
 

@@ -23,40 +23,83 @@ COMPAT_DIR = DATA_DIR / "compat"
 MANIFEST_PATH = COMPAT_DIR / "manifest.tsv"
 
 MANIFEST_HEADER = (
-    "id\tkind\tarchive\texpected_version\tref_r1\tref_r2\trefs_gzipped\tchecks\n"
+    "id\tkind\tarchive\texpected_version\tref_r1\tref_r2\tref_r3\tref_i1\t"
+    "ref_i2\trefs_gzipped\tchecks\texpected_assay\n"
 )
 
-# Small checked-in inputs only — keep the golden set cheap for CI.
+# Assay-oriented goldens. Explicit -y keeps the stored assay label stable.
 SPRING2_CASES = (
     {
-        "suffix": "se_fastq",
-        "r1": "test_1.fastq",
-        "r2": None,
+        "suffix": "dna_se_fastq",
+        "assay": "dna",
+        "lanes": {"R1": "test_1.fastq"},
+        "gzip": False,
         "checks": "decompress,preview,audit,reader",
     },
     {
-        "suffix": "pe_fastq",
-        "r1": "test_1.fastq",
-        "r2": "test_2.fastq",
+        "suffix": "dna_pe_fastq",
+        "assay": "dna",
+        "lanes": {"R1": "test_1.fastq", "R2": "test_2.fastq"},
+        "gzip": False,
         "checks": "decompress,preview,audit",
     },
     {
-        "suffix": "se_fasta",
-        "r1": "test_1.fasta",
-        "r2": None,
+        "suffix": "dna_se_fasta",
+        "assay": "dna",
+        "lanes": {"R1": "test_1.fasta"},
+        "gzip": False,
+        "checks": "decompress,preview,audit",
+    },
+    {
+        "suffix": "bisulfite_pe_fastq",
+        "assay": "bisulfite",
+        "lanes": {"R1": "test_3_R1.fastq.gz", "R2": "test_3_R2.fastq.gz"},
+        "gzip": True,
+        "checks": "decompress,preview,audit,reader",
+    },
+    {
+        "suffix": "sc_atac",
+        "assay": "sc-atac",
+        "lanes": {
+            "R1": "test_4_R1.fastq.gz",
+            "R2": "test_4_R2.fastq.gz",
+            "R3": "test_4_R3.fastq.gz",
+            "I1": "test_4_I1.fastq.gz",
+        },
+        "gzip": True,
+        "checks": "decompress,preview,audit",
+    },
+    {
+        "suffix": "sc_rna",
+        "assay": "sc-rna",
+        "lanes": {
+            "R1": "test_5_R1.fastq.gz",
+            "R2": "test_5_R2.fastq.gz",
+            "I1": "test_5_I1.fastq.gz",
+            "I2": "test_5_I2.fastq.gz",
+        },
+        "gzip": True,
+        "checks": "decompress,preview,audit",
+    },
+    {
+        "suffix": "sc_bisulfite_pe_fastq",
+        "assay": "sc-bisulfite",
+        "lanes": {"R1": "test_6_R1.fastq.gz", "R2": "test_6_R2.fastq.gz"},
+        "gzip": True,
         "checks": "decompress,preview,audit",
     },
 )
 
 LEGACY_ROWS = (
     "legacy_spring_sample\tlegacy_spring\tcompat/legacy/sample.spring\t"
-    "legacy spring\tsample.fastq\t\t0\tdecompress,preview\n",
+    "legacy spring\tsample.fastq\t\t\t\t\t0\tdecompress,preview\t\n",
     "legacy_spring_se_fastq\tlegacy_spring\tcompat/legacy/se_fastq.spring\t"
-    "legacy spring\ttest_1.fastq\t\t0\tdecompress,preview,reader\n",
+    "legacy spring\ttest_1.fastq\t\t\t\t\t0\tdecompress,preview,reader\t\n",
     "legacy_spring_se_fasta\tlegacy_spring\tcompat/legacy/se_fasta.spring\t"
-    "legacy spring\ttest_1.fasta\t\t0\tdecompress,preview\n",
+    "legacy spring\ttest_1.fasta\t\t\t\t\t0\tdecompress,preview\t\n",
     "legacy_spring_pe_fastq\tlegacy_spring\tcompat/legacy/pe_fastq.spring\t"
-    "legacy spring\ttest_3_R1.fastq.gz\ttest_3_R2.fastq.gz\t1\tdecompress,reader\n",
+    "legacy spring\ttest_3_R1.fastq.gz\ttest_3_R2.fastq.gz\t\t\t\t1\t"
+    "decompress,reader\t\n",
 )
 
 
@@ -81,7 +124,6 @@ def load_manifest_rows() -> list[str]:
     lines = MANIFEST_PATH.read_text(encoding="utf-8").splitlines()
     if not lines:
         return []
-    # Drop header if present.
     if lines[0].startswith("id\t"):
         lines = lines[1:]
     return [line + "\n" for line in lines if line.strip() and not line.startswith("#")]
@@ -89,7 +131,6 @@ def load_manifest_rows() -> list[str]:
 
 def write_manifest(rows: list[str]) -> None:
     COMPAT_DIR.mkdir(parents=True, exist_ok=True)
-    # Stable order: legacy rows first (by id), then spring2 rows by id.
     legacy = [r for r in rows if "\tlegacy_spring\t" in r]
     spring2 = [r for r in rows if "\tspring2\t" in r]
     other = [r for r in rows if r not in legacy and r not in spring2]
@@ -102,15 +143,7 @@ def write_manifest(rows: list[str]) -> None:
 
 
 def upsert_rows(existing: list[str], new_rows: list[str], version: str) -> list[str]:
-    drop_prefix = f"spring2_{version.replace('.', '_').replace('-', '_')}_"
-    kept = [
-        row
-        for row in existing
-        if not (row.startswith("spring2_") and f"compat/{version}/" in row)
-        and not row.startswith(drop_prefix)
-    ]
-    # Also drop any previous rows for this version by archive path.
-    kept = [row for row in kept if f"\tcompat/{version}/" not in row]
+    kept = [row for row in existing if f"\tcompat/{version}/" not in row]
     return kept + new_rows
 
 
@@ -121,30 +154,47 @@ def ensure_legacy_rows(rows: list[str]) -> list[str]:
     return list(by_id.values())
 
 
+def lane_args(lanes: dict[str, str]) -> list[str]:
+    args: list[str] = []
+    for role in ("R1", "R2", "R3", "I1", "I2"):
+        if role in lanes:
+            args.extend([f"--{role}", str(DATA_DIR / lanes[role])])
+    return args
+
+
+def manifest_lane(lanes: dict[str, str], role: str) -> str:
+    return lanes.get(role, "")
+
+
 def mint(spring2: Path, version: str) -> None:
     out_dir = COMPAT_DIR / version
     out_dir.mkdir(parents=True, exist_ok=True)
     new_rows: list[str] = []
 
+    # Drop previous goldens for this version so renamed suffixes do not linger.
+    for old in out_dir.glob("*.sp"):
+        old.unlink()
+
     for case in SPRING2_CASES:
+        lanes: dict[str, str] = case["lanes"]  # type: ignore[assignment]
+        for rel in lanes.values():
+            if not (DATA_DIR / rel).exists():
+                raise FileNotFoundError(f"Missing mint input: {DATA_DIR / rel}")
+
         archive_rel = f"compat/{version}/{case['suffix']}.sp"
         archive_path = DATA_DIR / archive_rel
-        archive_path.parent.mkdir(parents=True, exist_ok=True)
-        if archive_path.exists():
-            archive_path.unlink()
 
         cmd = [
             str(spring2),
             "-c",
-            "--R1",
-            str(DATA_DIR / case["r1"]),
+            *lane_args(lanes),
+            "-y",
+            str(case["assay"]),
             "-o",
             str(archive_path),
             "-t",
             "1",
         ]
-        if case["r2"] is not None:
-            cmd.extend(["--R2", str(DATA_DIR / case["r2"])])
         print("mint:", " ".join(cmd))
         run(cmd)
         if not archive_path.exists() or archive_path.stat().st_size == 0:
@@ -153,10 +203,13 @@ def mint(spring2: Path, version: str) -> None:
         fixture_id = (
             f"spring2_{version.replace('.', '_').replace('-', '_')}_{case['suffix']}"
         )
-        ref_r2 = case["r2"] or ""
+        gzip_flag = "1" if case["gzip"] else "0"
         new_rows.append(
             f"{fixture_id}\tspring2\t{archive_rel}\t{version}\t"
-            f"{case['r1']}\t{ref_r2}\t0\t{case['checks']}\n"
+            f"{manifest_lane(lanes, 'R1')}\t{manifest_lane(lanes, 'R2')}\t"
+            f"{manifest_lane(lanes, 'R3')}\t{manifest_lane(lanes, 'I1')}\t"
+            f"{manifest_lane(lanes, 'I2')}\t{gzip_flag}\t{case['checks']}\t"
+            f"{case['assay']}\n"
         )
 
     rows = ensure_legacy_rows(load_manifest_rows())
