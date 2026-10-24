@@ -151,11 +151,20 @@ void perform_audit(const std::string &archive_path) {
       return member_it->second;
     };
 
-    perform_audit_standard_bytes(require_member(manifest.read_archive_name),
-                                 manifest.read_archive_name);
-    if (manifest.has_r3 && manifest.read3_alias_source.empty()) {
-      perform_audit_standard_bytes(require_member(manifest.read3_archive_name),
-                                   manifest.read3_archive_name);
+    const std::string &read_member =
+        require_member(manifest.read_archive_name);
+    perform_audit_standard_bytes(read_member, manifest.read_archive_name);
+    if (manifest.has_r3) {
+      if (!manifest.read3_alias_source.empty()) {
+        verify_read3_alias_binding(manifest, read_member,
+                                   /*require_digests=*/true);
+        std::cout << "Audit verified aliased R3 binding to "
+                  << manifest.read3_alias_source << "." << std::endl;
+      } else {
+        perform_audit_standard_bytes(
+            require_member(manifest.read3_archive_name),
+            manifest.read3_archive_name);
+      }
     }
     if (manifest.has_index) {
       perform_audit_standard_bytes(require_member(manifest.index_archive_name),

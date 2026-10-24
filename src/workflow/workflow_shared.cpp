@@ -367,6 +367,117 @@ std::string assay_from_archive_metadata_path(const std::string &archive_path,
   return cp.read_info.assay.empty() ? std::string("auto") : cp.read_info.assay;
 }
 
+namespace {
+
+compression_params
+compression_params_from_member_bytes(const std::string &member_archive_bytes,
+                                     const std::string &label) {
+  auto contents = read_files_from_tar_bytes(member_archive_bytes, {"cp.bin"});
+  if (!contents.contains("cp.bin")) {
+    throw std::runtime_error("Could not find cp.bin in archive: " + label);
+  }
+  compression_params cp{};
+  decompression_archive_artifact artifact;
+  artifact.files = std::move(contents);
+  artifact.scratch_dir.clear();
+  try {
+    read_archive_compression_params(artifact, cp);
+  } catch (const std::exception &) {
+    throw std::runtime_error("Could not parse cp.bin in archive: " + label);
+  }
+  return cp;
+}
+
+int read3_alias_stream_index(const std::string &alias_source) {
+  if (alias_source == "R2") {
+    return 1;
+  }
+  if (alias_source == "R1") {
+    return 0;
+  }
+  throw std::runtime_error(
+      "Invalid read3 alias source (expected R1 or R2): " + alias_source);
+}
+
+} // namespace
+
+void populate_read3_alias_digests_from_read_archive(
+    bundle_manifest &manifest, const std::string &read_archive_path) {
+  if (manifest.read3_alias_source.empty()) {
+    manifest.read3_alias_digests_present = false;
+    return;
+  }
+  const auto contents =
+      read_files_from_tar_memory(read_archive_path, {"cp.bin"});
+  if (!contents.contains("cp.bin")) {
+    throw std::runtime_error(
+        "Could not bind aliased R3 digests: missing cp.bin in " +
+        manifest.read_archive_name);
+  }
+  const std::string &cp_bytes = contents.at("cp.bin");
+  // Wrap as a one-member map for the shared reader.
+  decompression_archive_artifact artifact;
+  artifact.files = {{"cp.bin", cp_bytes}};
+  artifact.scratch_dir.clear();
+  compression_params cp{};
+  read_archive_compression_params(artifact, cp);
+
+  const int stream = read3_alias_stream_index(manifest.read3_alias_source);
+  if (!cp.encoding.paired_end && stream != 0) {
+    throw std::runtime_error(
+        "Cannot alias R3 to R2: primary read archive is not paired-end.");
+  }
+  manifest.read3_alias_digests_present = true;
+  manifest.read3_alias_sequence_crc = cp.read_info.sequence_crc[stream];
+  manifest.read3_alias_quality_crc = cp.read_info.quality_crc[stream];
+  manifest.read3_alias_id_crc = cp.read_info.id_crc[stream];
+}
+
+void verify_read3_alias_binding(const bundle_manifest &manifest,
+                                const std::string &read_archive_contents,
+                                const bool require_digests) {
+  if (!manifest.has_r3 || manifest.read3_alias_source.empty()) {
+    return;
+  }
+
+  const compression_params cp = compression_params_from_member_bytes(
+      read_archive_contents, manifest.read_archive_name);
+  const int stream = read3_alias_stream_index(manifest.read3_alias_source);
+  if (!cp.encoding.paired_end && stream != 0) {
+    throw std::runtime_error(
+        "Grouped archive aliases R3 to R2 but the primary read archive is not "
+        "paired-end.");
+  }
+
+  if (!manifest.read3_alias_digests_present) {
+    const std::string message =
+        "Grouped archive aliases R3 to " + manifest.read3_alias_source +
+        " without stored mate digests; alias binding was not verified.";
+    if (require_digests) {
+      throw std::runtime_error("Audit failed: " + message);
+    }
+    Logger::log_warning(message);
+    return;
+  }
+
+  const uint32_t actual_seq = cp.read_info.sequence_crc[stream];
+  const uint32_t actual_qual = cp.read_info.quality_crc[stream];
+  const uint32_t actual_id = cp.read_info.id_crc[stream];
+  if (actual_seq != manifest.read3_alias_sequence_crc ||
+      actual_qual != manifest.read3_alias_quality_crc ||
+      actual_id != manifest.read3_alias_id_crc) {
+    throw std::runtime_error(
+        "Grouped archive read3_alias_source=" + manifest.read3_alias_source +
+        " does not match stored mate digests (expected seq/qual/id " +
+        std::to_string(manifest.read3_alias_sequence_crc) + "/" +
+        std::to_string(manifest.read3_alias_quality_crc) + "/" +
+        std::to_string(manifest.read3_alias_id_crc) + ", " +
+        manifest.read3_alias_source + " has " + std::to_string(actual_seq) +
+        "/" + std::to_string(actual_qual) + "/" + std::to_string(actual_id) +
+        ").");
+  }
+}
+
 uint64_t resolve_compression_memory_budget_bytes(const double memory_cap_gb) {
   if (memory_cap_gb > 0.0) {
     const double bytes = memory_cap_gb * 1024.0 * 1024.0 * 1024.0;

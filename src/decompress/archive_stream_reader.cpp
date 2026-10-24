@@ -491,7 +491,16 @@ private:
       if (!manifest.read3_alias_source.empty()) {
         // R3 aliases R1 or R2 from the primary read member: stream that mate
         // alone via next(ReadRecord&).
-        load_member_archive_bytes(manifest.read_archive_name);
+        const auto read_member_bytes = read_files_from_tar_memory(
+            archive_path_, {manifest.read_archive_name});
+        auto member_it = read_member_bytes.find(manifest.read_archive_name);
+        if (member_it == read_member_bytes.end()) {
+          throw std::runtime_error("Failed to read grouped archive member: " +
+                                   manifest.read_archive_name);
+        }
+        verify_read3_alias_binding(manifest, member_it->second,
+                                   /*require_digests=*/false);
+        artifact_.files = read_all_files_from_tar_bytes(member_it->second);
         emit_stream_only_ = (manifest.read3_alias_source == "R2") ? 1 : 0;
         expose_as_single_end_ = true;
       } else {

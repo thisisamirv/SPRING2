@@ -1105,7 +1105,7 @@ void compress(const CompressOptions &options) {
             storage_plan.available_memory_bytes);
       }
 
-      const bundle_manifest manifest{
+      bundle_manifest manifest{
           .version = kBundleVersion,
           .read_archive_name = read_archive_name,
           .has_r3 = has_r3,
@@ -1134,6 +1134,10 @@ void compress(const CompressOptions &options) {
                                   .filename()
                                   .string()
                             : std::string()};
+      if (!read3_alias_source.empty()) {
+        populate_read3_alias_digests_from_read_archive(manifest,
+                                                       read_archive_path);
+      }
       std::vector<tar_archive_source> bundle_sources;
       bundle_sources.push_back({.archive_path = read_archive_name,
                                 .disk_path = read_archive_path,

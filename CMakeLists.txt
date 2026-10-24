@@ -1578,6 +1578,7 @@ set(unit_test_sources
     tests/unit/compression_storage_plan_unit_tests.cpp
     tests/unit/archive_metadata_version_unit_tests.cpp
     tests/unit/archive_integrity_unit_tests.cpp
+    tests/unit/bundle_manifest_unit_tests.cpp
     tests/unit/gzip_preprocess_progress_unit_tests.cpp
     tests/unit/disk_path_memory_reduction_unit_tests.cpp
     tests/unit/reorder_performance_unit_tests.cpp

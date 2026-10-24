@@ -83,6 +83,14 @@ void validate_compression_target(const std::vector<std::string> &input_paths,
                                  const std::string &archive_path);
 std::string assay_from_archive_metadata_path(const std::string &archive_path,
                                              const std::string &archive_label);
+// Bind aliased R3 to the selected mate's CRCs from the primary read archive.
+void populate_read3_alias_digests_from_read_archive(
+    bundle_manifest &manifest, const std::string &read_archive_path);
+// Verify read3_alias_source against stored mate CRCs (and/or cp.bin).
+// require_digests: audit fails when binding digests are absent; decompress warns.
+void verify_read3_alias_binding(const bundle_manifest &manifest,
+                                const std::string &read_archive_contents,
+                                bool require_digests);
 uint64_t resolve_compression_memory_budget_bytes(double memory_cap_gb);
 compression_storage_plan
 build_compression_storage_plan(const string_list &input_paths,

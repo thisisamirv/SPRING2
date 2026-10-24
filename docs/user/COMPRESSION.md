@@ -64,6 +64,10 @@ Rules:
 Grouped archives preserve all provided lanes together and restore them with a
 single decompression command.
 
+When `--R3` points at the same file as `--R1` or `--R2`, SPRING2 stores R3 as an
+alias of that mate (no extra payload) and records the mate's digests in
+`bundle.meta` so audit/decompress can reject a flipped alias label.
+
 ## Performance Controls
 
 ### Threads

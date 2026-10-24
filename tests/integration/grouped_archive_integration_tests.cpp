@@ -278,6 +278,68 @@ TEST_CASE("Grouped decompression rejects invalid read3 alias metadata") {
   fs::remove_all(test_dir);
 }
 
+TEST_CASE("Grouped audit rejects flipped aliased R3 mate label") {
+  const std::string test_dir = "grouped_flipped_alias_test_tmp";
+  fs::create_directories(test_dir);
+
+  const std::string r1_fastq = test_dir + "/input_R1.fastq";
+  const std::string r2_fastq = test_dir + "/input_R2.fastq";
+  const std::string archive_path = test_dir + "/grouped_alias.sp";
+  const std::string extract_dir = test_dir + "/extract";
+  const std::string flipped_archive = test_dir + "/grouped_alias_flipped.sp";
+  const std::string audit_log = test_dir + "/audit.log";
+  const std::string decompress_log = test_dir + "/decompress.log";
+
+  // Distinct mates so flipping the alias label changes the bound digests.
+  create_custom_paired_fastqs(r1_fastq, r2_fastq, 200, false, false, false,
+                              false);
+
+  const std::string compress_cmd =
+      std::string(SPRING2_EXECUTABLE) + " -c --R1 " + r1_fastq + " --R2 " +
+      r2_fastq + " --R3 " + r1_fastq + " -o " + archive_path + " -t 1";
+  run_spring(compress_cmd);
+
+  // Confirm a clean aliased archive audits successfully.
+  run_spring(std::string(SPRING2_EXECUTABLE) + " -p -a -i " + archive_path);
+
+  fs::create_directories(extract_dir);
+  REQUIRE(std::system(
+              ("tar -xf " + archive_path + " -C " + extract_dir).c_str()) == 0);
+  // Flip R1 -> R2 while leaving stored mate digests bound to R1. Drop
+  // integrity.meta so the container hash does not fail first.
+  replace_exact_in_file(extract_dir + "/bundle.meta", "read3_alias_source=R1",
+                        "read3_alias_source=R2");
+  fs::remove(fs::path(extract_dir) / "integrity.meta");
+  fs::remove(fs::path(extract_dir) / "_repack_tmp.tar");
+  REQUIRE(
+      std::system(("cd " + extract_dir +
+                   " && tar -cf _repack_tmp.tar --exclude _repack_tmp.tar *")
+                      .c_str()) == 0);
+  fs::rename(fs::path(extract_dir) / "_repack_tmp.tar", flipped_archive);
+
+  const std::string audit_cmd = std::string(SPRING2_EXECUTABLE) +
+                                " -p -a -i " + flipped_archive + " > " +
+                                audit_log + " 2>&1";
+  CHECK(std::system(audit_cmd.c_str()) != 0);
+
+  const std::string decompress_cmd =
+      std::string(SPRING2_EXECUTABLE) + " -d -i " + flipped_archive + " -o " +
+      test_dir + "/out_R1.fastq " + test_dir + "/out_R2.fastq " + test_dir +
+      "/out_R3.fastq -t 1 > " + decompress_log + " 2>&1";
+  CHECK(std::system(decompress_cmd.c_str()) != 0);
+
+  {
+    std::ifstream in(audit_log, std::ios::binary);
+    REQUIRE(in.is_open());
+    const std::string output((std::istreambuf_iterator<char>(in)),
+                             std::istreambuf_iterator<char>());
+    CHECK(output.find("does not match stored mate digests") !=
+          std::string::npos);
+  }
+
+  fs::remove_all(test_dir);
+}
+
 TEST_CASE(
     "Grouped preview and SpringReader reject inconsistent index metadata") {
   const std::string test_dir = "grouped_invalid_index_manifest_test_tmp";

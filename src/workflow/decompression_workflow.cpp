@@ -412,10 +412,13 @@ void decompress(const std::vector<std::string> &input_paths,
     size_t next_output = 2;
     if (manifest.has_r3) {
       if (!manifest.read3_alias_source.empty()) {
+        const std::string &read_member =
+            require_member(manifest.read_archive_name);
+        verify_read3_alias_binding(manifest, read_member,
+                                   /*require_digests=*/false);
         materialize_aliased_group_output_from_memory(
-            require_member(manifest.read_archive_name),
-            manifest.read3_alias_source, resolved_outputs[next_output++],
-            num_thr, unzip_flag);
+            read_member, manifest.read3_alias_source,
+            resolved_outputs[next_output++], num_thr, unzip_flag);
       } else {
         decompress_standard_from_memory(
             require_member(manifest.read3_archive_name),

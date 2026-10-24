@@ -4,6 +4,7 @@
 #ifndef SPRING_BUNDLE_MANIFEST_H_
 #define SPRING_BUNDLE_MANIFEST_H_
 
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -20,6 +21,12 @@ struct bundle_manifest {
   bool has_r3 = false;
   std::string read3_archive_name;
   std::string read3_alias_source;
+  // When R3 aliases R1/R2, bind the label to that mate's stored CRCs so a
+  // flipped alias source cannot audit/decompress as the wrong mate.
+  bool read3_alias_digests_present = false;
+  uint32_t read3_alias_sequence_crc = 0;
+  uint32_t read3_alias_quality_crc = 0;
+  uint32_t read3_alias_id_crc = 0;
   bool has_index = false;
   std::string index_archive_name;
   bool has_i2 = false;
@@ -60,6 +67,31 @@ inline bundle_manifest parse_bundle_manifest_map(
   manifest.has_r3 = get("has_r3") == "1";
   manifest.read3_archive_name = get("read3_archive");
   manifest.read3_alias_source = get("read3_alias_source");
+  const std::string alias_digests_flag = get("read3_alias_digests");
+  const std::string alias_seq = get("read3_alias_sequence_crc");
+  const std::string alias_qual = get("read3_alias_quality_crc");
+  const std::string alias_id = get("read3_alias_id_crc");
+  if (alias_digests_flag == "1" || !alias_seq.empty() || !alias_qual.empty() ||
+      !alias_id.empty()) {
+    if (alias_seq.empty() || alias_qual.empty() || alias_id.empty()) {
+      throw std::runtime_error(
+          "Invalid bundle manifest: aliased R3 digests require "
+          "read3_alias_sequence_crc, read3_alias_quality_crc, and "
+          "read3_alias_id_crc.");
+    }
+    try {
+      manifest.read3_alias_sequence_crc =
+          static_cast<uint32_t>(std::stoul(alias_seq));
+      manifest.read3_alias_quality_crc =
+          static_cast<uint32_t>(std::stoul(alias_qual));
+      manifest.read3_alias_id_crc = static_cast<uint32_t>(std::stoul(alias_id));
+    } catch (const std::exception &) {
+      throw std::runtime_error(
+          "Invalid bundle manifest: aliased R3 digest values must be "
+          "unsigned integers.");
+    }
+    manifest.read3_alias_digests_present = true;
+  }
   manifest.has_index = get("has_index") == "1";
   manifest.index_archive_name = get("index_archive");
   manifest.has_i2 = get("has_i2") == "1";
@@ -92,6 +124,12 @@ inline bundle_manifest parse_bundle_manifest_map(
       !manifest.read3_alias_source.empty()) {
     throw std::runtime_error("Invalid bundle manifest: read3 cannot specify "
                              "both an archive and an alias source.");
+  }
+  if (manifest.read3_alias_digests_present &&
+      manifest.read3_alias_source.empty()) {
+    throw std::runtime_error(
+        "Invalid bundle manifest: aliased R3 digests require "
+        "read3_alias_source.");
   }
   if (manifest.has_i2 && !manifest.has_index) {
     throw std::runtime_error(
@@ -143,6 +181,14 @@ inline std::string serialize_bundle_manifest(const bundle_manifest &manifest) {
   output << "has_r3=" << (manifest.has_r3 ? "1" : "0") << "\n";
   output << "read3_archive=" << manifest.read3_archive_name << "\n";
   output << "read3_alias_source=" << manifest.read3_alias_source << "\n";
+  if (manifest.read3_alias_digests_present) {
+    output << "read3_alias_digests=1\n";
+    output << "read3_alias_sequence_crc=" << manifest.read3_alias_sequence_crc
+           << "\n";
+    output << "read3_alias_quality_crc=" << manifest.read3_alias_quality_crc
+           << "\n";
+    output << "read3_alias_id_crc=" << manifest.read3_alias_id_crc << "\n";
+  }
   output << "has_index=" << (manifest.has_index ? "1" : "0") << "\n";
   output << "index_archive=" << manifest.index_archive_name << "\n";
   output << "has_i2=" << (manifest.has_i2 ? "1" : "0") << "\n";
