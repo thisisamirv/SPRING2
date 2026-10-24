@@ -13,6 +13,7 @@
 
 ### Changed
 
+- Renamed the manual `comparison.yml` workflow to `benchmark.yml` and expanded it to run `tests/bench/small_bench.py`, `big_bench.py --no_debug`, and `comparison_bench.py` after a shared build/install.
 - Dropped the `macOS x64 Clang` CI job (`macos-15-intel`); macOS coverage is ARM64 only.
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 - Unified paired-end decompression single-`-o` prefixes with grouped naming: `-o prefix` now writes `prefix.R1` / `prefix.R2` (previously `.1` / `.2`). Fallback names when metadata has no original filenames use the same suffixes.

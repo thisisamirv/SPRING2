@@ -156,11 +156,13 @@ def main() -> int:
 
     log_line("")
     log_line("Running Spring decompression")
+    # --unzip keeps PE prefix outputs as .R1/.R2 (not .R1.gz) for gzipped inputs.
     decompress_metrics = run_logged_process(
         [
             str(spring_bin()),
             *verbose_args,
             "-d",
+            "-u",
             "-i",
             str(output_file),
             "-o",

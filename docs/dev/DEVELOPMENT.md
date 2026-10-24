@@ -149,12 +149,15 @@ Coverage for this behavior lives in `tests/unit/archive_metadata_version_unit_te
 
 ### Benchmark/Test Scripts
 
-The `tests/` directory also includes benchmark and comparison scripts used for manual performance checks:
+The `tests/` directory also includes benchmark and comparison scripts. On GitHub,
+the manual **Benchmark** workflow (`.github/workflows/benchmark.yml`,
+`workflow_dispatch`) builds SPRING2 and runs `small_bench.py`, `big_bench.py`,
+and `comparison_bench.py`.
 
-- `tests/bench/big_bench.py`: End-to-end paired-end benchmark on the larger SRR2990433 dataset. Pass `--no_debug` to suppress SPRING's `-v debug` output during the run.
+- `tests/bench/big_bench.py`: End-to-end paired-end benchmark on the SRR8185389 dataset. Pass `--no_debug` to suppress SPRING's `-v debug` output during the run.
 - `tests/bench/small_bench.py`: Faster benchmark variant for quick local performance checks and assay-specific benchmark coverage.
-- `tests/bench/comparison_bench.py`: Compares SPRING2 against SPRING1 and Python gzip baselines.
-- `tests/bench/big_thread_test.py`: Debug-oriented thread-count stress benchmark for CRC/integrity investigations.
+- `tests/bench/comparison_bench.py`: Compares SPRING2 against SPRING1 and Python gzip baselines (needs a `spring_v1` conda env with `bioconda::spring`).
+- `tests/bench/big_thread_test.py`: Debug-oriented thread-count stress benchmark for CRC/integrity investigations (manual only; not in the Benchmark workflow).
 - `tests/smoke/*.cpp`: Lightweight CLI sanity checks split into themed smoke test units.
 - `tests/integration/*.cpp`: Archive round-trip and API-level integration coverage split into smaller themed units.
 - `tests/unit/*.cpp`: Focused tests for low-level helpers and assay detection behavior.

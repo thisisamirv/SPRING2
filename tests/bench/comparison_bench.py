@@ -249,8 +249,11 @@ def run_benchmark(
             max_rss_kb=None,
         )  # type: ignore[call-arg]
     else:
+        # --unzip: PE single-prefix restores are name.R1/.R2; without -u,
+        # gzipped originals become name.R1.gz/.R2.gz and break path checks.
         decompress_args = [
             "-d",
+            "-u",
             "-i",
             str(compressed_paths[0]),
             "-o",

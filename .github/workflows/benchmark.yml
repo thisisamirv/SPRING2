@@ -1,5 +1,5 @@
 ---
-name: Comparison
+name: Benchmark
 
 "on":
   workflow_dispatch:
@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  comparison-bench:
-    name: Build, install, and compare
+  benchmark:
+    name: Build and run benchmarks
     runs-on: ubuntu-latest
 
     steps:
@@ -43,8 +43,8 @@ jobs:
         run: |
           CMAKE_VENV="$RUNNER_TEMP/cmake-venv"
           python3 -m venv "$CMAKE_VENV"
-                            "$CMAKE_VENV/bin/python" -m pip install --no-cache-dir --upgrade pip
-                            "$CMAKE_VENV/bin/python" -m pip install --no-cache-dir "cmake==4.2.0"
+          "$CMAKE_VENV/bin/python" -m pip install --no-cache-dir --upgrade pip
+          "$CMAKE_VENV/bin/python" -m pip install --no-cache-dir "cmake==4.2.0"
           echo "$CMAKE_VENV/bin" >> "$GITHUB_PATH"
           "$CMAKE_VENV/bin/cmake" --version
 
@@ -59,7 +59,21 @@ jobs:
       - name: Build and install
         run: |
           cmake --build out/build --parallel
-                            cmake --install out/build --prefix out
+          cmake --install out/build --prefix out
+
+      - name: Run small / assay benchmark
+        env:
+          SPRING_BIN: ${{ github.workspace }}/out/bin/spring2
+          THREADS: "8"
+        run: |
+          python3 tests/bench/small_bench.py
+
+      - name: Run big paired-end benchmark
+        env:
+          SPRING_BIN: ${{ github.workspace }}/out/bin/spring2
+          THREADS: "8"
+        run: |
+          python3 tests/bench/big_bench.py --no_debug
 
       - name: Install mamba
         uses: conda-incubator/setup-miniconda@v4
@@ -77,5 +91,8 @@ jobs:
 
       - name: Run comparison benchmark
         shell: bash -el {0}
+        env:
+          SPRING_BIN: ${{ github.workspace }}/out/bin/spring2
+          THREADS: "8"
         run: |
           python3 tests/bench/comparison_bench.py
