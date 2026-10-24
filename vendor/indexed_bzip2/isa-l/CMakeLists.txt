@@ -150,7 +150,8 @@ if(
             -Wno-switch-default
             -Wno-unreachable-code
             -Wno-unsafe-buffer-usage
-            -Wno-c++-keyword
+            # ClangCL does not recognize GCC's -Wno-c++-keyword.
+            -Wno-c++-compat
             -Wno-unused-macros
     )
 endif()
