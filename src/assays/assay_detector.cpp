@@ -78,6 +78,20 @@ void remove_sample_cr(std::string &line, bool &stream_saw_crlf) {
   }
 }
 
+// True only when the lane path opens and yields at least one non-empty line.
+// A non-empty path string alone must not force sc-* (missing/empty/unreadable).
+bool readable_grouped_lane_present(const std::string &path) {
+  if (path.empty()) {
+    return false;
+  }
+  gzip_istream stream(path);
+  if (!stream.is_open()) {
+    return false;
+  }
+  std::string line;
+  return static_cast<bool>(std::getline(stream, line)) && !line.empty();
+}
+
 } // namespace
 
 SingleCellDetectionEvidence
@@ -193,8 +207,9 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
     const std::string &r1_path, const std::string &r2_path,
     const std::string &r3_path, const std::string &i1_path,
     const std::string &i2_path, const bool paired_end, const bool fasta_input) {
-  const bool explicit_sc =
-      (!r3_path.empty() || !i1_path.empty() || !i2_path.empty());
+  const bool explicit_sc = readable_grouped_lane_present(r3_path) ||
+                           readable_grouped_lane_present(i1_path) ||
+                           readable_grouped_lane_present(i2_path);
 
   load_reference();
 

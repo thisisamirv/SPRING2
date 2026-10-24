@@ -70,9 +70,37 @@ TEST_CASE("Testing AssayDetector") {
 
   SUBCASE("Test ATAC Tn5 detection signature directly") {
     std::string test_fq = "test_sc_atac.fq";
+    std::string test_i1 = "test_sc_atac_I1.fq";
     std::ofstream out(test_fq);
+    std::ofstream out_i1(test_i1);
     // Terminal mosaic-end overlap (matches strip); internal-only 12-mers must
     // not classify ATAC.
+    for (int i = 0; i < 100; ++i) {
+      out << "@read" << i << "\n";
+      out << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTCTTATACACATCT\n";
+      out << "+\n";
+      out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+      out_i1 << "@i1_" << i << "\n";
+      out_i1 << "ACGTACGTACGTACGT\n";
+      out_i1 << "+\n";
+      out_i1 << "IIIIIIIIIIIIIIII\n";
+    }
+    out.close();
+    out_i1.close();
+
+    AssayDetector::DetectionResult res =
+        detector.detect(test_fq, "", "", test_i1, "");
+    CHECK(res.assay == "sc-atac");
+    CHECK(res.confidence.find("Tn5 adapters") != std::string::npos);
+    CHECK(res.confidence.find("explicit lanes") != std::string::npos);
+
+    std::filesystem::remove(test_fq);
+    std::filesystem::remove(test_i1);
+  }
+
+  SUBCASE("Missing index path does not force sc-atac") {
+    std::string test_fq = "test_atac_missing_i1.fq";
+    std::ofstream out(test_fq);
     for (int i = 0; i < 100; ++i) {
       out << "@read" << i << "\n";
       out << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTCTTATACACATCT\n";
@@ -82,32 +110,39 @@ TEST_CASE("Testing AssayDetector") {
     out.close();
 
     AssayDetector::DetectionResult res =
-        detector.detect(test_fq, "", "", "i1.fq", "");
-    CHECK(res.assay == "sc-atac");
-    CHECK(res.confidence.find("Tn5 adapters") != std::string::npos);
+        detector.detect(test_fq, "", "", "definitely_missing_i1.fq", "");
+    CHECK(res.assay == "atac");
+    CHECK(res.confidence.find("explicit lanes") == std::string::npos);
 
     std::filesystem::remove(test_fq);
   }
 
-  SUBCASE("Bulk DNA with index lane stays dna not sc-dna") {
+  SUBCASE("Bulk DNA with real index lane stays dna not sc-dna") {
     std::string test_fq = "test_bulk_dna_with_i1.fq";
+    std::string test_i1 = "test_bulk_dna_I1.fq";
     std::ofstream out(test_fq);
+    std::ofstream out_i1(test_i1);
     for (int i = 0; i < 100; ++i) {
       out << "@read" << i << "\n";
       out << "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT\n";
       out << "+\n";
       out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+      out_i1 << "@i1_" << i << "\n";
+      out_i1 << "ACGTACGTACGTACGT\n";
+      out_i1 << "+\n";
+      out_i1 << "IIIIIIIIIIIIIIII\n";
     }
     out.close();
+    out_i1.close();
 
-    // Non-empty I1 path forces explicit_sc_layout; base assay is still dna.
     AssayDetector::DetectionResult res =
-        detector.detect(test_fq, "", "", "unused_i1.fq", "");
+        detector.detect(test_fq, "", "", test_i1, "");
     CHECK(res.assay == "dna");
     CHECK(res.assay != "sc-dna");
     CHECK(res.confidence.find("sc:") == std::string::npos);
 
     std::filesystem::remove(test_fq);
+    std::filesystem::remove(test_i1);
   }
 
   SUBCASE("Test Bisulfite signature directly") {
