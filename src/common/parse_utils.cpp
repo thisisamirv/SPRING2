@@ -63,6 +63,26 @@ uint64_t parse_uint64_or_throw(const std::string &value,
 }
 
 namespace {
+// Index of the mate digit ('1') for paired-id code 3, chosen deterministically
+// from a single ID so matching and modify_id agree. Prefer the first Illumina
+// CASAVA token (" 1:") so names like "@sample 1 1:N:0:AAAA" flip the mate
+// field rather than an earlier " 1". Fall back to the first legacy " 1".
+size_t find_paired_id_code3_digit_index(const std::string &id) {
+  size_t legacy_digit_index = std::string::npos;
+  for (size_t i = 0; i + 1 < id.size(); ++i) {
+    if (id[i] != ' ' || id[i + 1] != '1') {
+      continue;
+    }
+    if (i + 2 < id.size() && id[i + 2] == ':') {
+      return i + 1;
+    }
+    if (legacy_digit_index == std::string::npos) {
+      legacy_digit_index = i + 1;
+    }
+  }
+  return legacy_digit_index;
+}
+
 bool matches_paired_id_code(const std::string &id_1, const std::string &id_2,
                             const uint8_t paired_id_code) {
   if (id_1.length() != id_2.length())
@@ -80,22 +100,25 @@ bool matches_paired_id_code(const std::string &id_1, const std::string &id_2,
   case 2:
     return id_1 == id_2;
   case 3: {
-    for (size_t i = 0; i + 1 < len; ++i) {
-      if (id_1[i] == ' ' && id_1[i + 1] == '1' && id_2[i + 1] == '2') {
-        bool mismatch = false;
-        for (size_t j = 0; j < len; ++j) {
-          if (j == i + 1)
-            continue;
-          if (id_1[j] != id_2[j]) {
-            mismatch = true;
-            break;
-          }
-        }
-        if (!mismatch)
-          return true;
+    const size_t digit_index = find_paired_id_code3_digit_index(id_1);
+    if (digit_index == std::string::npos || digit_index >= len ||
+        id_2[digit_index] != '2') {
+      return false;
+    }
+    // If id_1 used the Illumina " 1:" form, require the same colon on id_2.
+    if (digit_index + 1 < len && id_1[digit_index + 1] == ':' &&
+        id_2[digit_index + 1] != ':') {
+      return false;
+    }
+    for (size_t j = 0; j < len; ++j) {
+      if (j == digit_index) {
+        continue;
+      }
+      if (id_1[j] != id_2[j]) {
+        return false;
       }
     }
-    return false;
+    return true;
   }
   default:
     return false;
@@ -122,11 +145,9 @@ void modify_id(std::string &id, uint8_t paired_id_code) {
     if (id.back() == '1')
       id.back() = '2';
   } else if (paired_id_code == 3) {
-    for (size_t i = 0; i + 1 < id.size(); ++i) {
-      if (id[i] == ' ' && id[i + 1] == '1') {
-        id[i + 1] = '2';
-        return;
-      }
+    const size_t digit_index = find_paired_id_code3_digit_index(id);
+    if (digit_index != std::string::npos) {
+      id[digit_index] = '2';
     }
   }
 }
