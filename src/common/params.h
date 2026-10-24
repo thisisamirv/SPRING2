@@ -155,6 +155,10 @@ struct compression_params {
     uint32_t archive_format_version = CURRENT_ARCHIVE_FORMAT_VERSION;
     bool legacy_spring = false; // Runtime-only flag for original SPRING
                                 // archives.
+    // Runtime-only: true after the optional CRC digest block is read from
+    // archive metadata. Zero is a valid CRC32, so presence must not be inferred
+    // from the digest value itself.
+    bool digests_present = false;
     uint32_t sequence_crc[2] = {0, 0};
     uint32_t quality_crc[2] = {0, 0};
     uint32_t id_crc[2] = {0, 0};

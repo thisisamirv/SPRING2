@@ -33,36 +33,34 @@ void perform_audit_standard_artifact(
     uint32_t seq_crc[2], qual_crc[2], id_crc[2];
     sink.get_digests(seq_crc, qual_crc, id_crc);
 
-    bool mismatch = false;
-    for (int i = 0; i < (cp.encoding.paired_end ? 2 : 1); ++i) {
-      if (cp.read_info.sequence_crc[i] != 0 &&
-          seq_crc[i] != cp.read_info.sequence_crc[i]) {
+    const lossless_digest_check check = check_lossless_digests(
+        cp.read_info.digests_present, cp.encoding.paired_end,
+        cp.read_info.sequence_crc, cp.read_info.quality_crc,
+        cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
+    for (int i = 0; i < check.stream_count; ++i) {
+      if (check.sequence_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " sequence digest mismatch: expected=" +
                           std::to_string(cp.read_info.sequence_crc[i]) +
                           " actual=" + std::to_string(seq_crc[i]));
         std::cerr << "Stream " << (i + 1) << " sequence digest mismatch!\n";
-        mismatch = true;
       }
-      if (cp.read_info.quality_crc[i] != 0 &&
-          qual_crc[i] != cp.read_info.quality_crc[i]) {
+      if (check.quality_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " quality digest mismatch: expected=" +
                           std::to_string(cp.read_info.quality_crc[i]) +
                           " actual=" + std::to_string(qual_crc[i]));
         std::cerr << "Stream " << (i + 1) << " quality digest mismatch!\n";
-        mismatch = true;
       }
-      if (cp.read_info.id_crc[i] != 0 && id_crc[i] != cp.read_info.id_crc[i]) {
+      if (check.id_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " ID digest mismatch: expected=" +
                           std::to_string(cp.read_info.id_crc[i]) +
                           " actual=" + std::to_string(id_crc[i]));
         std::cerr << "Stream " << (i + 1) << " ID digest mismatch!\n";
-        mismatch = true;
       }
     }
-    if (mismatch)
+    if (check.mismatch)
       throw std::runtime_error("Archive integrity audit failed!");
   }
 

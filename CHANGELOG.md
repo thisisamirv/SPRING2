@@ -7,6 +7,7 @@
 ### Fixed
 
 - Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size.
+- Fixed lossless integrity checks treating a stored CRC32 of 0 as "absent" and skipping comparison. Archive metadata now tracks whether the digest block was present, and decompression/audit always compare digests (including a valid zero digest) when that block exists.
 
 ## V1.3.6
 

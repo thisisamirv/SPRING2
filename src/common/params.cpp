@@ -261,6 +261,7 @@ void read_compression_params_body(std::istream &in, compression_params &cp,
     cp.read_info.quality_crc[i] = 0;
     cp.read_info.id_crc[i] = 0;
   }
+  cp.read_info.digests_present = false;
   initialize_optional_archive_metadata_defaults(cp);
 
   if (in.peek() != std::char_traits<char>::eof()) {
@@ -269,6 +270,7 @@ void read_compression_params_body(std::istream &in, compression_params &cp,
       in.read(byte_ptr(&cp.read_info.quality_crc[i]), sizeof(uint32_t));
       in.read(byte_ptr(&cp.read_info.id_crc[i]), sizeof(uint32_t));
     }
+    cp.read_info.digests_present = true;
 
     if (in.peek() != std::char_traits<char>::eof()) {
       cp.read_info.assay = read_string(in);
