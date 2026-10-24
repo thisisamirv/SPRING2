@@ -108,40 +108,53 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
                                      num_thr);
 
   run_timed_step("Verifying integrity ...", "Integrity check", [&] {
-    const bool is_lossless =
-        cp.encoding.preserve_order && cp.encoding.preserve_quality &&
-        cp.encoding.preserve_id && !cp.quality.ill_bin_flag &&
-        !cp.quality.bin_thr_flag;
-
+    const bool is_lossless = archive_supports_lossless_digest_check(
+        cp.encoding.preserve_order, cp.encoding.preserve_quality,
+        cp.encoding.preserve_id, cp.quality.ill_bin_flag,
+        cp.quality.bin_thr_flag);
+    uint32_t seq_crc[2] = {0, 0};
+    uint32_t qual_crc[2] = {0, 0};
+    uint32_t id_crc[2] = {0, 0};
     if (is_lossless) {
-      uint32_t seq_crc[2], qual_crc[2], id_crc[2];
       sink->get_digests(seq_crc, qual_crc, id_crc);
-      const lossless_digest_check check = check_lossless_digests(
-          cp.read_info.digests_present, cp.encoding.paired_end,
-          cp.read_info.sequence_crc, cp.read_info.quality_crc,
-          cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
-      for (int i = 0; i < check.stream_count; ++i) {
-        if (check.sequence_mismatch[i]) {
+    }
+    const digest_verification_result result = verify_reconstructed_digests(
+        is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+        cp.read_info.sequence_crc, cp.read_info.quality_crc,
+        cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
+
+    switch (result.status) {
+    case digest_check_status::verified:
+      SPRING_LOG_DEBUG("Integrity digests verified for lossless archive.");
+      break;
+    case digest_check_status::skipped_lossy:
+      SPRING_LOG_DEBUG(
+          "Integrity digest check skipped: lossy archive (strip/bin).");
+      break;
+    case digest_check_status::skipped_no_digests:
+      Logger::log_warning(
+          "Lossless archive has no stored digests; integrity was not "
+          "verified.");
+      break;
+    case digest_check_status::mismatch:
+      for (int i = 0; i < result.check.stream_count; ++i) {
+        if (result.check.sequence_mismatch[i]) {
           Logger::log_error("Stream " + std::to_string(i + 1) +
                             " sequence digest mismatch.");
         }
-        if (check.quality_mismatch[i]) {
+        if (result.check.quality_mismatch[i]) {
           Logger::log_error("Stream " + std::to_string(i + 1) +
                             " quality digest mismatch.");
         }
-        if (check.id_mismatch[i]) {
+        if (result.check.id_mismatch[i]) {
           Logger::log_error("Stream " + std::to_string(i + 1) +
                             " ID digest mismatch.");
         }
       }
-
-      if (check.mismatch) {
-        Logger::log_error("Integrity check failed during decompression.");
-        throw std::runtime_error(
-            "ARCHIVE INTEGRITY CHECK FAILED: Reconstructed data does not match "
-            "original digests. The archive may be corrupted.");
-      }
-      SPRING_LOG_DEBUG("Integrity check passed for lossless archive.");
+      Logger::log_error("Integrity check failed during decompression.");
+      throw std::runtime_error(
+          "ARCHIVE INTEGRITY CHECK FAILED: Reconstructed data does not match "
+          "original digests. The archive may be corrupted.");
     }
   });
 
@@ -216,36 +229,45 @@ void materialize_aliased_group_output_from_memory(
   execute_archive_decompression_plan(artifact, sink, cp, decompression_plan,
                                      num_thr);
 
-  const bool is_lossless = cp.encoding.preserve_order &&
-                           cp.encoding.preserve_quality &&
-                           cp.encoding.preserve_id &&
-                           !cp.quality.ill_bin_flag && !cp.quality.bin_thr_flag;
+  const bool is_lossless = archive_supports_lossless_digest_check(
+      cp.encoding.preserve_order, cp.encoding.preserve_quality,
+      cp.encoding.preserve_id, cp.quality.ill_bin_flag, cp.quality.bin_thr_flag);
+  uint32_t seq_crc[2] = {0, 0};
+  uint32_t qual_crc[2] = {0, 0};
+  uint32_t id_crc[2] = {0, 0};
   if (is_lossless) {
-    uint32_t seq_crc[2], qual_crc[2], id_crc[2];
     sink.get_digests(seq_crc, qual_crc, id_crc);
-    const lossless_digest_check check = check_lossless_digests(
-        cp.read_info.digests_present, cp.encoding.paired_end,
-        cp.read_info.sequence_crc, cp.read_info.quality_crc,
-        cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
-    for (int i = 0; i < check.stream_count; ++i) {
-      if (check.sequence_mismatch[i]) {
+  }
+  const digest_verification_result result = verify_reconstructed_digests(
+      is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+      cp.read_info.sequence_crc, cp.read_info.quality_crc, cp.read_info.id_crc,
+      seq_crc, qual_crc, id_crc);
+  switch (result.status) {
+  case digest_check_status::verified:
+  case digest_check_status::skipped_lossy:
+    break;
+  case digest_check_status::skipped_no_digests:
+    Logger::log_warning(
+        "Lossless archive has no stored digests; integrity was not verified.");
+    break;
+  case digest_check_status::mismatch:
+    for (int i = 0; i < result.check.stream_count; ++i) {
+      if (result.check.sequence_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " sequence digest mismatch.");
       }
-      if (check.quality_mismatch[i]) {
+      if (result.check.quality_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " quality digest mismatch.");
       }
-      if (check.id_mismatch[i]) {
+      if (result.check.id_mismatch[i]) {
         Logger::log_error("Stream " + std::to_string(i + 1) +
                           " ID digest mismatch.");
       }
     }
-    if (check.mismatch) {
-      throw std::runtime_error(
-          "ARCHIVE INTEGRITY CHECK FAILED: Reconstructed data does not match "
-          "original digests. The archive may be corrupted.");
-    }
+    throw std::runtime_error(
+        "ARCHIVE INTEGRITY CHECK FAILED: Reconstructed data does not match "
+        "original digests. The archive may be corrupted.");
   }
 }
 

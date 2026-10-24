@@ -65,6 +65,33 @@ struct lossless_digest_check {
 };
 
 /**
+ * @brief Outcome of an integrity digest verification attempt.
+ *
+ * Callers must not treat skipped_* as a successful digest compare.
+ */
+enum class digest_check_status {
+  verified,           // Compared stored vs reconstructed; match
+  skipped_lossy,      // Archive is not bit-exact (strip/bin); digests N/A
+  skipped_no_digests, // Lossless but metadata has no CRC block
+  mismatch,           // Compared and failed
+};
+
+struct digest_verification_result {
+  digest_check_status status = digest_check_status::skipped_lossy;
+  lossless_digest_check check{};
+};
+
+/**
+ * @brief Whether archive flags allow a meaningful full digest comparison.
+ */
+inline bool archive_supports_lossless_digest_check(
+    const bool preserve_order, const bool preserve_quality,
+    const bool preserve_id, const bool ill_bin_flag, const bool bin_thr_flag) {
+  return preserve_order && preserve_quality && preserve_id && !ill_bin_flag &&
+         !bin_thr_flag;
+}
+
+/**
  * @brief Compare reconstructed digests to stored archive digests.
  *
  * @param digests_present Whether the archive metadata includes the CRC block.
@@ -90,6 +117,33 @@ inline lossless_digest_check check_lossless_digests(
       result.mismatch = true;
     }
   }
+  return result;
+}
+
+/**
+ * @brief Classify digest verification: verified, skipped, or mismatch.
+ *
+ * Does not compare when the archive is lossy or digests were never stored.
+ */
+inline digest_verification_result verify_reconstructed_digests(
+    const bool is_lossless, const bool digests_present, const bool paired_end,
+    const uint32_t stored_seq[2], const uint32_t stored_qual[2],
+    const uint32_t stored_id[2], const uint32_t actual_seq[2],
+    const uint32_t actual_qual[2], const uint32_t actual_id[2]) {
+  digest_verification_result result;
+  if (!is_lossless) {
+    result.status = digest_check_status::skipped_lossy;
+    return result;
+  }
+  if (!digests_present) {
+    result.status = digest_check_status::skipped_no_digests;
+    return result;
+  }
+  result.check =
+      check_lossless_digests(true, paired_end, stored_seq, stored_qual,
+                             stored_id, actual_seq, actual_qual, actual_id);
+  result.status = result.check.mismatch ? digest_check_status::mismatch
+                                        : digest_check_status::verified;
   return result;
 }
 

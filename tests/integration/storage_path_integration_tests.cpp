@@ -508,7 +508,7 @@ TEST_CASE("Paired multi-chunk reorder preserves mate record associations") {
     REQUIRE(compress_status == 0);
     const std::string log_contents = read_file_binary(log);
     CHECK(log_contents.find("Reorder chunk 2") != std::string::npos);
-    CHECK(log_contents.find("Audit successful:") != std::string::npos);
+    CHECK(log_contents.find("Audit verified digests:") != std::string::npos);
     const bool used_disk_path =
         log_contents.find("Disk-backed compression path selected") !=
         std::string::npos;

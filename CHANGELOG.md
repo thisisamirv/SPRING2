@@ -37,6 +37,7 @@
 - Fixed SIGINT handling calling `std::cout`/`std::exit` from the signal handler (not async-signal-safe): Ctrl+C now sets an atomic flag, and compression/decompression abort cooperatively at stage boundaries with exit code 130; a second Ctrl+C force-terminates.
 - Fixed the `compress()` library API accepting `num_thr <= 0` (unlike `decompress()`), which could produce odd OpenMP behavior: compression now rejects non-positive thread counts.
 - Fixed mode-inappropriate CLI flags being accepted and silently ignored (e.g. `--unzip` on compress, `--strip`/`--qmod`/`--note`/`--level`/`--assay`/`--cb-len` on decompress or preview): those combinations now error instead of looking like success.
+- Fixed audit/decompress integrity reporting treating skipped digest checks as success: outcomes are now verified, skipped (lossy), or skipped (no stored digests). `--audit` fails on lossless archives without digests; decompression warns instead of claiming a pass.
 
 ## V1.3.6
 

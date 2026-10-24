@@ -9,6 +9,82 @@ namespace spring {
 
 namespace {
 
+digest_verification_result
+verify_sink_digests(const NullDecompressionSink &sink,
+                    const compression_params &cp) {
+  const bool is_lossless = archive_supports_lossless_digest_check(
+      cp.encoding.preserve_order, cp.encoding.preserve_quality,
+      cp.encoding.preserve_id, cp.quality.ill_bin_flag, cp.quality.bin_thr_flag);
+  uint32_t seq_crc[2] = {0, 0};
+  uint32_t qual_crc[2] = {0, 0};
+  uint32_t id_crc[2] = {0, 0};
+  if (is_lossless) {
+    sink.get_digests(seq_crc, qual_crc, id_crc);
+  }
+  return verify_reconstructed_digests(
+      is_lossless, cp.read_info.digests_present, cp.encoding.paired_end,
+      cp.read_info.sequence_crc, cp.read_info.quality_crc, cp.read_info.id_crc,
+      seq_crc, qual_crc, id_crc);
+}
+
+void report_digest_mismatches(const compression_params &cp,
+                              const uint32_t seq_crc[2],
+                              const uint32_t qual_crc[2],
+                              const uint32_t id_crc[2],
+                              const lossless_digest_check &check) {
+  for (int i = 0; i < check.stream_count; ++i) {
+    if (check.sequence_mismatch[i]) {
+      Logger::log_error("Stream " + std::to_string(i + 1) +
+                        " sequence digest mismatch: expected=" +
+                        std::to_string(cp.read_info.sequence_crc[i]) +
+                        " actual=" + std::to_string(seq_crc[i]));
+      std::cerr << "Stream " << (i + 1) << " sequence digest mismatch!\n";
+    }
+    if (check.quality_mismatch[i]) {
+      Logger::log_error("Stream " + std::to_string(i + 1) +
+                        " quality digest mismatch: expected=" +
+                        std::to_string(cp.read_info.quality_crc[i]) +
+                        " actual=" + std::to_string(qual_crc[i]));
+      std::cerr << "Stream " << (i + 1) << " quality digest mismatch!\n";
+    }
+    if (check.id_mismatch[i]) {
+      Logger::log_error("Stream " + std::to_string(i + 1) +
+                        " ID digest mismatch: expected=" +
+                        std::to_string(cp.read_info.id_crc[i]) +
+                        " actual=" + std::to_string(id_crc[i]));
+      std::cerr << "Stream " << (i + 1) << " ID digest mismatch!\n";
+    }
+  }
+}
+
+void finish_audit_digest_outcome(const std::string &archive_label,
+                                 const compression_params &cp,
+                                 const NullDecompressionSink &sink,
+                                 const digest_verification_result &result) {
+  switch (result.status) {
+  case digest_check_status::verified:
+    std::cout << "Audit verified digests: " << archive_label << " is valid."
+              << std::endl;
+    return;
+  case digest_check_status::skipped_lossy:
+    std::cout << "Audit completed (digest check skipped: lossy archive): "
+              << archive_label << std::endl;
+    return;
+  case digest_check_status::skipped_no_digests:
+    throw std::runtime_error(
+        "Audit failed: lossless archive has no stored digests to verify (" +
+        archive_label + ").");
+  case digest_check_status::mismatch: {
+    uint32_t seq_crc[2] = {0, 0};
+    uint32_t qual_crc[2] = {0, 0};
+    uint32_t id_crc[2] = {0, 0};
+    sink.get_digests(seq_crc, qual_crc, id_crc);
+    report_digest_mismatches(cp, seq_crc, qual_crc, id_crc, result.check);
+    throw std::runtime_error("Archive integrity audit failed!");
+  }
+  }
+}
+
 void perform_audit_standard_artifact(
     const decompression_archive_artifact &artifact,
     const std::string &archive_label) {
@@ -25,48 +101,8 @@ void perform_audit_standard_artifact(
   sink.set_digest_length_framed(cp.read_info.digest_length_framed);
   execute_archive_decompression_plan(artifact, sink, cp, decompression_plan);
 
-  const bool is_lossless = cp.encoding.preserve_order &&
-                           cp.encoding.preserve_quality &&
-                           cp.encoding.preserve_id &&
-                           !cp.quality.ill_bin_flag && !cp.quality.bin_thr_flag;
-
-  if (is_lossless) {
-    uint32_t seq_crc[2], qual_crc[2], id_crc[2];
-    sink.get_digests(seq_crc, qual_crc, id_crc);
-
-    const lossless_digest_check check = check_lossless_digests(
-        cp.read_info.digests_present, cp.encoding.paired_end,
-        cp.read_info.sequence_crc, cp.read_info.quality_crc,
-        cp.read_info.id_crc, seq_crc, qual_crc, id_crc);
-    for (int i = 0; i < check.stream_count; ++i) {
-      if (check.sequence_mismatch[i]) {
-        Logger::log_error("Stream " + std::to_string(i + 1) +
-                          " sequence digest mismatch: expected=" +
-                          std::to_string(cp.read_info.sequence_crc[i]) +
-                          " actual=" + std::to_string(seq_crc[i]));
-        std::cerr << "Stream " << (i + 1) << " sequence digest mismatch!\n";
-      }
-      if (check.quality_mismatch[i]) {
-        Logger::log_error("Stream " + std::to_string(i + 1) +
-                          " quality digest mismatch: expected=" +
-                          std::to_string(cp.read_info.quality_crc[i]) +
-                          " actual=" + std::to_string(qual_crc[i]));
-        std::cerr << "Stream " << (i + 1) << " quality digest mismatch!\n";
-      }
-      if (check.id_mismatch[i]) {
-        Logger::log_error("Stream " + std::to_string(i + 1) +
-                          " ID digest mismatch: expected=" +
-                          std::to_string(cp.read_info.id_crc[i]) +
-                          " actual=" + std::to_string(id_crc[i]));
-        std::cerr << "Stream " << (i + 1) << " ID digest mismatch!\n";
-      }
-    }
-    if (check.mismatch)
-      throw std::runtime_error("Archive integrity audit failed!");
-  }
-
-  std::cout << "Audit successful: " << archive_label << " is valid."
-            << std::endl;
+  const digest_verification_result result = verify_sink_digests(sink, cp);
+  finish_audit_digest_outcome(archive_label, cp, sink, result);
 }
 
 void perform_audit_standard_bytes(const std::string &archive_contents,
@@ -118,7 +154,7 @@ void perform_audit(const std::string &archive_path) {
                                    manifest.index_archive_name);
     }
 
-    std::cout << "Audit successful: grouped archive members are valid."
+    std::cout << "Audit finished: all grouped archive members processed."
               << std::endl;
     return;
   }
