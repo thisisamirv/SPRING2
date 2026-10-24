@@ -4,6 +4,7 @@
 #include "assay_sc_atac.h"
 
 #include "assay_atac.h"
+#include "dna_utils.h"
 
 #include <algorithm>
 #include <array>
@@ -45,8 +46,14 @@ uint8_t detect_sc_atac_adapter_tail_info(const std::string &read_str,
     for (uint32_t overlap = max_overlap; overlap >= ATAC_ADAPTER_MIN_MATCH;
          --overlap) {
       const size_t read_offset = static_cast<size_t>(read_length - overlap);
-      if (read_str.compare(read_offset, overlap,
-                           adapter.substr(0, overlap).data(), overlap) == 0) {
+      bool matches = true;
+      for (uint32_t i = 0; i < overlap; ++i) {
+        if (dna_ascii_upper(read_str[read_offset + i]) != adapter[i]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
         return static_cast<uint8_t>((overlap << 1) | adapter_id);
       }
       if (overlap == ATAC_ADAPTER_MIN_MATCH)

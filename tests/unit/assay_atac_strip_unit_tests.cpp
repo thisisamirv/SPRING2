@@ -92,6 +92,10 @@ TEST_CASE("ATAC adapter detection matches terminal strip, not internal kmers") {
   const std::string reverse_terminal =
       "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGATGTGTATAAGAGACAG";
   CHECK(has_atac_adapter(reverse_terminal));
+
+  const std::string lowercase_terminal =
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaactgtctcttatacacatct";
+  CHECK(has_atac_adapter(lowercase_terminal));
 }
 
 TEST_CASE("PE ATAC adapter rate uses max per-mate rate not hits/fragments") {

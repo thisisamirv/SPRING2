@@ -5,6 +5,7 @@
 #include "assay_atac.h"
 #include "assay_bisulfite.h"
 #include "assay_rna.h"
+#include "dna_utils.h"
 #include "io_utils.h"
 #include <algorithm>
 #include <limits>
@@ -67,8 +68,9 @@ bool has_non_acgtn_symbol_for_sampling(const std::string &read) {
   return std::ranges::any_of(read, [](char base) {
     if (base == '\r' || base == '\n' || base == ' ')
       return false;
-    return base != 'A' && base != 'C' && base != 'G' && base != 'T' &&
-           base != 'N';
+    const char upper = dna_ascii_upper(base);
+    return upper != 'A' && upper != 'C' && upper != 'G' && upper != 'T' &&
+           upper != 'N';
   });
 }
 
@@ -270,23 +272,24 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
     }
 
     for (const char c : seq) {
+      const char upper = dna_ascii_upper(c);
       if (is_r1) {
-        if (c == 'C')
+        if (upper == 'C')
           stats.r1_C++;
-        else if (c == 'T')
+        else if (upper == 'T')
           stats.r1_T++;
-        else if (c == 'G')
+        else if (upper == 'G')
           stats.r1_G++;
-        else if (c == 'A')
+        else if (upper == 'A')
           stats.r1_A++;
       } else {
-        if (c == 'C')
+        if (upper == 'C')
           stats.r2_C++;
-        else if (c == 'T')
+        else if (upper == 'T')
           stats.r2_T++;
-        else if (c == 'G')
+        else if (upper == 'G')
           stats.r2_G++;
-        else if (c == 'A')
+        else if (upper == 'A')
           stats.r2_A++;
       }
     }

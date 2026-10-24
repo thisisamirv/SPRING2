@@ -23,6 +23,7 @@
 #include <string_view>
 #include <vector>
 
+#include "dna_utils.h"
 #include "fs_utils.h"
 #include "io_utils.h"
 #include "params.h"
@@ -376,8 +377,9 @@ bool has_non_acgtn_symbol(const std::string &read) {
   return std::ranges::any_of(read, [](char base) {
     if (base == '\r' || base == '\n' || base == ' ')
       return false;
-    return base != 'A' && base != 'C' && base != 'G' && base != 'T' &&
-           base != 'N';
+    const char upper = dna_ascii_upper(base);
+    return upper != 'A' && upper != 'C' && upper != 'G' && upper != 'T' &&
+           upper != 'N';
   });
 }
 

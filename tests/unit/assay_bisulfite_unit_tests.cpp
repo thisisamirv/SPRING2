@@ -72,6 +72,20 @@ TEST_CASE("Small bisulfite libraries still score without a 500-fragment floor") 
   CHECK(score.depleted_base_by_stream[1] == 'C');
 }
 
+TEST_CASE("Same-stream strong C and G picks the more depleted base") {
+  AssayDetectionStats stats;
+  stats.total_reads = 1000;
+  // Both C and G look "strong", but G is more depleted (ratio 0.02 vs 0.08).
+  stats.r1_C = 40;
+  stats.r1_T = 460; // c_ratio ≈ 40/501 ≈ 0.08
+  stats.r1_G = 10;
+  stats.r1_A = 490; // g_ratio ≈ 10/501 ≈ 0.02
+
+  const auto score = score_bisulfite_assay(stats);
+  CHECK(score.depleted_base_by_stream[0] == 'G');
+  CHECK(score.breakdown.evidence[0].find("G-depletion") != std::string::npos);
+}
+
 TEST_CASE("Archive metadata round-trips mate depleted base") {
   compression_params cp{};
   cp.encoding.bisulfite_ternary = true;

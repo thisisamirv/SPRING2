@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Fixed bisulfite detection preferring C whenever both C and G looked strong on the same stream: the depleted base is now the more depleted of the two (lower ratio).
+- Fixed assay detection ignoring lowercase FASTQ bases for composition, poly-A/ATAC tail matching, and non-ACGTN checks (kmers already accepted lowercase).
 - Fixed bisulfite auto-detection ignoring libraries with fewer than 500 fragments (ATAC/RNA had no such floor): depletion scoring now relies on per-stream base-count checks only, so small clear BS inputs can classify as `bisulfite`.
 - Fixed specialty-assay tie-breaking always preferring bisulfite on equal scores: ties now prefer sequence evidence (`atac`, then `rna`) over composition (`bisulfite`).
 - Fixed auto assay detection treating any non-empty R3/I1/I2 path string as proof of a single-cell layout: explicit-lane SC promotion now requires the lane file to open and yield at least one line, so a missing/empty/unreadable path no longer forces `sc-*`.

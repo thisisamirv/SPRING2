@@ -174,6 +174,25 @@ TEST_CASE("Testing AssayDetector") {
     std::filesystem::remove(test_fq);
   }
 
+  SUBCASE("Lowercase bisulfite FASTQ still detects C-depletion") {
+    std::string test_fq = "test_bisulfite_lower.fq";
+    std::ofstream out(test_fq);
+    for (int i = 0; i < 100; ++i) {
+      out << "@read" << i << "\n";
+      out << "gtttgtttgtttgtttgtttgtttgtttgtttgtttgtttgtttgtttgtttgtttgttt\n";
+      out << "+\n";
+      out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+    }
+    out.close();
+
+    AssayDetector::DetectionResult res =
+        detector.detect(test_fq, "", "", "", "");
+    CHECK(res.assay == "bisulfite");
+    CHECK(res.depleted_base_by_stream[0] == 'C');
+
+    std::filesystem::remove(test_fq);
+  }
+
   SUBCASE("Small clear bisulfite library is not forced to dna") {
     std::string test_fq = "test_bisulfite_small.fq";
     std::ofstream out(test_fq);

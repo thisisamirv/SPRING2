@@ -42,30 +42,48 @@ score_bisulfite_assay(const AssayDetectionStats &stats) {
   const bool r2_g_moderate =
       (stats.r2_G + stats.r2_A > 100) && (r2_g_ratio <= 0.15);
 
+  // When C and G both qualify on one stream, keep the more depleted base
+  // (lower ratio). Exact ties fall back to C for a stable choice.
+  auto choose_depleted = [](bool c_hit, bool g_hit, double c_ratio,
+                            double g_ratio) -> char {
+    if (c_hit && g_hit) {
+      return (c_ratio <= g_ratio) ? 'C' : 'G';
+    }
+    return c_hit ? 'C' : 'G';
+  };
+
   if (r1_c_strong || r1_g_strong) {
+    const char depleted =
+        choose_depleted(r1_c_strong, r1_g_strong, r1_c_ratio, r1_g_ratio);
     result.breakdown.score += 80.0;
-    result.breakdown.evidence.push_back(
-        "R1 " + std::string(r1_c_strong ? "C" : "G") + "-depletion");
-    result.depleted_base_by_stream[0] = r1_c_strong ? 'C' : 'G';
+    result.breakdown.evidence.push_back("R1 " + std::string(1, depleted) +
+                                         "-depletion");
+    result.depleted_base_by_stream[0] = depleted;
   } else if (r1_c_moderate || r1_g_moderate) {
+    const char depleted = choose_depleted(r1_c_moderate, r1_g_moderate,
+                                          r1_c_ratio, r1_g_ratio);
     result.breakdown.score += 40.0;
-    result.breakdown.evidence.push_back(
-        "R1 moderate " + std::string(r1_c_moderate ? "C" : "G") + "-depletion");
-    // Prefer strong signals for the stored depleted base; moderate still
-    // records a stream hint when no strong hit exists.
-    result.depleted_base_by_stream[0] = r1_c_moderate ? 'C' : 'G';
+    result.breakdown.evidence.push_back("R1 moderate " +
+                                         std::string(1, depleted) +
+                                         "-depletion");
+    result.depleted_base_by_stream[0] = depleted;
   }
 
   if (r2_c_strong || r2_g_strong) {
+    const char depleted =
+        choose_depleted(r2_c_strong, r2_g_strong, r2_c_ratio, r2_g_ratio);
     result.breakdown.score += 80.0;
-    result.breakdown.evidence.push_back(
-        "R2 " + std::string(r2_c_strong ? "C" : "G") + "-depletion");
-    result.depleted_base_by_stream[1] = r2_c_strong ? 'C' : 'G';
+    result.breakdown.evidence.push_back("R2 " + std::string(1, depleted) +
+                                         "-depletion");
+    result.depleted_base_by_stream[1] = depleted;
   } else if (r2_c_moderate || r2_g_moderate) {
+    const char depleted = choose_depleted(r2_c_moderate, r2_g_moderate,
+                                          r2_c_ratio, r2_g_ratio);
     result.breakdown.score += 40.0;
-    result.breakdown.evidence.push_back(
-        "R2 moderate " + std::string(r2_c_moderate ? "C" : "G") + "-depletion");
-    result.depleted_base_by_stream[1] = r2_c_moderate ? 'C' : 'G';
+    result.breakdown.evidence.push_back("R2 moderate " +
+                                         std::string(1, depleted) +
+                                         "-depletion");
+    result.depleted_base_by_stream[1] = depleted;
   }
 
   // Single-end (no R2 bases sampled): mirror stream 0 into stream 1 so

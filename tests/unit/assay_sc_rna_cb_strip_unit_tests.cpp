@@ -103,6 +103,10 @@ TEST_CASE("Poly-A detection matches contiguous strip, not composition window") {
 
   const std::string short_run(20, 'A'); // run == MIN_LEN is not stripped
   CHECK_FALSE(has_poly_a_tail(short_run));
+
+  const std::string lowercase_tail =
+      "gctagctagctagctagctagctagctgcaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  CHECK(has_poly_a_tail(lowercase_tail));
 }
 
 TEST_CASE("Grouped index-ID strip matches paired I1+I2 suffix") {

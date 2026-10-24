@@ -2,6 +2,7 @@
 // poly-A/T tail stripping and restoration.
 
 #include "assay_rna.h"
+#include "dna_utils.h"
 
 #include <limits>
 #include <string>
@@ -65,12 +66,13 @@ uint16_t detect_rna_tail_info(const std::string &read_str,
       read_length > read_str.size()) {
     return 0;
   }
-  const char last = read_str[read_length - 1];
+  const char last = dna_ascii_upper(read_str[read_length - 1]);
   if (last != 'A' && last != 'T') {
     return 0;
   }
   uint32_t run = 0;
-  while (run < read_length && read_str[read_length - 1 - run] == last) {
+  while (run < read_length &&
+         dna_ascii_upper(read_str[read_length - 1 - run]) == last) {
     ++run;
   }
   if (run <= POLY_AT_TAIL_MIN_LEN) {
