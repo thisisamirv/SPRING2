@@ -10,6 +10,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <zlib.h>
 
@@ -93,6 +94,33 @@ bool readable_grouped_lane_present(const std::string &path) {
 }
 
 } // namespace
+
+const char *pick_specialty_assay(double bisulfite_score, double atac_score,
+                                 double rna_score, double min_score) {
+  struct Candidate {
+    const char *name;
+    double score;
+    int tie_rank; // lower wins on equal score
+  };
+  const Candidate candidates[] = {
+      {"atac", atac_score, 0},
+      {"rna", rna_score, 1},
+      {"bisulfite", bisulfite_score, 2},
+  };
+
+  const Candidate *best = nullptr;
+  for (const Candidate &candidate : candidates) {
+    if (candidate.score < min_score) {
+      continue;
+    }
+    if (best == nullptr || candidate.score > best->score ||
+        (candidate.score == best->score &&
+         candidate.tie_rank < best->tie_rank)) {
+      best = &candidate;
+    }
+  }
+  return best != nullptr ? best->name : nullptr;
+}
 
 SingleCellDetectionEvidence
 detect_single_cell_layout(const AssayDetectionStats &stats,
@@ -468,38 +496,30 @@ AssayDetector::evaluate_stages(const AssayDetectionStats &stats,
   const double bisulfite_score = bisulfite.breakdown.score;
   const double atac_score = atac.score;
   const double rna_score = rna.score;
-  double dna_score = 10.0; // baseline for generic DNA
 
   std::vector<std::string> evidence;
 
   std::string base_assay;
   std::string confidence_level;
 
-  // Select assay with highest score
-  double max_score =
-      std::max({bisulfite_score, atac_score, rna_score, dna_score});
-
-  if (max_score < 20.0) {
+  const char *specialty =
+      pick_specialty_assay(bisulfite_score, atac_score, rna_score);
+  if (specialty == nullptr) {
     base_assay = "dna";
     confidence_level = "low";
-    evidence.clear();
     evidence.emplace_back("default");
-  } else if (bisulfite_score == max_score && bisulfite_score >= 20.0) {
+  } else if (std::string_view(specialty) == "bisulfite") {
     base_assay = "bisulfite";
     confidence_level = (bisulfite_score >= 70.0) ? "high" : "medium";
     evidence = bisulfite.breakdown.evidence;
-  } else if (atac_score == max_score && atac_score >= 20.0) {
+  } else if (std::string_view(specialty) == "atac") {
     base_assay = "atac";
     confidence_level = (atac_score >= 70.0) ? "high" : "medium";
     evidence = atac.evidence;
-  } else if (rna_score == max_score && rna_score >= 20.0) {
+  } else {
     base_assay = "rna";
     confidence_level = (rna_score >= 60.0) ? "high" : "medium";
     evidence = rna.evidence;
-  } else {
-    base_assay = "dna";
-    confidence_level = "low";
-    evidence.emplace_back("ambiguous signals");
   }
 
   SingleCellDetectionEvidence sc_layout =

@@ -75,6 +75,13 @@ struct SingleCellDetectionEvidence {
 detect_single_cell_layout(const AssayDetectionStats &stats,
                           bool explicit_sc_layout);
 
+// Specialty assay with the highest score (>= min_score). On exact ties, prefer
+// sequence evidence (atac, then rna) over composition (bisulfite). Returns
+// nullptr when no specialty score clears min_score (caller treats as dna).
+[[nodiscard]] const char *
+pick_specialty_assay(double bisulfite_score, double atac_score,
+                     double rna_score, double min_score = 20.0);
+
 class AssayDetector {
 public:
   AssayDetector() = default;

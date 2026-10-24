@@ -11,9 +11,9 @@ namespace spring {
 BisulfiteDetectionScore
 score_bisulfite_assay(const AssayDetectionStats &stats) {
   BisulfiteDetectionScore result;
-  if (stats.total_reads < 500) {
-    return result;
-  }
+  // No fragment-count floor (unlike a previous >=500 gate): ATAC/RNA have none,
+  // and the per-stream base-count checks below already require enough C/T or
+  // G/A observations for a reliable depletion ratio.
 
   const double r1_c_ratio =
       static_cast<double>(stats.r1_C) / (stats.r1_C + stats.r1_T + 1);

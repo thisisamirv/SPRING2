@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Fixed bisulfite auto-detection ignoring libraries with fewer than 500 fragments (ATAC/RNA had no such floor): depletion scoring now relies on per-stream base-count checks only, so small clear BS inputs can classify as `bisulfite`.
+- Fixed specialty-assay tie-breaking always preferring bisulfite on equal scores: ties now prefer sequence evidence (`atac`, then `rna`) over composition (`bisulfite`).
 - Fixed auto assay detection treating any non-empty R3/I1/I2 path string as proof of a single-cell layout: explicit-lane SC promotion now requires the lane file to open and yield at least one line, so a missing/empty/unreadable path no longer forces `sc-*`.
 - Fixed auto assay detection emitting `sc-dna` when R3/I1/I2 lanes were present but the base assay was DNA: the `sc-` prefix is only applied for `rna`/`atac`/`bisulfite` (the assays with real sc-* modes); bulk DNA with index/R3 lanes stays `dna`.
 - Fixed RNA poly-A detection using a composition window (≥15 A/T in the last 20 bases) while stripping requires a contiguous terminal run longer than 20 bp: `has_poly_a_tail` now shares the strip contiguous-run rule, and RNA score thresholds were retuned for the lower contiguous-run rates so non-strippable tails cannot inflate `rna`/`sc-rna` classification.

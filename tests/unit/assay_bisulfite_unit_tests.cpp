@@ -58,6 +58,20 @@ TEST_CASE("SE bisulfite mirrors depleted base into stream 1") {
   CHECK(score.depleted_base_by_stream[1] == 'C');
 }
 
+TEST_CASE("Small bisulfite libraries still score without a 500-fragment floor") {
+  AssayDetectionStats stats;
+  stats.total_reads = 40; // previously ignored entirely
+  stats.r1_C = 5;
+  stats.r1_T = 200;
+  stats.r1_G = 100;
+  stats.r1_A = 100;
+
+  const auto score = score_bisulfite_assay(stats);
+  CHECK(score.breakdown.score >= 80.0);
+  CHECK(score.depleted_base_by_stream[0] == 'C');
+  CHECK(score.depleted_base_by_stream[1] == 'C');
+}
+
 TEST_CASE("Archive metadata round-trips mate depleted base") {
   compression_params cp{};
   cp.encoding.bisulfite_ternary = true;

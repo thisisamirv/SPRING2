@@ -9,6 +9,14 @@ using namespace spring;
 
 namespace {
 
+TEST_CASE("Specialty assay ties prefer ATAC/RNA over bisulfite") {
+  CHECK(std::string(pick_specialty_assay(80.0, 80.0, 40.0)) == "atac");
+  CHECK(std::string(pick_specialty_assay(80.0, 40.0, 80.0)) == "rna");
+  CHECK(std::string(pick_specialty_assay(80.0, 40.0, 40.0)) == "bisulfite");
+  CHECK(std::string(pick_specialty_assay(90.0, 80.0, 80.0)) == "bisulfite");
+  CHECK(pick_specialty_assay(10.0, 10.0, 10.0) == nullptr);
+}
+
 void create_sampling_fastq(const std::string &path, int total_reads,
                            int short_reads, int short_len, int long_len) {
   std::ofstream out(path, std::ios::binary);
@@ -162,6 +170,25 @@ TEST_CASE("Testing AssayDetector") {
     CHECK(res.confidence.find("-depletion") != std::string::npos);
     CHECK(res.depleted_base_by_stream[0] == 'C');
     CHECK(res.depleted_base_by_stream[1] == 'C');
+
+    std::filesystem::remove(test_fq);
+  }
+
+  SUBCASE("Small clear bisulfite library is not forced to dna") {
+    std::string test_fq = "test_bisulfite_small.fq";
+    std::ofstream out(test_fq);
+    for (int i = 0; i < 40; ++i) {
+      out << "@read" << i << "\n";
+      out << "GTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTTGTTT\n";
+      out << "+\n";
+      out << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+    }
+    out.close();
+
+    AssayDetector::DetectionResult res =
+        detector.detect(test_fq, "", "", "", "");
+    CHECK(res.assay == "bisulfite");
+    CHECK(res.confidence.find("-depletion") != std::string::npos);
 
     std::filesystem::remove(test_fq);
   }
