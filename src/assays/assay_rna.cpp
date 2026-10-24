@@ -3,6 +3,7 @@
 
 #include "assay_rna.h"
 
+#include <limits>
 #include <string>
 
 namespace spring {
@@ -30,13 +31,15 @@ AssayScoreBreakdown score_rna_assay(const AssayDetectionStats &stats,
 
   // Max per-mate rate: PE both-mates hits no longer score as ~2x SE, and a
   // signal on only one mate (typical sc-RNA poly-A on R2) is preserved.
+  // Thresholds are calibrated to contiguous-run rates (same as strip), which
+  // are lower than the old composition-window rates.
   const double poly_a_frac = max_mate_signal_rate(
       stats.poly_a_tails_r1, stats.poly_a_tails_r2, stats);
   if (!suppress_poly_a_signal) {
-    if (poly_a_frac > 0.10) {
+    if (poly_a_frac > 0.05) {
       result.score += 80.0;
-      result.evidence.emplace_back("poly-A/T tails (>10%)");
-    } else if (poly_a_frac > 0.03) {
+      result.evidence.emplace_back("poly-A/T tails (>5%)");
+    } else if (poly_a_frac > 0.015) {
       result.score += 60.0;
       result.evidence.emplace_back("poly-A/T tails");
     }
@@ -56,35 +59,45 @@ AssayScoreBreakdown score_rna_assay(const AssayDetectionStats &stats,
   return result;
 }
 
-bool has_poly_a_tail(const std::string &seq) {
-  if (seq.length() < 20)
-    return false;
-  int a_count = 0;
-  int t_count = 0;
-  for (size_t i = seq.length() - 20; i < seq.length(); ++i) {
-    if (seq[i] == 'A')
-      a_count++;
-    if (seq[i] == 'T')
-      t_count++;
+uint16_t detect_rna_tail_info(const std::string &read_str,
+                              uint32_t read_length) {
+  if (read_length <= POLY_AT_TAIL_MIN_LEN ||
+      read_length > read_str.size()) {
+    return 0;
   }
-  return a_count >= 15 || t_count >= 15;
+  const char last = read_str[read_length - 1];
+  if (last != 'A' && last != 'T') {
+    return 0;
+  }
+  uint32_t run = 0;
+  while (run < read_length && read_str[read_length - 1 - run] == last) {
+    ++run;
+  }
+  if (run <= POLY_AT_TAIL_MIN_LEN) {
+    return 0;
+  }
+  return static_cast<uint16_t>((run << 1) | (last == 'T' ? 1 : 0));
+}
+
+bool has_poly_a_tail(const std::string &seq) {
+  // Same criterion as strip: contiguous terminal A/T run > POLY_AT_TAIL_MIN_LEN.
+  // Composition counts in a fixed window can label RNA from non-strippable tails.
+  if (seq.size() > std::numeric_limits<uint32_t>::max()) {
+    return false;
+  }
+  return detect_rna_tail_info(seq, static_cast<uint32_t>(seq.size())) != 0;
 }
 
 uint16_t detect_and_strip_rna_tail(std::string &read_str,
                                    uint32_t &read_length) {
-  if (read_length <= POLY_AT_TAIL_MIN_LEN)
+  const uint16_t tail_info = detect_rna_tail_info(read_str, read_length);
+  if (tail_info == 0) {
     return 0;
-  const char last = read_str[read_length - 1];
-  if (last != 'A' && last != 'T')
-    return 0;
-  uint32_t run = 0;
-  while (run < read_length && read_str[read_length - 1 - run] == last)
-    ++run;
-  if (run <= POLY_AT_TAIL_MIN_LEN)
-    return 0;
+  }
+  const uint32_t run = static_cast<uint32_t>(tail_info) >> 1;
   read_length -= run;
   read_str.resize(read_length);
-  return static_cast<uint16_t>((run << 1) | (last == 'T' ? 1 : 0));
+  return tail_info;
 }
 
 void restore_rna_tail(std::string &read_str, std::string *quality_str,

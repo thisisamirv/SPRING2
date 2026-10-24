@@ -8,6 +8,8 @@
 
 using spring::append_grouped_sc_rna_index_suffix_to_id;
 using spring::compression_params;
+using spring::detect_and_strip_rna_tail;
+using spring::has_poly_a_tail;
 using spring::should_enable_rna_tail_stripping;
 using spring::should_enable_sc_rna_cb_prefix_stripping;
 using spring::strip_grouped_sc_rna_index_suffix_from_id;
@@ -82,6 +84,25 @@ TEST_CASE("Grouped secondary notes disable poly-A strip despite inherited assay"
   CHECK_FALSE(should_enable_rna_tail_stripping(cp));
   cp.read_info.note = "read3-group";
   CHECK_FALSE(should_enable_rna_tail_stripping(cp));
+}
+
+TEST_CASE("Poly-A detection matches contiguous strip, not composition window") {
+  // 15 A's in the last 20 bases but broken by other bases — old detector
+  // fired; strip requires a contiguous run > 20.
+  const std::string composition_only =
+      "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCAAACAAAACAAAACAAAACAAAACAAAA";
+  CHECK_FALSE(has_poly_a_tail(composition_only));
+
+  const std::string contiguous_a =
+      "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  CHECK(has_poly_a_tail(contiguous_a));
+  std::string stripped = contiguous_a;
+  uint32_t len = static_cast<uint32_t>(stripped.size());
+  CHECK(detect_and_strip_rna_tail(stripped, len) != 0);
+  CHECK(len < contiguous_a.size());
+
+  const std::string short_run(20, 'A'); // run == MIN_LEN is not stripped
+  CHECK_FALSE(has_poly_a_tail(short_run));
 }
 
 TEST_CASE("Grouped index-ID strip matches paired I1+I2 suffix") {

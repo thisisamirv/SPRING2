@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed RNA poly-A detection using a composition window (≥15 A/T in the last 20 bases) while stripping requires a contiguous terminal run longer than 20 bp: `has_poly_a_tail` now shares the strip contiguous-run rule, and RNA score thresholds were retuned for the lower contiguous-run rates so non-strippable tails cannot inflate `rna`/`sc-rna` classification.
 - Fixed assay detection over-counting PE Tn5 adapter and poly-A rates: per-mate hits were divided by fragment count (PE fractions up to ~2.0). Scoring now uses the max per-mate rate so PE matches SE at the same per-read rate without diluting one-mate signals (e.g. sc-RNA poly-A on R2).
 - Fixed grouped R3/index members treating an inherited auto assay as explicit `-y` (confidence `N/A`): secondaries now inherit the primary's confidence, and CB / poly-A transforms stay disabled on `read3-group` / `index-group` notes so a wrong primary auto-label cannot arm those strips on secondary lanes.
 - Removed the dead `should_enable_sc_bisulfite_cb_prefix_stripping` hook from preprocess (always false) and clarified docs/comments that sc-bisulfite does not strip R1 CB prefixes (unlike sc-RNA).

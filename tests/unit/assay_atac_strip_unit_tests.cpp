@@ -119,19 +119,19 @@ TEST_CASE("PE poly-A on one mate is not diluted by the other") {
   pe.total_reads = 100;
   pe.r1_lengths.assign(100, 28); // barcode mate: no poly-A
   pe.r2_lengths.assign(100, 90);
-  pe.poly_a_tails_r2 = 12; // 12% of R2 — should stay >10%
+  pe.poly_a_tails_r2 = 12; // 12% of R2 — should stay >5% high band
   const auto pe_score =
       score_rna_assay(pe, /*reference_loaded=*/false,
                       /*suppress_poly_a_signal=*/false);
   CHECK(pe_score.score == 80.0);
 
-  // Both mates at 8%: old hits/fragments = 16% (>10% → 80). Max rate = 8% → 60.
+  // Both mates at 3%: old hits/fragments = 6%. Max rate = 3% → medium band.
   AssayDetectionStats both;
   both.total_reads = 100;
   both.r1_lengths.assign(100, 50);
   both.r2_lengths.assign(100, 50);
-  both.poly_a_tails_r1 = 8;
-  both.poly_a_tails_r2 = 8;
+  both.poly_a_tails_r1 = 3;
+  both.poly_a_tails_r2 = 3;
   const auto both_score = score_rna_assay(both, false, false);
   CHECK(both_score.score == 60.0);
 }
