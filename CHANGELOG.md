@@ -6,6 +6,7 @@
 
 ### Added
 
+- Added per-member SHA-256 container integrity: new `.sp` archives embed `integrity.meta` with a SHA-256 of every tar member payload plus a root hash of the sorted digest list. Decompress, audit, and `SpringReader` verify the manifest (legacy archives without it warn and skip).
 - Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
 - Added `SpringReader::verify_digests()` to compare reconstructed CRCs against `params().read_info` after a full consume (same early-call error as `get_digests()`), so library callers no longer need to reimplement the audit comparison.
 

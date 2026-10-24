@@ -3,6 +3,8 @@
 
 #include "workflow_internal.h"
 
+#include "archive_integrity.h"
+
 #include <iostream>
 
 namespace spring {
@@ -92,6 +94,9 @@ void perform_audit_standard_artifact(
   SPRING_LOG_DEBUG("Audit (standard) started for archive: " + archive_label +
                    " (in-memory)");
 
+  require_archive_integrity(artifact.files, archive_label,
+                            /*warn_if_absent=*/true);
+
   compression_params cp{};
   read_archive_compression_params(artifact, cp);
   const archive_decompression_plan decompression_plan =
@@ -129,6 +134,8 @@ void perform_audit(const std::string &archive_path) {
 
   const std::unordered_map<std::string, std::string> top_level_files =
       read_all_files_from_tar_memory(archive_path);
+  require_archive_integrity(top_level_files, archive_path,
+                            /*warn_if_absent=*/true);
   auto manifest_it = top_level_files.find(kBundleManifestName);
   if (manifest_it != top_level_files.end()) {
     const bundle_manifest manifest =

@@ -3,6 +3,7 @@
 
 #include "workflow_internal.h"
 
+#include "archive_integrity.h"
 #include "assay_bisulfite.h"
 #include "assay_detector.h"
 #include "assay_sc_bisulfite.h"
@@ -895,6 +896,7 @@ void compress_standard(const string_list &input_paths,
       print_compressed_stream_sizes(archive_members);
       archive_sources = build_archive_sources(archive_members);
     }
+    append_integrity_manifest_to_sources(archive_sources);
 
     run_timed_step("Creating tar archive ...", "Tar archive", [&] {
       progress.set_stage("Creating archive", 0.95F, 1.0F);
@@ -1153,6 +1155,7 @@ void compress(const CompressOptions &options) {
                                 .disk_path = std::string(),
                                 .contents = serialize_bundle_manifest(manifest),
                                 .from_memory = true});
+      append_integrity_manifest_to_sources(bundle_sources);
 
       run_timed_step("Creating grouped bundle archive ...", "Tar archive", [&] {
         progress.set_stage("Creating archive", 0.95F, 1.0F);

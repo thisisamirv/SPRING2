@@ -148,6 +148,13 @@ spring2 -c --R1 reads.fastq -o reads.sp --note "batch=07 replicate=A"
 
 That note is stored in archive metadata and shown by preview mode.
 
+## Container Integrity
+
+Every new `.sp` archive includes an `integrity.meta` member listing the SHA-256
+of each packed payload (plus a root hash of that sorted digest list). Grouped
+bundles hash the outer members the same way; nested lane archives carry their
+own manifests. Decompress and audit verify these digests automatically.
+
 ## Compression-Time Verification
 
 Add `--audit` to verify the archive immediately after compression:
@@ -156,7 +163,8 @@ Add `--audit` to verify the archive immediately after compression:
 spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --audit
 ```
 
-This runs a dry-run verification pass after archive creation.
+This runs a dry-run verification pass after archive creation (container
+SHA-256 plus reconstructed record digests).
 
 ## Logging
 

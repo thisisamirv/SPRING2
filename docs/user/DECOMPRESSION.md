@@ -87,16 +87,21 @@ spring2 -d -u -i reads.sp -o restored.fastq
 
 ## Integrity Verification
 
-Normal decompression verifies stored CRC32 digests for bit-exact channels:
+Decompression checks two layers:
 
-- sequences (when read order is preserved)
-- identifiers (when ids are preserved)
-- quality values (when quality is preserved and not `ill_bin` / `binary`
-  binned)
+1. **Container** — new archives embed `integrity.meta` with a SHA-256 of every
+   tar member payload and a root hash over the sorted digest list. A mismatch
+   aborts before reconstruction. Archives without `integrity.meta` (legacy)
+   warn and skip this check.
+2. **Records** — stored CRC32 digests for bit-exact channels:
+   - sequences (when read order is preserved)
+   - identifiers (when ids are preserved)
+   - quality values (when quality is preserved and not `ill_bin` / `binary`
+     binned)
 
 Quality binning is lossy, so quality digests are not stored or checked for
 `-q ill_bin` / `-q binary` archives; sequence and id checks still run.
-Archives that strip order skip digest verification entirely.
+Archives that strip order skip record digest verification entirely.
 
 If a compared digest mismatches, decompression aborts with an integrity error.
 

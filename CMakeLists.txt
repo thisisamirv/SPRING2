@@ -1140,6 +1140,7 @@ set(core_source_files
     # Common
     ${source_dir}/common/bitset_dictionary.cpp
     ${source_dir}/common/bgzf.cpp
+    ${source_dir}/common/archive_integrity.cpp
     ${source_dir}/common/dna_utils.cpp
     ${source_dir}/common/fs_utils.cpp
     ${source_dir}/common/io_utils.cpp
@@ -1147,6 +1148,7 @@ set(core_source_files
     ${source_dir}/common/params.cpp
     ${source_dir}/common/parse_utils.cpp
     ${source_dir}/common/progress.cpp
+    ${source_dir}/common/sha256.cpp
     # Assays
     ${source_dir}/assays/assay_atac.cpp
     ${source_dir}/assays/assay_detector.cpp
@@ -1575,6 +1577,7 @@ set(unit_test_sources
     tests/unit/assay_detector_real_data_unit_tests.cpp
     tests/unit/compression_storage_plan_unit_tests.cpp
     tests/unit/archive_metadata_version_unit_tests.cpp
+    tests/unit/archive_integrity_unit_tests.cpp
     tests/unit/gzip_preprocess_progress_unit_tests.cpp
     tests/unit/disk_path_memory_reduction_unit_tests.cpp
     tests/unit/reorder_performance_unit_tests.cpp

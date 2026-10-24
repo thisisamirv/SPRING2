@@ -2,6 +2,7 @@
 // used to pull records out of SPRING archives for library-style consumers.
 #include "archive_stream_reader.h"
 #include "archive_record_reconstruction.h"
+#include "archive_integrity.h"
 #include "common/bundle_manifest.h"
 #include "fs_utils.h"
 #include "params.h"
@@ -223,6 +224,9 @@ public:
       }
       artifact_.files = read_all_files_from_tar_memory(archive_path_);
     }
+
+    require_archive_integrity(artifact_.files, archive_path_,
+                              /*warn_if_absent=*/true);
 
     if (!artifact_.contains("cp.bin")) {
       SPRING_LOG_DEBUG("block_id=spring-reader:metadata, SpringReader metadata "

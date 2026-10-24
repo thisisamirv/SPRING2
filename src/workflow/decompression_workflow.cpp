@@ -3,6 +3,7 @@
 
 #include "workflow_internal.h"
 
+#include "archive_integrity.h"
 #include "progress.h"
 
 #include <iostream>
@@ -42,6 +43,11 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
   ProgressBar dummy_progress(true);
   auto &progress = progress_ptr ? *progress_ptr : dummy_progress;
   compression_params cp{};
+
+  const std::string container_label =
+      input_paths.empty() ? std::string("archive") : input_paths.front();
+  require_archive_integrity(artifact.files, container_label,
+                            /*warn_if_absent=*/true);
 
   read_archive_compression_params(artifact, cp);
   const archive_decompression_plan decompression_plan =
@@ -229,6 +235,8 @@ void materialize_aliased_group_output_from_memory(
   FileDecompressionSink sink(output_path_1, output_path_2, cp, num_thr,
                              compression_levels, should_gzip, should_bgzf,
                              write_enabled);
+  require_archive_integrity(artifact.files, alias_output_path,
+                            /*warn_if_absent=*/true);
   execute_archive_decompression_plan(artifact, sink, cp, decompression_plan,
                                      num_thr);
 
@@ -336,6 +344,8 @@ void decompress(const std::vector<std::string> &input_paths,
     }
 
     const auto top_level_files = read_all_files_from_tar_memory(input_paths[0]);
+    require_archive_integrity(top_level_files, input_paths[0],
+                              /*warn_if_absent=*/true);
     auto require_member =
         [&](const std::string &member_name) -> const std::string & {
       auto member_it = top_level_files.find(member_name);

@@ -34,8 +34,9 @@ Preview mode can run a full archive audit without writing restored FASTQ files:
 spring2 --preview --audit -i archive.sp
 ```
 
-This reconstructs records in memory and verifies stored digests. It is useful
-for checking archive health after transfer or long-term storage.
+This verifies the container `integrity.meta` SHA-256 digests (when present),
+then reconstructs records in memory and checks stored CRC32 digests. It is
+useful for checking archive health after transfer or long-term storage.
 
 ## What Metadata Can Indicate
 

@@ -26,7 +26,7 @@ SPRING2 is a compressor for FASTQ and FASTA sequencing data, including paired-en
 - Automatic and explicit assay handling for `dna`, `rna`, `atac`, `bisulfite`, `sc-rna`, `sc-atac`, and `sc-bisulfite`
 - Adaptive memory and disk routing: selects in-memory, disk-backed with external MPHF, or thread-capped mode automatically based on available memory and disk budget
 - Preview mode for archive inspection and audit mode for dry-run integrity verification without full decompression
-- Record-level CRC32 verification for lossless archives during decompression and optional post-compression auditing
+- Per-member SHA-256 container digests (`integrity.meta`) plus record-level CRC32 verification for lossless archives during decompression and optional post-compression auditing
 - Cross-platform builds and CI coverage for Linux, macOS, and native Windows toolchains
 - Free for non-profit research and educational use
 
