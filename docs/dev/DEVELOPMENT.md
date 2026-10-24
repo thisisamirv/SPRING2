@@ -5,6 +5,7 @@ This guide is for developers who want to contribute to SPRING2 or maintain the b
 ## Project Structure
 
 - `src/`: Core C++20 source files and headers.
+- `cmake/`: Root build modules included by the top-level `CMakeLists.txt`.
 - `vendor/`: Bundled third-party dependencies as `.tar.xz` archives.
 - `docs/user/`, `docs/dev/`, `docs/assays/`: User, developer, and assay-specific documentation.
 - `tools/dev/`: Developer workflow entrypoints for linting and smoke checks.
@@ -16,7 +17,7 @@ This guide is for developers who want to contribute to SPRING2 or maintain the b
 
 ## Build System Architecture
 
-SPRING2 uses a modular CMake build system. Each vendor dependency in the `vendor/` directory is self-contained:
+SPRING2 uses a modular CMake build system. The root `CMakeLists.txt` is a thin orchestrator; project logic lives in `cmake/*.cmake` (toolchain, OpenMP, host tools, vendors, targets, install, tests). Each vendor dependency in the `vendor/` directory is self-contained:
 
 - Dependencies are extracted on-the-fly during CMake configuration.
 - Each major dependency (e.g., `libbsc`, `cloudflare_zlib`) has its own internal `CMakeLists.txt` managing its build logic.

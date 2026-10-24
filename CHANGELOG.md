@@ -15,6 +15,7 @@
 - Dropped the `macOS x64 Clang` CI job (`macos-15-intel`); macOS coverage is ARM64 only.
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 - Unified paired-end decompression single-`-o` prefixes with grouped naming: `-o prefix` now writes `prefix.R1` / `prefix.R2` (previously `.1` / `.2`). Fallback names when metadata has no original filenames use the same suffixes.
+- Split the monolithic root `CMakeLists.txt` (~1.7k lines) into focused modules under `cmake/` (`ProjectSetup`, `Toolchain`, `Compiler`, `OpenMP`, `HostTools`, `Vendors`, `Sources`, `Targets`, `Install`, `Tests`, …); the root file is now a thin include orchestrator.
 
 ### Fixed
 
