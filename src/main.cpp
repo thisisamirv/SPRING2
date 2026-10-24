@@ -71,9 +71,12 @@ struct command_line_options {
   bool num_threads_was_explicit = false;
   double memory_cap_gb = 0.0;
   int compression_level = spring::DEFAULT_COMPRESSION_LEVEL;
+  bool compression_level_was_explicit = false;
   std::string note;
   std::string assay = "auto";
+  bool assay_was_explicit = false;
   uint32_t cb_len = 16;
+  bool cb_len_was_explicit = false;
   spring::log_level log_level = spring::log_level::quiet;
   bool unzip_flag = false;
 };
@@ -279,6 +282,7 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
           args[index++], "Invalid compression level.");
       if (options.compression_level < 1 || options.compression_level > 9)
         throw std::runtime_error("Compression level must be between 1 and 9.");
+      options.compression_level_was_explicit = true;
     } else if (arg == "-R1" || arg == "--R1") {
       require_value(args, index, "--R1");
       if (!options.r1_path.empty())
@@ -362,6 +366,7 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
                                  ". Valid choices: auto, dna, rna, atac, "
                                  "bisulfite, sc-rna, sc-atac, sc-bisulfite.");
       }
+      options.assay_was_explicit = true;
     } else if (arg == "-b" || arg == "--cb-len") {
       require_value(args, index, "--cb-len");
       const int raw = spring::parse_int_or_throw(
@@ -370,6 +375,7 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
       if (raw < 1 || raw > 64)
         throw std::runtime_error("--cb-len must be between 1 and 64.");
       options.cb_len = static_cast<uint32_t>(raw);
+      options.cb_len_was_explicit = true;
     } else if (arg == "-v" || arg == "--verbose") {
       // Optional level arg: only consume the next token when it is a known
       // level. Otherwise leave it as a positional path so
@@ -411,7 +417,70 @@ bool has_valid_memory_cap(const command_line_options &options) {
   return std::isfinite(options.memory_cap_gb) && options.memory_cap_gb >= 0.0;
 }
 
+void reject_flag(const char *flag_name, const char *mode_name) {
+  throw std::runtime_error(std::string(flag_name) + " is not valid in " +
+                           mode_name + " mode.");
+}
+
+void validate_mode_specific_flags(const command_line_options &options) {
+  if (options.compress_flag) {
+    if (options.unzip_flag) {
+      reject_flag("--unzip/-u", "compress");
+    }
+    return;
+  }
+
+  if (options.decompress_flag) {
+    if (options.pairing_only_flag || options.no_quality_flag ||
+        options.no_ids_flag) {
+      reject_flag("--strip/-s", "decompress");
+    }
+    if (!options.quality_options.empty()) {
+      reject_flag("--qmod/-q", "decompress");
+    }
+    if (!options.note.empty()) {
+      reject_flag("--note/-n", "decompress");
+    }
+    if (options.compression_level_was_explicit) {
+      reject_flag("--level/-l", "decompress");
+    }
+    if (options.assay_was_explicit) {
+      reject_flag("--assay/-y", "decompress");
+    }
+    if (options.cb_len_was_explicit) {
+      reject_flag("--cb-len/-b", "decompress");
+    }
+    return;
+  }
+
+  // Preview mode.
+  if (options.unzip_flag) {
+    reject_flag("--unzip/-u", "preview");
+  }
+  if (options.pairing_only_flag || options.no_quality_flag ||
+      options.no_ids_flag) {
+    reject_flag("--strip/-s", "preview");
+  }
+  if (!options.quality_options.empty()) {
+    reject_flag("--qmod/-q", "preview");
+  }
+  if (!options.note.empty()) {
+    reject_flag("--note/-n", "preview");
+  }
+  if (options.compression_level_was_explicit) {
+    reject_flag("--level/-l", "preview");
+  }
+  if (options.assay_was_explicit) {
+    reject_flag("--assay/-y", "preview");
+  }
+  if (options.cb_len_was_explicit) {
+    reject_flag("--cb-len/-b", "preview");
+  }
+}
+
 void normalize_mode_specific_inputs(command_line_options &options) {
+  validate_mode_specific_flags(options);
+
   if (options.preview_flag) {
     if (!options.r1_path.empty() || !options.r2_path.empty() ||
         !options.r3_path.empty() || !options.i1_path.empty() ||

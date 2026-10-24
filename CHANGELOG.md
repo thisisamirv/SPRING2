@@ -26,6 +26,7 @@
 - Fixed `-q`/`--qmod` greedily consuming every following non-option token so a path after `lossless`/`ill_bin` could be swallowed: parsing now takes a fixed arity per mode (`lossless`/`ill_bin`: mode only; `binary`: thr high low).
 - Fixed SIGINT handling calling `std::cout`/`std::exit` from the signal handler (not async-signal-safe): Ctrl+C now sets an atomic flag, and compression/decompression abort cooperatively at stage boundaries with exit code 130; a second Ctrl+C force-terminates.
 - Fixed the `compress()` library API accepting `num_thr <= 0` (unlike `decompress()`), which could produce odd OpenMP behavior: compression now rejects non-positive thread counts.
+- Fixed mode-inappropriate CLI flags being accepted and silently ignored (e.g. `--unzip` on compress, `--strip`/`--qmod`/`--note`/`--level`/`--assay`/`--cb-len` on decompress or preview): those combinations now error instead of looking like success.
 
 ### Changed
 
