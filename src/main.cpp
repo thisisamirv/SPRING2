@@ -15,6 +15,7 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -382,7 +383,7 @@ bool has_valid_thread_count(const command_line_options &options) {
 }
 
 bool has_valid_memory_cap(const command_line_options &options) {
-  return options.memory_cap_gb >= 0.0;
+  return std::isfinite(options.memory_cap_gb) && options.memory_cap_gb >= 0.0;
 }
 
 void normalize_mode_specific_inputs(command_line_options &options) {
@@ -511,12 +512,17 @@ void validate_io_parameters(const command_line_options &options) {
 }
 
 int max_threads_for_memory_cap_gb(const double memory_cap_gb) {
-  if (memory_cap_gb <= 0.0)
+  if (!(memory_cap_gb > 0.0) || !std::isfinite(memory_cap_gb))
     return 0;
 
-  const int capped_threads = static_cast<int>(
-      std::floor(memory_cap_gb / kApproxMemoryCapPerThreadGiB));
-  return std::max(1, capped_threads);
+  const double capped_threads =
+      std::floor(memory_cap_gb / kApproxMemoryCapPerThreadGiB);
+  // Avoid UB from casting values outside the int range (e.g. --memory 1e20).
+  if (capped_threads >=
+      static_cast<double>(std::numeric_limits<int>::max())) {
+    return std::numeric_limits<int>::max();
+  }
+  return std::max(1, static_cast<int>(capped_threads));
 }
 
 void apply_memory_cap(command_line_options &options) {
@@ -650,7 +656,7 @@ int main(int argc, char **argv) {
   }
 
   if (!has_valid_memory_cap(options)) {
-    std::cout << "Memory cap must be non-negative.\n";
+    std::cout << "Memory cap must be a finite non-negative value.\n";
     return 1;
   }
 
