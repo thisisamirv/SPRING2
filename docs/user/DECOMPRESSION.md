@@ -58,24 +58,33 @@ SPRING2 stores input gzip metadata and uses it during decompression.
 
 Behavior summary:
 
-- If the original input stream was gzipped, decompression can restore gzipped
-  output.
-- If you explicitly give output names ending in `.gz`, the restored output is
-  gzipped.
+- If you omit `--output`, SPRING2 prefers the original basenames stored in the
+  archive. When a stream was gzipped, generated names keep or regain a `.gz`
+  suffix so the restored file is gzipped (matching grouped-archive defaults).
+- If you give a single paired-end prefix (`-o out`), SPRING2 expands to
+  `out.1` / `out.2` (or grouped `.R1` / `.R2` / …) and appends `.gz` per stream
+  that was originally gzipped.
+- If you explicitly give full output names, a `.gz` suffix controls whether that
+  file is written gzipped; names without `.gz` stay plain.
 - Preview mode reports stored gzip and BGZF metadata for each stream.
 
-Example:
+Examples:
 
 ```bash
+# Defaults restore original names, including .gz when the inputs were gzipped
+spring2 -d -i reads.sp
+
+# Explicit gzipped outputs
 spring2 -d -i reads.sp -o restored_1.fastq.gz restored_2.fastq.gz
 ```
 
 ## Force Plain Output
 
 Use `--unzip` / `-u` to force plain-text FASTQ or FASTA output even when the
-original input was gzipped:
+original input was gzipped. Generated default/prefix names also drop `.gz`:
 
 ```bash
+spring2 -d -u -i reads.sp
 spring2 -d -u -i reads.sp -o restored.fastq
 ```
 

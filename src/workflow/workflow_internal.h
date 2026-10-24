@@ -148,9 +148,20 @@ std::vector<tar_archive_source> build_archive_sources(
     const std::unordered_map<std::string, std::string> &archive_members);
 std::vector<tar_archive_source> build_archive_sources_from_disk(
     const std::unordered_map<std::string, std::string> &archive_member_paths);
-decompression_io_config
-resolve_decompression_io(const string_list &input_paths,
-                         const string_list &output_paths, bool paired_end);
+// Resolves decompression output paths. When outputs are generated (no -o, or a
+// single paired-end prefix), restores .gz from archive gzip metadata unless
+// unzip_flag is set. Explicit full output paths keep the caller's suffix.
+decompression_io_config resolve_decompression_io(
+    const string_list &input_paths, const string_list &output_paths,
+    bool paired_end, bool stream1_was_gzipped, bool stream2_was_gzipped,
+    bool unzip_flag, const std::string &original_filename_1,
+    const std::string &original_filename_2, bool fasta_mode);
+
+// For generated decompress names: strip .gz when unzipping; otherwise append
+// .gz when the original stream was gzipped and the path lacks a gzip suffix.
+std::string apply_generated_decompress_output_name(std::string path,
+                                                   bool was_gzipped,
+                                                   bool unzip_flag);
 
 void perform_audit_standard(const std::string &archive_path);
 

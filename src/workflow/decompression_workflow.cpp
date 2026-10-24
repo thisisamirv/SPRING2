@@ -12,6 +12,27 @@ namespace spring {
 
 namespace {
 
+bool peek_member_stream_was_gzipped(const std::string &member_archive_bytes,
+                                    const int stream_index) {
+  if (stream_index < 0 || stream_index > 1) {
+    return false;
+  }
+  auto contents = read_files_from_tar_bytes(member_archive_bytes, {"cp.bin"});
+  if (!contents.contains("cp.bin")) {
+    return false;
+  }
+  compression_params cp{};
+  decompression_archive_artifact artifact;
+  artifact.files = std::move(contents);
+  artifact.scratch_dir.clear();
+  try {
+    read_archive_compression_params(artifact, cp);
+  } catch (const std::exception &) {
+    return false;
+  }
+  return cp.gzip.streams[stream_index].was_gzipped;
+}
+
 void decompress_archive_artifact(const decompression_archive_artifact &artifact,
                                  const std::vector<std::string> &input_paths,
                                  const std::vector<std::string> &output_paths,
@@ -45,8 +66,11 @@ void decompress_archive_artifact(const decompression_archive_artifact &artifact,
       ", decompression_route=" +
       archive_decompression_route_name(decompression_plan));
 
-  const decompression_io_config io_config =
-      resolve_decompression_io(input_paths, output_paths, paired_end);
+  const decompression_io_config io_config = resolve_decompression_io(
+      input_paths, output_paths, paired_end, cp.gzip.streams[0].was_gzipped,
+      cp.gzip.streams[1].was_gzipped, unzip_flag,
+      cp.read_info.input_filename_1, cp.read_info.input_filename_2,
+      cp.encoding.fasta_mode);
   validate_output_targets(
       io_config.archive_path,
       paired_end ? std::vector<std::string>{io_config.output_path_1,
@@ -256,6 +280,8 @@ void decompress(const std::vector<std::string> &input_paths,
                     "optional index reads).");
 
     std::vector<std::string> resolved_outputs;
+    const bool generated_grouped_names =
+        output_paths.empty() || output_paths.size() == 1;
     if (output_paths.empty()) {
       resolved_outputs = build_default_grouped_output_paths(manifest);
     } else if (output_paths.size() == 1) {
@@ -282,8 +308,6 @@ void decompress(const std::vector<std::string> &input_paths,
       resolved_outputs = output_paths;
     }
 
-    validate_output_targets(input_paths[0], resolved_outputs);
-
     const auto top_level_files = read_all_files_from_tar_memory(input_paths[0]);
     auto require_member =
         [&](const std::string &member_name) -> const std::string & {
@@ -294,6 +318,53 @@ void decompress(const std::vector<std::string> &input_paths,
       }
       return member_it->second;
     };
+
+    // Match standard-archive behavior: generated names restore .gz from each
+    // member's gzip metadata, and --unzip strips .gz from those names.
+    if (generated_grouped_names) {
+      size_t out_idx = 0;
+      const std::string &read_member =
+          require_member(manifest.read_archive_name);
+      resolved_outputs[out_idx] = apply_generated_decompress_output_name(
+          resolved_outputs[out_idx],
+          peek_member_stream_was_gzipped(read_member, 0), unzip_flag);
+      ++out_idx;
+      resolved_outputs[out_idx] = apply_generated_decompress_output_name(
+          resolved_outputs[out_idx],
+          peek_member_stream_was_gzipped(read_member, 1), unzip_flag);
+      ++out_idx;
+      if (manifest.has_r3) {
+        bool r3_was_gzipped = false;
+        if (!manifest.read3_alias_source.empty()) {
+          const int alias_stream =
+              (manifest.read3_alias_source == "R2") ? 1 : 0;
+          r3_was_gzipped =
+              peek_member_stream_was_gzipped(read_member, alias_stream);
+        } else {
+          r3_was_gzipped = peek_member_stream_was_gzipped(
+              require_member(manifest.read3_archive_name), 0);
+        }
+        resolved_outputs[out_idx] = apply_generated_decompress_output_name(
+            resolved_outputs[out_idx], r3_was_gzipped, unzip_flag);
+        ++out_idx;
+      }
+      if (manifest.has_index) {
+        const std::string &index_member =
+            require_member(manifest.index_archive_name);
+        resolved_outputs[out_idx] = apply_generated_decompress_output_name(
+            resolved_outputs[out_idx],
+            peek_member_stream_was_gzipped(index_member, 0), unzip_flag);
+        ++out_idx;
+        if (manifest.has_i2) {
+          resolved_outputs[out_idx] = apply_generated_decompress_output_name(
+              resolved_outputs[out_idx],
+              peek_member_stream_was_gzipped(index_member, 1), unzip_flag);
+          ++out_idx;
+        }
+      }
+    }
+
+    validate_output_targets(input_paths[0], resolved_outputs);
 
     std::vector<std::string> read_outputs = {resolved_outputs[0],
                                              resolved_outputs[1]};

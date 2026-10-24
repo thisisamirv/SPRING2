@@ -887,10 +887,24 @@ std::vector<tar_archive_source> build_archive_sources_from_disk(
   return sources;
 }
 
-decompression_io_config
-resolve_decompression_io(const string_list &input_paths,
-                         const string_list &output_paths,
-                         const bool paired_end) {
+std::string apply_generated_decompress_output_name(std::string path,
+                                                   const bool was_gzipped,
+                                                   const bool unzip_flag) {
+  if (unzip_flag) {
+    return strip_gzip_suffix(path);
+  }
+  if (was_gzipped && !path_has_gzip_suffix(path)) {
+    path += ".gz";
+  }
+  return path;
+}
+
+decompression_io_config resolve_decompression_io(
+    const string_list &input_paths, const string_list &output_paths,
+    const bool paired_end, const bool stream1_was_gzipped,
+    const bool stream2_was_gzipped, const bool unzip_flag,
+    const std::string &original_filename_1,
+    const std::string &original_filename_2, const bool fasta_mode) {
   if (input_paths.size() != 1) {
     throw std::runtime_error("Number of input files not equal to 1");
   }
@@ -903,13 +917,29 @@ resolve_decompression_io(const string_list &input_paths,
     base.replace_extension("");
   }
   const std::string base_name = base.string();
+  const std::string default_ext = fasta_mode ? ".fasta" : ".fastq";
+
+  auto stored_basename = [](const std::string &stored) -> std::string {
+    if (stored.empty()) {
+      return {};
+    }
+    return std::filesystem::path(stored).filename().string();
+  };
+
+  // Generated names (no -o, or a single paired prefix) restore gzip suffixes
+  // from archive metadata. Fully explicit paths keep the caller's spelling.
+  const bool generated_names =
+      output_paths.empty() || (paired_end && output_paths.size() == 1);
 
   if (output_paths.empty()) {
+    const std::string orig1 = stored_basename(original_filename_1);
+    const std::string orig2 = stored_basename(original_filename_2);
     if (paired_end) {
-      io_config.output_path_1 = base_name + ".1";
-      io_config.output_path_2 = base_name + ".2";
+      io_config.output_path_1 = !orig1.empty() ? orig1 : (base_name + ".1");
+      io_config.output_path_2 = !orig2.empty() ? orig2 : (base_name + ".2");
     } else {
-      io_config.output_path_1 = base_name + ".fastq";
+      io_config.output_path_1 =
+          !orig1.empty() ? orig1 : (base_name + default_ext);
     }
   } else if (output_paths.size() == 1) {
     if (paired_end) {
@@ -925,10 +955,20 @@ resolve_decompression_io(const string_list &input_paths,
     throw std::runtime_error("Invalid number of decompression output files.");
   }
 
+  if (generated_names) {
+    io_config.output_path_1 = apply_generated_decompress_output_name(
+        io_config.output_path_1, stream1_was_gzipped, unzip_flag);
+    if (paired_end) {
+      io_config.output_path_2 = apply_generated_decompress_output_name(
+          io_config.output_path_2, stream2_was_gzipped, unzip_flag);
+    }
+  }
+
   SPRING_LOG_DEBUG(
       "Resolved decompression I/O: archive=" + io_config.archive_path +
       ", output1=" + io_config.output_path_1 +
-      (paired_end ? (", output2=" + io_config.output_path_2) : std::string()));
+      (paired_end ? (", output2=" + io_config.output_path_2) : std::string()) +
+      ", unzip=" + std::string(unzip_flag ? "true" : "false"));
   return io_config;
 }
 

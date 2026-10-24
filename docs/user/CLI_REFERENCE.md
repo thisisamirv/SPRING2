@@ -84,7 +84,9 @@ spring2 --preview -i <archive.sp> [--audit]
 - For grouped archives, `-o prefix` expands to lane-specific suffixes such as
   `.R1`, `.R2`, `.R3`, `.I1`, and `.I2`.
 - For paired-end decompression, multiple output names can be passed explicitly.
-- If output names end in `.gz`, SPRING2 writes gzipped restored output.
+- Generated defaults and prefixes append `.gz` when the original stream was
+  gzipped (unless `--unzip` is set). Explicit paths ending in `.gz` write
+  gzipped restored output.
 
 ## See Also
 
