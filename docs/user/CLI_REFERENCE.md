@@ -53,6 +53,8 @@ spring2 --preview -i <archive.sp> [--audit]
 
 - `-d`, `--decompress`: decompression mode
 - `-i`, `--input <arg>`: input archive path
+- `-a`, `--audit`: run a full in-memory archive integrity audit before writing
+  outputs
 - `-u`, `--unzip`: force plain-text output even if the original input was
   gzipped
 

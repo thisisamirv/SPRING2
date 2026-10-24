@@ -166,6 +166,8 @@ std::string build_options_description() {
       << "* Decompression Options:\n"
       << "  -d [ --decompress ]             decompress\n"
       << "  -i [ --input ] arg              input archive file (.sp)\n"
+      << "  -a [ --audit ]                  run a full archive integrity audit\n"
+      << "                                  before writing outputs\n"
       << "  -u [ --unzip ]                  during decompression, force\n"
       << "                                  plain-text output (and strip .gz\n"
       << "                                  from generated default/prefix "
@@ -568,6 +570,12 @@ void run_requested_mode(const command_line_options &options) {
     return;
   }
 
+  // Honor -a/--audit with decompress: full in-memory audit first so a corrupt
+  // archive fails before outputs are written. Decompress still runs its own
+  // per-stream CRC check while writing.
+  if (options.audit_flag) {
+    spring::perform_audit(options.input_paths.front());
+  }
   spring::decompress(options.input_paths, options.output_paths,
                      options.num_threads, options.log_level,
                      options.unzip_flag);

@@ -98,6 +98,13 @@ Normal decompression already verifies stored CRC32 digests for:
 
 If verification fails, decompression aborts with an integrity error.
 
+Use `-a` / `--audit` with decompress to run a full in-memory archive audit
+before any outputs are written:
+
+```bash
+spring2 -d -a -i reads.sp -o restored.fastq
+```
+
 ## Logging
 
 Use the same logging levels available during compression:

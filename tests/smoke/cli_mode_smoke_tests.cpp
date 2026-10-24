@@ -152,4 +152,14 @@ TEST_CASE("Smoke stripping quality preserves record count") {
   expect_line_count_match(output, asset_path("test_1.fastq"));
 }
 
+TEST_CASE("Smoke decompress with --audit runs audit then restores") {
+  SmokeWorkspace workspace("decompress_with_audit");
+  const auto archive = workspace.path("archive.sp");
+  const auto output = workspace.path("tmp.fastq");
+
+  run_spring({"-c", "--R1", asset_path("test_1.fastq"), "-o", archive});
+  run_spring({"-d", "-a", "-i", archive, "-o", output});
+  expect_text_match(output, asset_path("test_1.fastq"));
+}
+
 } // namespace
