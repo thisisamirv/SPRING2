@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <string>
 
 namespace {
 
@@ -228,6 +229,9 @@ TEST_CASE("Current archive metadata stores format header") {
         spring::CURRENT_ARCHIVE_FORMAT_VERSION);
   CHECK(parsed.read_info.compressor_version == cp.read_info.compressor_version);
   CHECK(parsed.read_info.digest_length_framed == true);
+  CHECK(parsed.read_info.digests_present == true);
+  CHECK(parsed.read_info.sequence_crc[0] == cp.read_info.sequence_crc[0]);
+  CHECK(parsed.read_info.quality_crc[1] == cp.read_info.quality_crc[1]);
 
   const spring::archive_decompression_plan plan =
       spring::build_archive_decompression_plan(parsed);
@@ -235,6 +239,117 @@ TEST_CASE("Current archive metadata stores format header") {
   CHECK(plan.archive_version.valid);
   CHECK(plan.archive_version.major == 1);
   CHECK(plan.archive_version.minor == 0);
+}
+
+bool find_v2_trailer(const std::string &v2_bytes, size_t &trailer_len_pos,
+                     uint32_t &trailer_len) {
+  // Core is large (threshold tables); the extension trailer is small and starts
+  // with digests_present=1. Prefer the smallest valid trailer length.
+  bool found = false;
+  uint32_t best_len = 0;
+  size_t best_pos = 0;
+  for (size_t pos = 8; pos + 4 < v2_bytes.size(); ++pos) {
+    uint32_t candidate = 0;
+    std::memcpy(&candidate, v2_bytes.data() + pos, sizeof(uint32_t));
+    if (pos + 4 + candidate != v2_bytes.size()) {
+      continue;
+    }
+    if (candidate < 25 || candidate > 1024 * 1024) {
+      continue;
+    }
+    if (static_cast<unsigned char>(v2_bytes[pos + 4]) != 1) {
+      continue;
+    }
+    if (!found || candidate < best_len) {
+      found = true;
+      best_len = candidate;
+      best_pos = pos;
+    }
+  }
+  if (found) {
+    trailer_len_pos = best_pos;
+    trailer_len = best_len;
+  }
+  return found;
+}
+
+std::string serialize_v1_peek_archive_metadata(
+    const spring::compression_params &cp) {
+  // Format v1 layout: core + digests + extensions without a length prefix or
+  // digests_present flag (presence inferred via peek).
+  std::ostringstream v2_stream(std::ios::binary);
+  spring::write_compression_params(v2_stream, cp);
+  const std::string v2_bytes = v2_stream.str();
+
+  size_t trailer_len_pos = 0;
+  uint32_t trailer_len = 0;
+  REQUIRE(find_v2_trailer(v2_bytes, trailer_len_pos, trailer_len));
+  const std::string core = v2_bytes.substr(8, trailer_len_pos - 8);
+  const std::string trailer =
+      v2_bytes.substr(trailer_len_pos + 4, trailer_len);
+  REQUIRE(!trailer.empty());
+  // Drop leading digests_present=true byte; v1 starts with the raw digest block.
+  REQUIRE(static_cast<unsigned char>(trailer[0]) == 1);
+  const std::string v1_trailer = trailer.substr(1);
+
+  std::ostringstream output(std::ios::binary);
+  const uint32_t magic = spring::ARCHIVE_METADATA_MAGIC;
+  const uint32_t version = spring::ARCHIVE_FORMAT_VERSION_V1;
+  output.write(reinterpret_cast<const char *>(&magic), sizeof(uint32_t));
+  output.write(reinterpret_cast<const char *>(&version), sizeof(uint32_t));
+  output.write(core.data(), static_cast<std::streamsize>(core.size()));
+  output.write(v1_trailer.data(),
+               static_cast<std::streamsize>(v1_trailer.size()));
+  return output.str();
+}
+
+TEST_CASE("Format v1 peek-based digest trailer remains readable") {
+  const spring::compression_params cp = make_sample_params();
+  const std::string bytes = serialize_v1_peek_archive_metadata(cp);
+  std::istringstream input(bytes, std::ios::binary);
+
+  spring::compression_params parsed{};
+  spring::read_compression_params(input, parsed);
+
+  CHECK(parsed.read_info.archive_format_version ==
+        spring::ARCHIVE_FORMAT_VERSION_V1);
+  CHECK(parsed.read_info.digests_present == true);
+  CHECK(parsed.read_info.sequence_crc[0] == cp.read_info.sequence_crc[0]);
+  CHECK(parsed.read_info.id_crc[1] == cp.read_info.id_crc[1]);
+  CHECK(parsed.read_info.digest_length_framed == true);
+}
+
+TEST_CASE("Format v2 rejects truncated extension trailer") {
+  const spring::compression_params cp = make_sample_params();
+  std::string bytes = serialize_current_archive_metadata(cp);
+  REQUIRE(bytes.size() > 20);
+  // Chop the last few trailer bytes while leaving a still-valid length prefix
+  // that claims more data than remains.
+  bytes.resize(bytes.size() - 8);
+
+  std::istringstream input(bytes, std::ios::binary);
+  spring::compression_params parsed{};
+  CHECK_THROWS_AS(spring::read_compression_params(input, parsed),
+                  std::runtime_error);
+}
+
+TEST_CASE("Format v2 rejects truncated digest block inside trailer") {
+  const spring::compression_params cp = make_sample_params();
+  std::string bytes = serialize_current_archive_metadata(cp);
+
+  size_t trailer_len_pos = 0;
+  uint32_t found_len = 0;
+  REQUIRE(find_v2_trailer(bytes, trailer_len_pos, found_len));
+  REQUIRE(found_len > 8);
+  const uint32_t short_len = 5; // bool + 4 bytes != full digest block
+  std::memcpy(bytes.data() + trailer_len_pos, &short_len, sizeof(uint32_t));
+  bytes.resize(trailer_len_pos + 4 + short_len);
+  bytes[trailer_len_pos + 4] = 1; // digests_present
+
+  std::istringstream input(bytes, std::ios::binary);
+  spring::compression_params parsed{};
+  CHECK_THROWS_AS(spring::read_compression_params(input, parsed),
+                  std::runtime_error);
 }
 
 TEST_CASE("Legacy archive metadata remains readable") {

@@ -11,7 +11,11 @@ namespace spring {
 
 constexpr uint32_t ARCHIVE_METADATA_MAGIC = 0x32505343U;
 constexpr uint32_t LEGACY_ARCHIVE_FORMAT_VERSION = 0;
-constexpr uint32_t CURRENT_ARCHIVE_FORMAT_VERSION = 1;
+// v1: optional trailing fields inferred via peek()!=eof (including digests).
+// v2: length-prefixed extension trailer with an explicit digests_present flag.
+constexpr uint32_t ARCHIVE_FORMAT_VERSION_V1 = 1;
+constexpr uint32_t ARCHIVE_FORMAT_VERSION_V2 = 2;
+constexpr uint32_t CURRENT_ARCHIVE_FORMAT_VERSION = ARCHIVE_FORMAT_VERSION_V2;
 
 // Shared bounds and sentinel values used across the compression pipeline.
 constexpr uint16_t MAX_READ_LEN = 511;
@@ -155,9 +159,10 @@ struct compression_params {
     uint32_t archive_format_version = CURRENT_ARCHIVE_FORMAT_VERSION;
     bool legacy_spring = false; // Runtime-only flag for original SPRING
                                 // archives.
-    // Runtime-only: true after the optional CRC digest block is read from
-    // archive metadata. Zero is a valid CRC32, so presence must not be inferred
-    // from the digest value itself.
+    // True when the CRC digest block is present in archive metadata. For
+    // format v2+ this is an explicit on-disk flag; older formats infer it from
+    // a complete trailing digest block. Zero is a valid CRC32, so presence must
+    // not be inferred from the digest value itself.
     bool digests_present = false;
     // When true, record CRCs mix in a little-endian length before each payload
     // so boundary shifts between reads cannot collide. False for older archives

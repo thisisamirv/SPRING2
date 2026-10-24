@@ -5,9 +5,12 @@
 #include "core_utils.h"
 
 #include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 namespace spring {
 
@@ -154,7 +157,10 @@ uint32_t read_archive_metadata_header(std::istream &in) {
   return version;
 }
 
-void write_compression_params_body(std::ostream &out,
+constexpr size_t kDigestBlockBytes = 6 * sizeof(uint32_t);
+constexpr uint32_t kMaxMetadataExtensionBytes = 16u * 1024u * 1024u;
+
+void write_compression_params_core(std::ostream &out,
                                    const compression_params &cp) {
   write_bool(out, cp.encoding.paired_end);
   write_bool(out, cp.encoding.preserve_order);
@@ -218,12 +224,18 @@ void write_compression_params_body(std::ostream &out,
     out.write(byte_ptr(&cp.gzip.streams[i].compressed_size), sizeof(uint64_t));
   for (int i = 0; i < 2; ++i)
     out.write(byte_ptr(&cp.gzip.streams[i].member_count), sizeof(uint32_t));
+}
 
+void write_digest_block(std::ostream &out, const compression_params &cp) {
   for (int i = 0; i < 2; ++i) {
     out.write(byte_ptr(&cp.read_info.sequence_crc[i]), sizeof(uint32_t));
     out.write(byte_ptr(&cp.read_info.quality_crc[i]), sizeof(uint32_t));
     out.write(byte_ptr(&cp.read_info.id_crc[i]), sizeof(uint32_t));
   }
+}
+
+void write_extension_fields_after_digests(std::ostream &out,
+                                          const compression_params &cp) {
   write_string(out, cp.read_info.assay);
   write_string(out, cp.read_info.assay_confidence);
   write_string(out, cp.read_info.compressor_version);
@@ -244,10 +256,172 @@ void write_compression_params_body(std::ostream &out,
   write_bool(out, cp.read_info.digest_length_framed);
 }
 
-void read_compression_params_body(std::istream &in, compression_params &cp,
-                                  uint32_t archive_format_version) {
-  bool has_stream_specific_fastq_metadata = false;
-  cp.read_info.archive_format_version = archive_format_version;
+// Format v2+ trailer: explicit digests_present, then optional digests, then the
+// remaining metadata fields as a fixed layout.
+void write_extension_trailer_v2(std::ostream &out,
+                                const compression_params &cp) {
+  // Current writers always store the digest block (channel zeros are valid).
+  write_bool(out, true);
+  write_digest_block(out, cp);
+  write_extension_fields_after_digests(out, cp);
+}
+
+void write_compression_params_body(std::ostream &out,
+                                   const compression_params &cp) {
+  write_compression_params_core(out, cp);
+
+  std::ostringstream trailer(std::ios::binary);
+  write_extension_trailer_v2(trailer, cp);
+  const std::string trailer_bytes = trailer.str();
+  if (trailer_bytes.size() > kMaxMetadataExtensionBytes) {
+    throw std::runtime_error(
+        "Archive metadata extension trailer exceeds maximum size.");
+  }
+  const uint32_t trailer_len = static_cast<uint32_t>(trailer_bytes.size());
+  out.write(byte_ptr(&trailer_len), sizeof(uint32_t));
+  if (trailer_len > 0) {
+    out.write(trailer_bytes.data(),
+              static_cast<std::streamsize>(trailer_len));
+  }
+}
+
+void read_digest_block(std::istream &in, compression_params &cp) {
+  char block[kDigestBlockBytes];
+  in.read(block, static_cast<std::streamsize>(kDigestBlockBytes));
+  if (!in ||
+      in.gcount() != static_cast<std::streamsize>(kDigestBlockBytes)) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated digest block in metadata.");
+  }
+  size_t offset = 0;
+  auto take_u32 = [&](uint32_t &out_value) {
+    std::memcpy(&out_value, block + offset, sizeof(uint32_t));
+    offset += sizeof(uint32_t);
+  };
+  for (int i = 0; i < 2; ++i) {
+    take_u32(cp.read_info.sequence_crc[i]);
+    take_u32(cp.read_info.quality_crc[i]);
+    take_u32(cp.read_info.id_crc[i]);
+  }
+}
+
+void read_extension_fields_after_digests(
+    std::istream &in, compression_params &cp,
+    bool &has_stream_specific_fastq_metadata) {
+  cp.read_info.assay = read_string(in);
+  cp.read_info.assay_confidence = read_string(in);
+  cp.read_info.compressor_version = read_string(in);
+  cp.encoding.barcode_sort = read_bool(in);
+  in.read(byte_ptr(&cp.encoding.cb_len), sizeof(uint32_t));
+  cp.encoding.bisulfite_ternary = read_bool(in);
+  in.read(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
+  cp.encoding.poly_at_stripped = read_bool(in);
+  cp.encoding.cb_prefix_stripped = read_bool(in);
+  in.read(byte_ptr(&cp.encoding.cb_prefix_len), sizeof(uint32_t));
+  cp.read_info.quality_header_has_id = read_bool(in);
+  cp.encoding.atac_adapter_stripped = read_bool(in);
+  cp.encoding.index_id_suffix_reconstructed = read_bool(in);
+  for (int i = 0; i < 2; ++i)
+    cp.encoding.use_crlf_by_stream[i] = read_bool(in);
+  for (int i = 0; i < 2; ++i)
+    cp.read_info.quality_header_has_id_by_stream[i] = read_bool(in);
+  cp.read_info.digest_length_framed = read_bool(in);
+  has_stream_specific_fastq_metadata = true;
+  if (!in) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated metadata extension fields.");
+  }
+}
+
+void read_extension_trailer_v2(std::istream &in, compression_params &cp,
+                               bool &has_stream_specific_fastq_metadata) {
+  cp.read_info.digests_present = read_bool(in);
+  if (!in) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated digests_present flag in metadata.");
+  }
+  if (cp.read_info.digests_present) {
+    read_digest_block(in, cp);
+  }
+  read_extension_fields_after_digests(in, cp,
+                                      has_stream_specific_fastq_metadata);
+}
+
+// Pre-v2 archives appended optional fields and used peek()!=eof to decide
+// whether digests (and later extensions) were present.
+void read_extension_trailer_legacy_peek(
+    std::istream &in, compression_params &cp,
+    bool &has_stream_specific_fastq_metadata) {
+  if (in.peek() == std::char_traits<char>::eof()) {
+    return;
+  }
+
+  if (const std::optional<uint64_t> remaining = remaining_stream_bytes(in)) {
+    if (*remaining > 0 && *remaining < kDigestBlockBytes) {
+      throw std::runtime_error(
+          "Corrupt archive: truncated digest block in metadata.");
+    }
+  }
+
+  read_digest_block(in, cp);
+  if (!in) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated digest block in metadata.");
+  }
+  cp.read_info.digests_present = true;
+
+  if (in.peek() == std::char_traits<char>::eof()) {
+    return;
+  }
+
+  cp.read_info.assay = read_string(in);
+  if (in.peek() != std::char_traits<char>::eof()) {
+    cp.read_info.assay_confidence = read_string(in);
+  }
+  if (in.peek() != std::char_traits<char>::eof()) {
+    cp.read_info.compressor_version = read_string(in);
+  }
+  if (in.peek() != std::char_traits<char>::eof()) {
+    cp.encoding.barcode_sort = read_bool(in);
+    in.read(byte_ptr(&cp.encoding.cb_len), sizeof(uint32_t));
+    if (in.peek() != std::char_traits<char>::eof()) {
+      cp.encoding.bisulfite_ternary = read_bool(in);
+      if (in.peek() != std::char_traits<char>::eof()) {
+        in.read(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
+        if (in.peek() != std::char_traits<char>::eof()) {
+          cp.encoding.poly_at_stripped = read_bool(in);
+          if (in.peek() != std::char_traits<char>::eof()) {
+            cp.encoding.cb_prefix_stripped = read_bool(in);
+            in.read(byte_ptr(&cp.encoding.cb_prefix_len), sizeof(uint32_t));
+            if (in.peek() != std::char_traits<char>::eof()) {
+              cp.read_info.quality_header_has_id = read_bool(in);
+              if (in.peek() != std::char_traits<char>::eof()) {
+                cp.encoding.atac_adapter_stripped = read_bool(in);
+                if (in.peek() != std::char_traits<char>::eof()) {
+                  cp.encoding.index_id_suffix_reconstructed = read_bool(in);
+                  if (in.peek() != std::char_traits<char>::eof()) {
+                    for (int i = 0; i < 2; ++i)
+                      cp.encoding.use_crlf_by_stream[i] = read_bool(in);
+                    for (int i = 0; i < 2; ++i) {
+                      cp.read_info.quality_header_has_id_by_stream[i] =
+                          read_bool(in);
+                    }
+                    has_stream_specific_fastq_metadata = true;
+                    if (in.peek() != std::char_traits<char>::eof()) {
+                      cp.read_info.digest_length_framed = read_bool(in);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void read_compression_params_core(std::istream &in, compression_params &cp) {
   cp.encoding.paired_end = read_bool(in);
   cp.encoding.preserve_order = read_bool(in);
   cp.encoding.preserve_quality = read_bool(in);
@@ -307,6 +481,13 @@ void read_compression_params_body(std::istream &in, compression_params &cp,
     in.read(byte_ptr(&cp.gzip.streams[i].compressed_size), sizeof(uint64_t));
   for (int i = 0; i < 2; ++i)
     in.read(byte_ptr(&cp.gzip.streams[i].member_count), sizeof(uint32_t));
+}
+
+void read_compression_params_body(std::istream &in, compression_params &cp,
+                                  uint32_t archive_format_version) {
+  bool has_stream_specific_fastq_metadata = false;
+  cp.read_info.archive_format_version = archive_format_version;
+  read_compression_params_core(in, cp);
 
   for (int i = 0; i < 2; ++i) {
     cp.read_info.sequence_crc[i] = 0;
@@ -316,61 +497,44 @@ void read_compression_params_body(std::istream &in, compression_params &cp,
   cp.read_info.digests_present = false;
   initialize_optional_archive_metadata_defaults(cp);
 
-  if (in.peek() != std::char_traits<char>::eof()) {
-    for (int i = 0; i < 2; ++i) {
-      in.read(byte_ptr(&cp.read_info.sequence_crc[i]), sizeof(uint32_t));
-      in.read(byte_ptr(&cp.read_info.quality_crc[i]), sizeof(uint32_t));
-      in.read(byte_ptr(&cp.read_info.id_crc[i]), sizeof(uint32_t));
+  if (archive_format_version >= ARCHIVE_FORMAT_VERSION_V2) {
+    uint32_t trailer_len = 0;
+    in.read(byte_ptr(&trailer_len), sizeof(uint32_t));
+    if (!in) {
+      throw std::runtime_error(
+          "Corrupt archive: truncated metadata extension length.");
     }
-    cp.read_info.digests_present = true;
-
-    if (in.peek() != std::char_traits<char>::eof()) {
-      cp.read_info.assay = read_string(in);
-      if (in.peek() != std::char_traits<char>::eof()) {
-        cp.read_info.assay_confidence = read_string(in);
-      }
-      if (in.peek() != std::char_traits<char>::eof()) {
-        cp.read_info.compressor_version = read_string(in);
-      }
-      if (in.peek() != std::char_traits<char>::eof()) {
-        cp.encoding.barcode_sort = read_bool(in);
-        in.read(byte_ptr(&cp.encoding.cb_len), sizeof(uint32_t));
-        if (in.peek() != std::char_traits<char>::eof()) {
-          cp.encoding.bisulfite_ternary = read_bool(in);
-          if (in.peek() != std::char_traits<char>::eof()) {
-            in.read(byte_ptr(&cp.encoding.depleted_base), sizeof(char));
-            if (in.peek() != std::char_traits<char>::eof()) {
-              cp.encoding.poly_at_stripped = read_bool(in);
-              if (in.peek() != std::char_traits<char>::eof()) {
-                cp.encoding.cb_prefix_stripped = read_bool(in);
-                in.read(byte_ptr(&cp.encoding.cb_prefix_len), sizeof(uint32_t));
-                if (in.peek() != std::char_traits<char>::eof()) {
-                  cp.read_info.quality_header_has_id = read_bool(in);
-                  if (in.peek() != std::char_traits<char>::eof()) {
-                    cp.encoding.atac_adapter_stripped = read_bool(in);
-                    if (in.peek() != std::char_traits<char>::eof()) {
-                      cp.encoding.index_id_suffix_reconstructed = read_bool(in);
-                      if (in.peek() != std::char_traits<char>::eof()) {
-                        for (int i = 0; i < 2; ++i)
-                          cp.encoding.use_crlf_by_stream[i] = read_bool(in);
-                        for (int i = 0; i < 2; ++i) {
-                          cp.read_info.quality_header_has_id_by_stream[i] =
-                              read_bool(in);
-                        }
-                        has_stream_specific_fastq_metadata = true;
-                        if (in.peek() != std::char_traits<char>::eof()) {
-                          cp.read_info.digest_length_framed = read_bool(in);
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+    if (trailer_len > kMaxMetadataExtensionBytes) {
+      throw std::runtime_error(
+          "Corrupt archive: metadata extension length is too large (" +
+          std::to_string(trailer_len) + " bytes).");
+    }
+    if (const std::optional<uint64_t> remaining = remaining_stream_bytes(in)) {
+      if (static_cast<uint64_t>(trailer_len) > *remaining) {
+        throw std::runtime_error(
+            "Corrupt archive: metadata extension length exceeds remaining "
+            "bytes.");
       }
     }
+    std::string trailer(trailer_len, '\0');
+    if (trailer_len > 0) {
+      in.read(trailer.data(), static_cast<std::streamsize>(trailer_len));
+      if (!in ||
+          in.gcount() != static_cast<std::streamsize>(trailer_len)) {
+        throw std::runtime_error(
+            "Corrupt archive: truncated metadata extension trailer.");
+      }
+    }
+    std::istringstream trailer_stream(trailer, std::ios::binary);
+    read_extension_trailer_v2(trailer_stream, cp,
+                              has_stream_specific_fastq_metadata);
+    if (trailer_stream.peek() != std::char_traits<char>::eof()) {
+      throw std::runtime_error(
+          "Corrupt archive: metadata extension trailer has trailing junk.");
+    }
+  } else {
+    read_extension_trailer_legacy_peek(in, cp,
+                                       has_stream_specific_fastq_metadata);
   }
 
   if (!has_stream_specific_fastq_metadata) {
