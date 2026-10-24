@@ -32,19 +32,6 @@
 
 namespace spring {
 
-namespace {
-
-bool deterministic_reorder_enabled() {
-  const char *value = std::getenv("SPRING_DETERMINISTIC_REORDER");
-  if (value == nullptr)
-    return false;
-  const std::string normalized(value);
-  return !(normalized.empty() || normalized == "0" || normalized == "false" ||
-           normalized == "FALSE" || normalized == "off" || normalized == "OFF");
-}
-
-} // namespace
-
 template <size_t bitset_size> struct reorder_global {
   uint32_t numreads;
   uint32_t numreads_array[2];
@@ -535,8 +522,7 @@ bool search_match(const std::bitset<bitset_size> &ref,
 template <size_t bitset_size>
 void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
              uint16_t *read_lengths, const reorder_global<bitset_size> &rg,
-             reorder_encoder_artifact &artifact,
-             const bool deterministic_mode) {
+             reorder_encoder_artifact &artifact) {
   const uint32_t num_locks = NUM_LOCKS_REORDER;
   std::vector<OmpLock> dict_locks(num_locks);
   std::vector<OmpLock> read_locks(num_locks);
@@ -578,28 +564,21 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
   auto last_progress_log_ts = reorder_pass_start;
 #pragma omp parallel default(none) shared(                                     \
         rg, read, read_lengths, dict, remaining_reads, artifact, first_read,   \
-            deterministic_mode, index_masks_data, length_masks_data,           \
-            dict_locks_data, read_locks_data, remaining_read_lock_data,        \
-            unmatched_counts_data, singleton_order_buffers_data,               \
-            reorder_pass_start, last_progress_log_ts)
+            index_masks_data, length_masks_data, dict_locks_data,              \
+            read_locks_data, remaining_read_lock_data, unmatched_counts_data,  \
+            singleton_order_buffers_data, reorder_pass_start,                  \
+            last_progress_log_ts)
   {
     bool done = false;
     int thread_id = omp_get_thread_num();
-    // Deterministic mode serializes match selection to thread 0 while still
-    // materializing empty per-thread shard files for downstream stages.
-    // Thread 0 must use stride 1 (not team size) so it visits every read —
-    // otherwise seeds/singletons on non-zero residues are skipped and the
-    // archive diverges from single-thread compression.
-    if (deterministic_mode && thread_id != 0) {
+    // Serialize match selection to thread 0 for bit-identical archives while
+    // still materializing empty per-thread shards for downstream stages.
+    // Thread 0 uses stride 1 so every read is visited.
+    if (thread_id != 0) {
       done = true;
     }
-    const int64_t scan_stride =
-        deterministic_mode ? 1 : std::max<int64_t>(1, omp_get_num_threads());
-    int64_t remaining_read_scan =
-        deterministic_mode ? (rg.numreads > 0 ? rg.numreads - 1 : -1)
-                           : (rg.numreads - 1 - thread_id);
-    if (remaining_read_scan < 0)
-      remaining_read_scan = -1;
+    constexpr int64_t scan_stride = 1;
+    int64_t remaining_read_scan = rg.numreads > 0 ? rg.numreads - 1 : -1;
     std::string orientation_output;
     std::string flag_output;
     std::string position_output;
@@ -1217,12 +1196,10 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
   rg.numreads_array[1] = cp.read_info.num_reads_clean[1];
   rg.numdict =
       (rg.numreads < DICT_SINGLE_STAGE_READ_THRESHOLD) ? 1 : NUM_DICT_REORDER;
-  const bool deterministic_mode = deterministic_reorder_enabled();
   SPRING_LOG_DEBUG("Reorder dictionary configuration: active_dicts=" +
                    std::to_string(rg.numdict) +
                    ", clean_reads=" + std::to_string(rg.numreads));
-  SPRING_LOG_INFO(std::string("Reorder mode: ") +
-                  (deterministic_mode ? "deterministic" : "parallel"));
+  SPRING_LOG_INFO("Reorder mode: deterministic");
 
   omp_set_num_threads(rg.num_thr);
   setglobalarrays(rg);
@@ -1407,8 +1384,7 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
           chunk_dict.data(), chunk_read_lengths.data(), rg, chunk_artifact);
     } else {
       reorder<bitset_size>(chunk_read.data(), chunk_dict.data(),
-                           chunk_read_lengths.data(), rg, chunk_artifact,
-                           deterministic_mode);
+                           chunk_read_lengths.data(), rg, chunk_artifact);
     }
     const auto reorder_stage_end = std::chrono::steady_clock::now();
     SPRING_LOG_INFO("Reorder pass time: " +

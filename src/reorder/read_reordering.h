@@ -75,7 +75,7 @@ void readDnaFile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
 template <size_t bitset_size>
 void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
              uint16_t *read_lengths, const reorder_global<bitset_size> &rg,
-             reorder_encoder_artifact &artifact, const bool deterministic_mode);
+             reorder_encoder_artifact &artifact);
 
 template <size_t bitset_size>
 void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,

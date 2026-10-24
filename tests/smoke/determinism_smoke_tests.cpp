@@ -17,8 +17,7 @@ void compress_twice_expect_identical(
 }
 
 TEST_CASE("Smoke single-thread compress is bit-identical (paired bisulfite)") {
-  // test_3 exercises the short-read reorder/encode path where OpenMP
-  // try-lock races otherwise produce divergent archives under -t > 1.
+  // test_3 exercises the short-read reorder/encode path.
   SmokeWorkspace workspace("determinism_paired_t1");
   compress_twice_expect_identical(
       {"-c", "--R1", asset_path("test_3_R1.fastq.gz"), "--R2",
@@ -33,9 +32,8 @@ TEST_CASE("Smoke single-thread compress is bit-identical (single-end)") {
       workspace.path("a.sp"), workspace.path("b.sp"));
 }
 
-TEST_CASE("Smoke deterministic-reorder multi-thread compress is bit-identical") {
-  ScopedEnvVar deterministic("SPRING_DETERMINISTIC_REORDER", "1");
-  SmokeWorkspace workspace("determinism_paired_det_mt");
+TEST_CASE("Smoke multi-thread compress is bit-identical by default") {
+  SmokeWorkspace workspace("determinism_paired_mt");
   const std::string threads = std::to_string(smoke_compress_threads());
   compress_twice_expect_identical(
       {"-c", "--R1", asset_path("test_3_R1.fastq.gz"), "--R2",
@@ -43,32 +41,28 @@ TEST_CASE("Smoke deterministic-reorder multi-thread compress is bit-identical") 
       workspace.path("a.sp"), workspace.path("b.sp"));
 }
 
-TEST_CASE(
-    "Smoke deterministic-reorder multi-thread round-trips like single-thread") {
+TEST_CASE("Smoke multi-thread round-trips like single-thread") {
   // Archive packaging still carries the requested thread count (shard layout),
-  // so DET+MT bytes need not match -t 1. Decompressed mates must match.
-  SmokeWorkspace workspace("determinism_det_mt_roundtrip_t1");
+  // so MT bytes need not match -t 1. Decompressed mates must match.
+  SmokeWorkspace workspace("determinism_mt_roundtrip_t1");
   const auto archive_t1 = workspace.path("t1.sp");
-  const auto archive_det = workspace.path("det.sp");
+  const auto archive_mt = workspace.path("mt.sp");
   const auto out_t1 = workspace.path("t1_out");
-  const auto out_det = workspace.path("det_out");
+  const auto out_mt = workspace.path("mt_out");
   const std::string threads = std::to_string(smoke_compress_threads());
 
   run_spring({"-c", "--R1", asset_path("test_3_R1.fastq.gz"), "--R2",
               asset_path("test_3_R2.fastq.gz"), "-o", archive_t1, "-t", "1"});
-  {
-    ScopedEnvVar deterministic("SPRING_DETERMINISTIC_REORDER", "1");
-    run_spring({"-c", "--R1", asset_path("test_3_R1.fastq.gz"), "--R2",
-                asset_path("test_3_R2.fastq.gz"), "-o", archive_det, "-t",
-                threads});
-  }
+  run_spring({"-c", "--R1", asset_path("test_3_R1.fastq.gz"), "--R2",
+              asset_path("test_3_R2.fastq.gz"), "-o", archive_mt, "-t",
+              threads});
 
   run_spring({"-d", "-i", archive_t1, "-o", out_t1, "-u"});
-  run_spring({"-d", "-i", archive_det, "-o", out_det, "-u"});
+  run_spring({"-d", "-i", archive_mt, "-o", out_mt, "-u"});
   expect_files_identical(workspace.path("t1_out.R1"),
-                         workspace.path("det_out.R1"));
+                         workspace.path("mt_out.R1"));
   expect_files_identical(workspace.path("t1_out.R2"),
-                         workspace.path("det_out.R2"));
+                         workspace.path("mt_out.R2"));
 }
 
 } // namespace

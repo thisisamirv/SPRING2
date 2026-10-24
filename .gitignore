@@ -19,6 +19,7 @@
 
 # Editor and IDE state
 .vscode/
+.cursor/
 !.vscode/launch.json
 !.vscode/tasks.json
 .idea/

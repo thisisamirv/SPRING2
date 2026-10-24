@@ -513,6 +513,20 @@ void expect_files_identical(const std::string &left_path,
                            << right_path << " (" << right.size() << " bytes)");
 }
 
+#ifdef _WIN32
+void set_env_var(const char *name, const char *value) {
+  if (value == nullptr) {
+    // Empty value via _putenv_s leaves a defined empty string; use NAME= to
+    // remove it so getenv returns nullptr (matches unsetenv on POSIX).
+    _putenv((std::string(name) + "=").c_str());
+    SetEnvironmentVariableA(name, nullptr);
+    return;
+  }
+  _putenv_s(name, value);
+  SetEnvironmentVariableA(name, value);
+}
+#endif
+
 ScopedEnvVar::ScopedEnvVar(const char *name, const char *value)
     : name(name), had_prior(false) {
   const char *existing = std::getenv(name);
@@ -521,11 +535,7 @@ ScopedEnvVar::ScopedEnvVar(const char *name, const char *value)
     prior = existing;
   }
 #ifdef _WIN32
-  if (value == nullptr) {
-    _putenv_s(name, "");
-  } else {
-    _putenv_s(name, value);
-  }
+  set_env_var(name, value);
 #else
   if (value == nullptr) {
     unsetenv(name);
@@ -538,9 +548,9 @@ ScopedEnvVar::ScopedEnvVar(const char *name, const char *value)
 ScopedEnvVar::~ScopedEnvVar() {
 #ifdef _WIN32
   if (had_prior) {
-    _putenv_s(name, prior.c_str());
+    set_env_var(name, prior.c_str());
   } else {
-    _putenv_s(name, "");
+    set_env_var(name, nullptr);
   }
 #else
   if (had_prior) {
