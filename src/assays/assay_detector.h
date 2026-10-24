@@ -14,13 +14,17 @@
 namespace spring {
 
 struct AssayDetectionStats {
+  // Fragments sampled (PE pair = 1).
   uint64_t total_reads = 0;
   uint64_t r1_C = 0, r1_T = 0, r1_G = 0, r1_A = 0;
   uint64_t r2_C = 0, r2_T = 0, r2_G = 0, r2_A = 0;
   std::vector<int> r1_lengths;
   std::vector<int> r2_lengths;
-  uint64_t atac_adapters_found = 0;
-  uint64_t poly_a_tails_found = 0;
+  // Per-mate signal counts (not fragments). Score with max_mate_signal_rate().
+  uint64_t atac_adapters_r1 = 0;
+  uint64_t atac_adapters_r2 = 0;
+  uint64_t poly_a_tails_r1 = 0;
+  uint64_t poly_a_tails_r2 = 0;
   uint64_t rna_hits = 0;
   uint64_t atac_hits = 0;
   uint64_t intron_hits = 0;
@@ -28,6 +32,24 @@ struct AssayDetectionStats {
   uint64_t headers_with_cb_tag = 0;
   uint64_t headers_with_umi_tag = 0;
 };
+
+// Max of per-mate hit rates so PE cannot exceed 1.0 (unlike hits/fragments)
+// and a signal present on only one mate (e.g. sc-RNA poly-A on R2) is preserved.
+[[nodiscard]] inline double
+max_mate_signal_rate(uint64_t r1_hits, uint64_t r2_hits,
+                     const AssayDetectionStats &stats) {
+  const double r1_rate =
+      stats.r1_lengths.empty()
+          ? 0.0
+          : static_cast<double>(r1_hits) /
+                static_cast<double>(stats.r1_lengths.size());
+  const double r2_rate =
+      stats.r2_lengths.empty()
+          ? 0.0
+          : static_cast<double>(r2_hits) /
+                static_cast<double>(stats.r2_lengths.size());
+  return r1_rate > r2_rate ? r1_rate : r2_rate;
+}
 
 struct AssayScoreBreakdown {
   double score = 0.0;

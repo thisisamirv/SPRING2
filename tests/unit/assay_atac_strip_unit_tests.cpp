@@ -1,12 +1,17 @@
 #include "../support/doctest.h"
 
 #include "assay_atac.h"
+#include "assay_detector.h"
+#include "assay_rna.h"
 #include "params.h"
 
+using spring::AssayDetectionStats;
 using spring::AtacAdapterStripSample;
 using spring::compression_params;
 using spring::has_atac_adapter;
 using spring::kAtacAdapterStripMinSampleReads;
+using spring::score_atac_assay;
+using spring::score_rna_assay;
 using spring::should_consider_atac_adapter_stripping;
 using spring::update_atac_adapter_strip_sample;
 
@@ -87,4 +92,46 @@ TEST_CASE("ATAC adapter detection matches terminal strip, not internal kmers") {
   const std::string reverse_terminal =
       "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGATGTGTATAAGAGACAG";
   CHECK(has_atac_adapter(reverse_terminal));
+}
+
+TEST_CASE("PE ATAC adapter rate uses max per-mate rate not hits/fragments") {
+  // Both mates at 5%: old hits/fragments = 10/100 = 10% (>5% → 90). Max mate
+  // rate stays 5% (>1% → 70), matching SE at the same per-read rate.
+  AssayDetectionStats pe;
+  pe.total_reads = 100;
+  pe.r1_lengths.assign(100, 50);
+  pe.r2_lengths.assign(100, 50);
+  pe.atac_adapters_r1 = 5;
+  pe.atac_adapters_r2 = 5;
+  const auto pe_score = score_atac_assay(pe, /*reference_loaded=*/false);
+  CHECK(pe_score.score == 70.0);
+
+  AssayDetectionStats se;
+  se.total_reads = 100;
+  se.r1_lengths.assign(100, 50);
+  se.atac_adapters_r1 = 5;
+  const auto se_score = score_atac_assay(se, /*reference_loaded=*/false);
+  CHECK(se_score.score == pe_score.score);
+}
+
+TEST_CASE("PE poly-A on one mate is not diluted by the other") {
+  AssayDetectionStats pe;
+  pe.total_reads = 100;
+  pe.r1_lengths.assign(100, 28); // barcode mate: no poly-A
+  pe.r2_lengths.assign(100, 90);
+  pe.poly_a_tails_r2 = 12; // 12% of R2 — should stay >10%
+  const auto pe_score =
+      score_rna_assay(pe, /*reference_loaded=*/false,
+                      /*suppress_poly_a_signal=*/false);
+  CHECK(pe_score.score == 80.0);
+
+  // Both mates at 8%: old hits/fragments = 16% (>10% → 80). Max rate = 8% → 60.
+  AssayDetectionStats both;
+  both.total_reads = 100;
+  both.r1_lengths.assign(100, 50);
+  both.r2_lengths.assign(100, 50);
+  both.poly_a_tails_r1 = 8;
+  both.poly_a_tails_r2 = 8;
+  const auto both_score = score_rna_assay(both, false, false);
+  CHECK(both_score.score == 60.0);
 }

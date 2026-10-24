@@ -24,12 +24,14 @@ AssayScoreBreakdown score_rna_assay(const AssayDetectionStats &stats,
                                     bool reference_loaded,
                                     bool suppress_poly_a_signal) {
   AssayScoreBreakdown result;
-  if (stats.total_reads == 0) {
+  if (stats.r1_lengths.empty() && stats.r2_lengths.empty()) {
     return result;
   }
 
-  const double poly_a_frac =
-      static_cast<double>(stats.poly_a_tails_found) / stats.total_reads;
+  // Max per-mate rate: PE both-mates hits no longer score as ~2x SE, and a
+  // signal on only one mate (typical sc-RNA poly-A on R2) is preserved.
+  const double poly_a_frac = max_mate_signal_rate(
+      stats.poly_a_tails_r1, stats.poly_a_tails_r2, stats);
   if (!suppress_poly_a_signal) {
     if (poly_a_frac > 0.10) {
       result.score += 80.0;

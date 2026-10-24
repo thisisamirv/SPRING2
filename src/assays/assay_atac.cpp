@@ -25,12 +25,14 @@ bool grouped_archive_allows_atac_adapter_stripping(
 AssayScoreBreakdown score_atac_assay(const AssayDetectionStats &stats,
                                      bool reference_loaded) {
   AssayScoreBreakdown result;
-  if (stats.total_reads == 0) {
+  if (stats.r1_lengths.empty() && stats.r2_lengths.empty()) {
     return result;
   }
 
-  const double atac_adapter_frac =
-      static_cast<double>(stats.atac_adapters_found) / stats.total_reads;
+  // Max per-mate rate: PE both-mates hits no longer score as ~2x SE, and a
+  // signal on only one mate still counts at that mate's rate.
+  const double atac_adapter_frac = max_mate_signal_rate(
+      stats.atac_adapters_r1, stats.atac_adapters_r2, stats);
   if (atac_adapter_frac > 0.05) {
     result.score += 90.0;
     result.evidence.emplace_back("Tn5 adapters (>5%)");

@@ -249,10 +249,18 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
     }
 
     if (has_atac_adapter(seq)) {
-      stats.atac_adapters_found++;
+      if (is_r1) {
+        stats.atac_adapters_r1++;
+      } else {
+        stats.atac_adapters_r2++;
+      }
     }
     if (has_poly_a_tail(seq)) {
-      stats.poly_a_tails_found++;
+      if (is_r1) {
+        stats.poly_a_tails_r1++;
+      } else {
+        stats.poly_a_tails_r2++;
+      }
     }
 
     if (reference_loaded_ && seq.length() >= kKmerSize) {

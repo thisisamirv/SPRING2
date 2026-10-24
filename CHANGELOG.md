@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed assay detection over-counting PE Tn5 adapter and poly-A rates: per-mate hits were divided by fragment count (PE fractions up to ~2.0). Scoring now uses the max per-mate rate so PE matches SE at the same per-read rate without diluting one-mate signals (e.g. sc-RNA poly-A on R2).
 - Fixed grouped R3/index members treating an inherited auto assay as explicit `-y` (confidence `N/A`): secondaries now inherit the primary's confidence, and CB / poly-A transforms stay disabled on `read3-group` / `index-group` notes so a wrong primary auto-label cannot arm those strips on secondary lanes.
 - Removed the dead `should_enable_sc_bisulfite_cb_prefix_stripping` hook from preprocess (always false) and clarified docs/comments that sc-bisulfite does not strip R1 CB prefixes (unlike sc-RNA).
 - Fixed ATAC assay detection counting anywhere-in-read Tn5 12-mers while stripping only terminal overlap: `has_atac_adapter` now uses the same read-end mosaic-end match as strip, so internal genomic hits no longer inflate ATAC classification (medium-confidence auto-ATAC already does not arm stripping).
