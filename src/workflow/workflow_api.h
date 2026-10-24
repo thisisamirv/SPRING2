@@ -18,6 +18,14 @@ using read_range = std::vector<uint64_t>;
 
 void preview(const std::string &archive_path, bool audit_only);
 
+// Advanced override for adaptive memory vs disk compression routing.
+// automatic keeps the default planner decision; memory/disk force a route.
+enum class CompressionStorageRoute : uint8_t {
+  automatic = 0,
+  memory = 1,
+  disk = 2
+};
+
 // Named options for compress(). Prefer setting fields by name (or C++20
 // designated initializers) so strip/audit/assay arguments cannot be swapped.
 struct CompressOptions {
@@ -40,6 +48,11 @@ struct CompressOptions {
   uint32_t cb_len = 16;
   bool cb_len_was_explicit = false;
   double memory_cap_gb = 0.0;
+  CompressionStorageRoute compression_route =
+      CompressionStorageRoute::automatic;
+  // When non-empty, disk-path workspaces (.work-tmp / .grouped-tmp) are placed
+  // under this directory instead of next to the output archive (e.g. /dev/shm).
+  std::string temp_dir;
 };
 
 void compress(const CompressOptions &options);

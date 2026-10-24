@@ -50,3 +50,34 @@ TEST_CASE("Compression storage plan uses peak intermediate memory margin") {
   CHECK(above_threshold_plan.selected_path ==
         spring::compression_storage_path::memory_path);
 }
+
+TEST_CASE("Compression storage route override bypasses auto planner") {
+  const spring::string_list input_paths = {sample_asset_path("test_1.fastq")};
+  const spring::compression_storage_plan tiny_budget_memory =
+      spring::build_compression_storage_plan(
+          input_paths, 0.00001, spring::CompressionStorageRoute::memory);
+  CHECK(tiny_budget_memory.selected_path ==
+        spring::compression_storage_path::memory_path);
+
+  const spring::compression_storage_plan huge_budget_disk =
+      spring::build_compression_storage_plan(
+          input_paths, 1024.0, spring::CompressionStorageRoute::disk);
+  CHECK(huge_budget_disk.selected_path ==
+        spring::compression_storage_path::disk_path);
+}
+
+TEST_CASE("Compression workspace dir honors --tmp-dir/-w override") {
+  const std::filesystem::path archive = "outdir/sample.sp";
+  const auto default_work = spring::resolve_compression_workspace_dir(
+      archive, "", ".work-tmp");
+  CHECK(default_work == std::filesystem::path("outdir/sample.sp.work-tmp"));
+
+  const auto overridden = spring::resolve_compression_workspace_dir(
+      archive, "/dev/shm", ".work-tmp");
+  CHECK(overridden == std::filesystem::path("/dev/shm/sample.sp.work-tmp"));
+
+  const auto grouped = spring::resolve_compression_workspace_dir(
+      archive, "/tmp/spring-work", ".grouped-tmp");
+  CHECK(grouped ==
+        std::filesystem::path("/tmp/spring-work/sample.sp.grouped-tmp"));
+}

@@ -99,8 +99,9 @@ and disk budget:
 - **Memory path**: when the estimated peak working set fits within the budget,
   all intermediates are kept in RAM. This is the fastest route.
 - **Disk path**: when memory is tight, preprocessing intermediates are spilled
-  to a temporary workspace on disk. Within the disk path, SPRING2 further
-  adapts:
+  to a temporary workspace on disk (beside the output archive by default as
+  `<archive>.work-tmp`, or `<archive>.grouped-tmp` for grouped bundles).
+  Within the disk path, SPRING2 further adapts:
   - **External-MPHF mode**: if the work directory has sufficient
     free space (roughly 40 bytes × read count), the hash-function builder
     offloads its sort structures to disk, reducing peak RAM by several GB.
@@ -132,6 +133,25 @@ and disk budget:
 In practice, passing `--memory 8` on a machine with 8 GB free lets SPRING2
 pick the right route automatically. Lower values increase the chance of
 triggering disk-path routing; very low values also trigger thread capping.
+
+#### Advanced routing overrides
+
+Keep the default `auto` planner unless you need an explicit override:
+
+```bash
+# Force in-memory intermediates even when the planner would pick disk
+spring2 -c --R1 reads.fastq -o reads.sp -r memory
+
+# Force disk-backed intermediates even when RAM looks sufficient
+spring2 -c --R1 reads.fastq -o reads.sp --compression-route disk
+
+# Put disk-path workspaces on a RAM-backed filesystem (e.g. /dev/shm)
+spring2 -c --R1 reads.fastq -o /data/reads.sp -r disk -w /dev/shm
+```
+
+`-w` / `--tmp-dir` only affects disk-path workspaces (`.work-tmp` /
+`.grouped-tmp`). It is ignored when `-r memory` / `--compression-route memory`
+is selected.
 
 ### Compression Level
 

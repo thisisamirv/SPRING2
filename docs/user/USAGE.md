@@ -17,10 +17,13 @@ Decompress an archive:
 spring2 -d -i sample.sp -o restored_1.fastq restored_2.fastq
 ```
 
-Preview archive metadata without extracting:
+### Preview Options
+
+Inspect archive metadata without extracting:
 
 ```bash
-spring2 --preview -i sample.sp
+spring2 -p -i sample.sp
+# or: spring2 --preview sample.sp
 ```
 
 Audit an archive without writing decompressed FASTQ to disk:

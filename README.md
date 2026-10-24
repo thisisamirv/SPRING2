@@ -93,8 +93,10 @@ Allowed options:
                                   min(max(1, hw_threads - 1), 16))
   -m [ --memory ] arg (=0)        approximate memory budget in GB; reduces
                                   effective thread count using about 1 GB per
-                                  worker thread (0 disables)
-  -v [ --verbose ]                enable extensive logging (default: progress bar)
+                                  worker thread (0 disables). Also influences
+                                  auto compression routing
+  -v [ --verbose ] [arg (=info)]  logging level: info or debug (default
+                                  without -v: progress bar)
 --------------------------------------------------------------------------------
 * Compression Options:
   -c [ --compress ]               compress
@@ -118,13 +120,32 @@ Allowed options:
   -y [ --assay ] arg (=auto)      specify assay type. Valid choices:
                                   auto, dna, rna, atac, bisulfite,
                                   sc-rna, sc-atac, sc-bisulfite
-  -a [ --audit ]                  enable post-operation integrity verification
+  -b [ --cb-len ] arg (=16)       cellular barcode length in bases
+  -r [ --compression-route ] arg (=auto)
+                                  advanced: force compression route
+                                  auto | memory | disk (default: auto)
+  -w [ --tmp-dir ] arg            advanced: directory for disk-path
+                                  workspaces (.work-tmp / .grouped-tmp);
+                                  default is beside the output archive
+  -a [ --audit ]                  enable integrity verification; with --preview,
+                                  perform full archive audit
 --------------------------------------------------------------------------------
 * Decompression Options:
   -d [ --decompress ]             decompress
   -i [ --input ] arg              input archive file (.sp)
-  -u [ --unzip ]                  during decompression, force output to be
-                                  uncompressed (even if original was .gz)
+  -a [ --audit ]                  run a full archive integrity audit
+                                  before writing outputs
+  -u [ --unzip ]                  during decompression, force
+                                  plain-text output (and strip .gz
+                                  from generated default/prefix names)
+--------------------------------------------------------------------------------
+* Preview Options:
+  -p [ --preview ]                inspect archive metadata without
+                                  decompression
+  -i [ --input ] arg              input archive file (.sp)
+                                  or pass <archive.sp> positionally
+  -a [ --audit ]                  perform full archive integrity
+                                  check without decompression
 
 Decompression with a single `-o <prefix>` expands to `prefix.R1` / `prefix.R2`
 for paired-end archives. Grouped archives (`--R3` and/or `--I1/--I2`) also add

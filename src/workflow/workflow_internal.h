@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -100,9 +101,15 @@ void verify_read3_alias_binding(const bundle_manifest &manifest,
                                 const std::string &read_archive_contents,
                                 bool require_digests);
 uint64_t resolve_compression_memory_budget_bytes(double memory_cap_gb);
-compression_storage_plan
-build_compression_storage_plan(const string_list &input_paths,
-                               double memory_cap_gb);
+compression_storage_plan build_compression_storage_plan(
+    const string_list &input_paths, double memory_cap_gb,
+    CompressionStorageRoute compression_route =
+        CompressionStorageRoute::automatic);
+// Resolve <archive-name><suffix> under temp_dir when set, else beside archive.
+std::filesystem::path
+resolve_compression_workspace_dir(const std::filesystem::path &archive_path,
+                                  const std::string &temp_dir,
+                                  const char *suffix);
 int gzip_output_compression_level(
     const compression_params::GzipMetadata::Stream &stream, int default_level);
 std::string append_group_role_suffix(const std::string &path,

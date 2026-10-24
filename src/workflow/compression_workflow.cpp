@@ -338,7 +338,8 @@ void compress_standard(
     // When non-empty and assay_type is not "auto", store this confidence
     // instead of "N/A" (used so grouped R3/index inherit auto confidence from
     // the primary rather than looking like an explicit -y selection).
-    const std::string &inherited_assay_confidence = {}) {
+    const std::string &inherited_assay_confidence = {},
+    const std::string &temp_dir = {}) {
   const auto compression_start = clock_type::now();
 
   const compression_io_config io_config =
@@ -348,9 +349,8 @@ void compress_standard(
       storage_path == compression_storage_path::disk_path &&
       archive_bytes_output == nullptr;
   const std::filesystem::path standard_work_dir =
-      std::filesystem::path(io_config.archive_path).parent_path() /
-      (std::filesystem::path(io_config.archive_path).filename().string() +
-       ".work-tmp");
+      resolve_compression_workspace_dir(io_config.archive_path, temp_dir,
+                                        ".work-tmp");
   const std::filesystem::path reorder_artifact_dir =
       standard_work_dir / "intermediate" / "reorder";
   const std::filesystem::path encoder_artifact_dir =
@@ -967,11 +967,26 @@ void compress(const CompressOptions &options) {
     throw std::runtime_error(
         "Number of compression threads must be positive.");
   }
+  if (!options.temp_dir.empty() &&
+      options.compression_route == CompressionStorageRoute::memory) {
+    SPRING_LOG_INFO(
+        "--tmp-dir/-w is ignored when --compression-route/-r memory is "
+        "selected (no disk workspace is created).");
+  }
+
   const compression_storage_plan storage_plan = build_compression_storage_plan(
-      options.input_paths, options.memory_cap_gb);
+      options.input_paths, options.memory_cap_gb, options.compression_route);
   if (storage_plan.selected_path == compression_storage_path::disk_path) {
-    std::cout << "Disk-backed compression path selected based on estimated "
-                 "peak working memory and available memory.\n";
+    if (options.compression_route == CompressionStorageRoute::disk) {
+      std::cout << "Disk-backed compression path selected "
+                   "(--compression-route disk).\n";
+    } else {
+      std::cout << "Disk-backed compression path selected based on estimated "
+                   "peak working memory and available memory.\n";
+    }
+  } else if (options.compression_route == CompressionStorageRoute::memory) {
+    std::cout << "In-memory compression path selected "
+                 "(--compression-route memory).\n";
   }
   ProgressBar progress(options.verbosity == log_level::quiet);
   ProgressBar::SetGlobalInstance(&progress);
@@ -1048,8 +1063,8 @@ void compress(const CompressOptions &options) {
 
     const std::filesystem::path output_archive_fs_path(output_archive_path);
     const std::filesystem::path grouped_temp_dir =
-        output_archive_fs_path.parent_path() /
-        (output_archive_fs_path.filename().string() + ".grouped-tmp");
+        resolve_compression_workspace_dir(output_archive_fs_path,
+                                          options.temp_dir, ".grouped-tmp");
     std::filesystem::create_directories(grouped_temp_dir);
 
     const std::string read_archive_path =
@@ -1204,7 +1219,7 @@ void compress(const CompressOptions &options) {
       options.verbosity, options.audit, options.r3_path, options.i1_path,
       options.i2_path, options.assay, options.cb_source_path, options.cb_len,
       options.cb_len_was_explicit, nullptr, storage_plan.selected_path,
-      storage_plan.available_memory_bytes);
+      storage_plan.available_memory_bytes, {}, options.temp_dir);
 }
 
 } // namespace spring

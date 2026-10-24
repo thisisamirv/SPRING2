@@ -70,6 +70,10 @@ struct command_line_options {
   int num_threads = default_num_threads();
   bool num_threads_was_explicit = false;
   double memory_cap_gb = 0.0;
+  spring::CompressionStorageRoute compression_route =
+      spring::CompressionStorageRoute::automatic;
+  bool compression_route_was_explicit = false;
+  std::string temp_dir;
   int compression_level = spring::DEFAULT_COMPRESSION_LEVEL;
   bool compression_level_was_explicit = false;
   std::string note;
@@ -95,8 +99,6 @@ std::string build_options_description() {
       << "* General Options:\n"
       << "  -h [ --help ]                   produce help message\n"
       << "  -V [ --version ]                produce version information\n"
-      << "  -p [ --preview ]                inspect archive metadata without\n"
-      << "                                  decompression\n"
       << "  -o [ --output ] arg             output file name\n"
       << "                                    - if not specified, it uses "
          "original input\n"
@@ -115,7 +117,9 @@ std::string build_options_description() {
          "reduces\n"
       << "                                  effective thread count using about "
          "1 GB per\n"
-      << "                                  worker thread (0 disables)\n"
+      << "                                  worker thread (0 disables). Also\n"
+      << "                                  influences auto compression "
+         "routing\n"
       << "  -v [ --verbose ] [arg (=info)]  logging level: info or debug "
          "(default\n"
       << "                                  without -v: progress bar)\n"
@@ -162,6 +166,14 @@ std::string build_options_description() {
       << "                                  Auto-detected sc-rna also requires\n"
       << "                                  this flag (high confidence). Ignored\n"
       << "                                  when I1 is present.\n"
+      << "  -r [ --compression-route ] arg (=auto)\n"
+      << "                                  advanced: force compression route\n"
+      << "                                  auto | memory | disk (default:\n"
+      << "                                  auto)\n"
+      << "  -w [ --tmp-dir ] arg            advanced: directory for disk-path\n"
+      << "                                  workspaces (.work-tmp /\n"
+      << "                                  .grouped-tmp); default is beside\n"
+      << "                                  the output archive\n"
       << "  -a [ --audit ]                  enable integrity verification; "
          "with --preview,\n"
       << "                                  perform full archive audit\n"
@@ -277,6 +289,30 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
       require_value(args, index, "--memory");
       options.memory_cap_gb =
           spring::parse_double_or_throw(args[index++], "Invalid memory cap.");
+    } else if (arg == "-r" || arg == "--compression-route") {
+      require_value(args, index, "--compression-route");
+      const std::string route = strip_quotes(args[index++]);
+      if (route == "auto") {
+        options.compression_route = spring::CompressionStorageRoute::automatic;
+      } else if (route == "memory") {
+        options.compression_route = spring::CompressionStorageRoute::memory;
+      } else if (route == "disk") {
+        options.compression_route = spring::CompressionStorageRoute::disk;
+      } else {
+        throw std::runtime_error(
+            "Invalid --compression-route/-r value: " + route +
+            ". Valid values are: auto, memory, disk.");
+      }
+      options.compression_route_was_explicit = true;
+    } else if (arg == "-w" || arg == "--tmp-dir") {
+      require_value(args, index, "--tmp-dir");
+      if (!options.temp_dir.empty()) {
+        throw std::runtime_error("--tmp-dir/-w can only be specified once.");
+      }
+      options.temp_dir = strip_quotes(args[index++]);
+      if (options.temp_dir.empty()) {
+        throw std::runtime_error("--tmp-dir/-w requires a non-empty path.");
+      }
     } else if (arg == "-l" || arg == "--level") {
       require_value(args, index, "--level");
       options.compression_level = spring::parse_int_or_throw(
@@ -451,6 +487,12 @@ void validate_mode_specific_flags(const command_line_options &options) {
     if (options.cb_len_was_explicit) {
       reject_flag("--cb-len/-b", "decompress");
     }
+    if (options.compression_route_was_explicit) {
+      reject_flag("--compression-route/-r", "decompress");
+    }
+    if (!options.temp_dir.empty()) {
+      reject_flag("--tmp-dir/-w", "decompress");
+    }
     return;
   }
 
@@ -476,6 +518,12 @@ void validate_mode_specific_flags(const command_line_options &options) {
   }
   if (options.cb_len_was_explicit) {
     reject_flag("--cb-len/-b", "preview");
+  }
+  if (options.compression_route_was_explicit) {
+    reject_flag("--compression-route/-r", "preview");
+  }
+  if (!options.temp_dir.empty()) {
+    reject_flag("--tmp-dir/-w", "preview");
   }
 }
 
@@ -671,6 +719,8 @@ void run_requested_mode(const command_line_options &options) {
         .cb_len = options.cb_len,
         .cb_len_was_explicit = options.cb_len_was_explicit,
         .memory_cap_gb = options.memory_cap_gb,
+        .compression_route = options.compression_route,
+        .temp_dir = options.temp_dir,
     });
     return;
   }
@@ -694,9 +744,19 @@ void log_options_for_debugging(const command_line_options &options) {
                                               : options.decompress_flag
                                                   ? "decompress"
                                                   : "preview"));
+  const char *compression_route_name = "auto";
+  if (options.compression_route == spring::CompressionStorageRoute::memory) {
+    compression_route_name = "memory";
+  } else if (options.compression_route ==
+             spring::CompressionStorageRoute::disk) {
+    compression_route_name = "disk";
+  }
   SPRING_LOG_DEBUG(
       "CLI settings: threads=" + std::to_string(options.num_threads) +
       ", memory_cap_gb=" + std::to_string(options.memory_cap_gb) +
+      ", compression_route=" + std::string(compression_route_name) +
+      ", temp_dir=" +
+      (options.temp_dir.empty() ? std::string("<default>") : options.temp_dir) +
       ", level=" + std::to_string(options.compression_level) + ", log_level=" +
       std::string(options.log_level == spring::log_level::debug ? "debug"
                                                                 : "info") +

@@ -29,7 +29,7 @@ spring2 --preview -i <archive.sp> [--audit]
 - `-o`, `--output <arg>`: output archive or restored output path(s)
 - `-t`, `--threads <arg>`: number of worker threads
 - `-m`, `--memory <arg>`: approximate memory budget in GB; `0` disables the
-  limit
+  thread-cap limit (auto compression routing still uses detected free RAM)
 - `-v`, `--verbose [info|debug]`: logging level
 
 ## Compression Options
@@ -47,6 +47,10 @@ spring2 --preview -i <archive.sp> [--audit]
 - `-y`, `--assay <arg>`: select assay mode
 - `-b`, `--cb-len <arg>`: cellular barcode length for sc-RNA R1 CB-prefix
   stripping (ignored for `sc-bisulfite`; also ignored when `--I1` is present)
+- `-r`, `--compression-route <auto|memory|disk>`: advanced compression routing
+  override (`auto` is the default planner)
+- `-w`, `--tmp-dir <arg>`: advanced directory for disk-path workspaces
+  (`.work-tmp` / `.grouped-tmp`); default is beside the output archive
 - `-a`, `--audit`: run post-compression verification
 
 ## Decompression Options

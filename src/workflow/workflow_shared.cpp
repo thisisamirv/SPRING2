@@ -496,7 +496,8 @@ uint64_t resolve_compression_memory_budget_bytes(const double memory_cap_gb) {
 
 compression_storage_plan
 build_compression_storage_plan(const string_list &input_paths,
-                               const double memory_cap_gb) {
+                               const double memory_cap_gb,
+                               const CompressionStorageRoute compression_route) {
   compression_storage_plan plan;
   plan.estimated_input_bytes = estimate_total_input_size_bytes(input_paths);
   plan.estimated_peak_intermediate_bytes =
@@ -510,6 +511,15 @@ build_compression_storage_plan(const string_list &input_paths,
   plan.available_memory_bytes =
       resolve_compression_memory_budget_bytes(memory_cap_gb);
 
+  if (compression_route == CompressionStorageRoute::memory) {
+    plan.selected_path = compression_storage_path::memory_path;
+    return plan;
+  }
+  if (compression_route == CompressionStorageRoute::disk) {
+    plan.selected_path = compression_storage_path::disk_path;
+    return plan;
+  }
+
   if (plan.available_memory_bytes == 0) {
     plan.selected_path = compression_storage_path::disk_path;
     return plan;
@@ -520,6 +530,17 @@ build_compression_storage_plan(const string_list &input_paths,
           ? compression_storage_path::memory_path
           : compression_storage_path::disk_path;
   return plan;
+}
+
+std::filesystem::path
+resolve_compression_workspace_dir(const std::filesystem::path &archive_path,
+                                  const std::string &temp_dir,
+                                  const char *suffix) {
+  const std::string work_name = archive_path.filename().string() + suffix;
+  if (!temp_dir.empty()) {
+    return std::filesystem::path(temp_dir) / work_name;
+  }
+  return archive_path.parent_path() / work_name;
 }
 
 int gzip_output_compression_level(
