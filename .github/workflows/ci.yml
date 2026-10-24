@@ -44,13 +44,6 @@ jobs:
             use_docker: true
 
           # macOS builds
-          - os: macos-15-intel
-            name: macOS x64 Clang
-            cc: clang
-            cxx: clang++
-            ninja_path: tools/host/ninja/mac/ninja
-            build_dir: out/build
-
           - os: macos-latest
             name: macOS ARM64 Clang
             cc: clang
@@ -147,17 +140,8 @@ jobs:
           brew untap aws/tap aws/tap-nightly hashicorp/tap 2>/dev/null || true
           brew update 2>/dev/null || true
 
-          # Homebrew no longer bottles Intel macOS (as of 2026). Installing
-          # llvm/lld/ccache/python there compiles them from source for hours
-          # (llvm alone pulls z3/rust). Keep Intel on libomp only; Apple Clang
-          # + runner python3 cover the rest. ARM still gets the full toolset.
-          if [[ "$(uname -m)" == "x86_64" ]]; then
-            echo "Intel macOS: installing libomp only (no Homebrew bottles)"
-            brew install libomp
-          else
-            brew install ccache libomp lld llvm cppcheck python
-            echo "HOMEBREW_LLVM_BIN=$(brew --prefix llvm)/bin" >> "$GITHUB_ENV"
-          fi
+          brew install ccache libomp lld llvm cppcheck python
+          echo "HOMEBREW_LLVM_BIN=$(brew --prefix llvm)/bin" >> "$GITHUB_ENV"
           echo "MACOS_LIBOMP_PREFIX=$(brew --prefix libomp)" >> "$GITHUB_ENV"
 
       - name: Install CMake on Linux and macOS (non-Docker)
@@ -224,7 +208,12 @@ jobs:
             Write-Host "Using vendored NASM directory: $vendoredNasmDir"
           }
 
+          # Persist for later PATH repair: MSYS2 UCRT64 tools are added after
+          # this step for cppcheck/clang-tidy and would otherwise shadow
+          # WinLibs gcc/g++ (MSYS2 gcc ships without libgomp by default).
+          Add-Content -Path $env:GITHUB_ENV -Value "SPRING_WINLIBS_BIN=$($gcc.DirectoryName)"
           Add-Content -Path $env:GITHUB_PATH -Value $gcc.DirectoryName
+          Write-Host "WinLibs GCC directory: $($gcc.DirectoryName)"
 
       - name: Set up MSYS2 for Windows Clang or analysis
         id: setup-msys2
@@ -264,6 +253,12 @@ jobs:
             Add-Content -Path $env:GITHUB_PATH -Value "$msys2Root\usr\bin"
             Add-Content -Path $env:GITHUB_ENV -Value "SPRING_MSYS2_ROOT=$msys2Root"
             Write-Host "MSYS2 root: $msys2Root"
+          }
+          # Re-prepend WinLibs last so GITHUB_PATH gives it highest precedence
+          # over MSYS2 ucrt64\bin (needed for OpenMP/libgomp).
+          if ($env:SPRING_WINLIBS_BIN -and (Test-Path $env:SPRING_WINLIBS_BIN)) {
+            Add-Content -Path $env:GITHUB_PATH -Value $env:SPRING_WINLIBS_BIN
+            Write-Host "Re-prepending WinLibs GCC ahead of MSYS2: $env:SPRING_WINLIBS_BIN"
           }
 
       - name: Install cppcheck via MSYS2 for MSVC analysis
@@ -422,8 +417,17 @@ jobs:
         if: matrix.windows_toolchain == 'mingw'
         shell: powershell
         run: |
-          $env:CC="${{ matrix.cc }}"
-          $env:CXX="${{ matrix.cxx }}"
+          # Prefer absolute WinLibs compilers so MSYS2 ucrt64\bin cannot steal
+          # bare gcc/g++ and break FindOpenMP (no libgomp on that package).
+          if ($env:SPRING_WINLIBS_BIN -and (Test-Path $env:SPRING_WINLIBS_BIN)) {
+            $env:CC = Join-Path $env:SPRING_WINLIBS_BIN 'gcc.exe'
+            $env:CXX = Join-Path $env:SPRING_WINLIBS_BIN 'g++.exe'
+          } else {
+            $env:CC = "${{ matrix.cc }}"
+            $env:CXX = "${{ matrix.cxx }}"
+          }
+          Write-Host "Using CC=$env:CC"
+          Write-Host "Using CXX=$env:CXX"
           $vendoredNinja = Join-Path $env:GITHUB_WORKSPACE 'tools/host/ninja/win/ninja.exe'
           $vendoredNasm = Join-Path $env:GITHUB_WORKSPACE 'tools/host/nasm/win64/nasm.exe'
           $ninjaExe = $null
