@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- Fixed macOS Intel CI spending hours compiling Homebrew `llvm`/`ccache`/`python` from source (no Intel bottles): that job now installs `libomp` only and soft-skips clang-tidy/cppcheck when those tools are absent.
 - Fixed Windows MinGW/WinLibs CMake configure failing `find_package(OpenMP)` on the C language probe: require OpenMP CXX and reuse those flags/libs for C.
 - Fixed decompression always showing a timed "Verifying integrity" step even when digest comparison is skipped (order stripped / no stored digests): the step now runs only when a real CRC compare will execute.
 - Fixed archive metadata treating any trailing bytes after the core `cp.bin` body as a digest block via `peek()!=eof`: format v2 length-prefixes the extension trailer and stores an explicit `digests_present` flag (older formats still read via the peek path, and reject truncated digest blocks).

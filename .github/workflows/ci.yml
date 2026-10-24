@@ -137,6 +137,8 @@ jobs:
           # Silence Homebrew's noisy update chatter (new formulae lists, analytics
           # nags, outdated-formula banners).  Errors still surface via exit code.
           HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_ANALYTICS: 1
+          HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
           # Remove third-party taps that produce broken-formula errors or
           # deprecation warnings during `brew update` (hashicorp/tap/vagrant has
@@ -144,9 +146,19 @@ jobs:
           # the subsequent `brew update` does not try to refresh them.
           brew untap aws/tap aws/tap-nightly hashicorp/tap 2>/dev/null || true
           brew update 2>/dev/null || true
-          brew install ccache libomp lld llvm cppcheck python
+
+          # Homebrew no longer bottles Intel macOS (as of 2026). Installing
+          # llvm/lld/ccache/python there compiles them from source for hours
+          # (llvm alone pulls z3/rust). Keep Intel on libomp only; Apple Clang
+          # + runner python3 cover the rest. ARM still gets the full toolset.
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            echo "Intel macOS: installing libomp only (no Homebrew bottles)"
+            brew install libomp
+          else
+            brew install ccache libomp lld llvm cppcheck python
+            echo "HOMEBREW_LLVM_BIN=$(brew --prefix llvm)/bin" >> "$GITHUB_ENV"
+          fi
           echo "MACOS_LIBOMP_PREFIX=$(brew --prefix libomp)" >> "$GITHUB_ENV"
-          echo "HOMEBREW_LLVM_BIN=$(brew --prefix llvm)/bin" >> "$GITHUB_ENV"
 
       - name: Install CMake on Linux and macOS (non-Docker)
         if: runner.os != 'Windows' && matrix.use_docker != true
@@ -564,7 +576,13 @@ jobs:
         if: success() && runner.os == 'macOS'
         shell: bash
         run: |
-          export PATH="$HOMEBREW_LLVM_BIN:$PATH"
+          if [[ -n "${HOMEBREW_LLVM_BIN:-}" ]]; then
+            export PATH="$HOMEBREW_LLVM_BIN:$PATH"
+          fi
+          if ! command -v clang-tidy >/dev/null 2>&1; then
+            echo "clang-tidy not installed on this runner; skipping lint."
+            exit 0
+          fi
           python3 tools/dev/lint/lint.py --build-dir ${{ matrix.build_dir }}
 
       - name: Run lint on Windows
@@ -578,7 +596,13 @@ jobs:
 
       - name: Run cppcheck on macOS
         if: success() && runner.os == 'macOS'
-        run: python3 tools/dev/lint/cppcheck.py
+        shell: bash
+        run: |
+          if ! command -v cppcheck >/dev/null 2>&1; then
+            echo "cppcheck not installed on this runner; skipping."
+            exit 0
+          fi
+          python3 tools/dev/lint/cppcheck.py
 
       - name: Run cppcheck on Windows
         if: success() && runner.os == 'Windows' && matrix.windows_toolchain != 'msvc-arm64'
