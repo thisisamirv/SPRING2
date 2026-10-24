@@ -430,6 +430,26 @@ public:
     }
   }
 
+  [[nodiscard]] lossless_digest_check verify_digests() {
+    uint32_t seq_crc[2] = {0, 0};
+    uint32_t qual_crc[2] = {0, 0};
+    uint32_t id_crc[2] = {0, 0};
+    get_digests(seq_crc, qual_crc, id_crc);
+
+    const bool is_lossless =
+        params_.encoding.preserve_order && params_.encoding.preserve_quality &&
+        params_.encoding.preserve_id && !params_.quality.ill_bin_flag &&
+        !params_.quality.bin_thr_flag;
+    if (!is_lossless) {
+      return {};
+    }
+
+    return check_lossless_digests(
+        params_.read_info.digests_present, params_.encoding.paired_end,
+        params_.read_info.sequence_crc, params_.read_info.quality_crc,
+        params_.read_info.id_crc, seq_crc, qual_crc, id_crc);
+  }
+
 private:
   static const char *lane_name(SpringReaderLane lane) {
     switch (lane) {
@@ -552,6 +572,10 @@ bool SpringReader::next(ReadRecord &mate1, ReadRecord &mate2) {
 void SpringReader::get_digests(uint32_t seq_crc[2], uint32_t qual_crc[2],
                                uint32_t id_crc[2]) {
   impl_->get_digests(seq_crc, qual_crc, id_crc);
+}
+
+lossless_digest_check SpringReader::verify_digests() {
+  return impl_->verify_digests();
 }
 
 } // namespace spring

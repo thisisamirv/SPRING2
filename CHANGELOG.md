@@ -4,6 +4,15 @@
 
 ## Unreleased
 
+### Added
+
+- Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
+- Added `SpringReader::verify_digests()` to compare reconstructed CRCs against `params().read_info` after a full consume (same early-call error as `get_digests()`), so library callers no longer need to reimplement the audit comparison.
+
+### Changed
+
+- Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
+
 ### Fixed
 
 - Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size. Quality/ID batch compression also calls `omp_set_num_threads` so ClangCL `/WX` does not treat the `num_threads` parameter as unused when it appears only in an OpenMP clause.
@@ -27,11 +36,6 @@
 - Fixed SIGINT handling calling `std::cout`/`std::exit` from the signal handler (not async-signal-safe): Ctrl+C now sets an atomic flag, and compression/decompression abort cooperatively at stage boundaries with exit code 130; a second Ctrl+C force-terminates.
 - Fixed the `compress()` library API accepting `num_thr <= 0` (unlike `decompress()`), which could produce odd OpenMP behavior: compression now rejects non-positive thread counts.
 - Fixed mode-inappropriate CLI flags being accepted and silently ignored (e.g. `--unzip` on compress, `--strip`/`--qmod`/`--note`/`--level`/`--assay`/`--cb-len` on decompress or preview): those combinations now error instead of looking like success.
-
-### Changed
-
-- Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
-- Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 
 ## V1.3.6
 

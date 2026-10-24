@@ -51,6 +51,13 @@ TEST_CASE("SpringReader Integration Test") {
   SUBCASE("Stream decompression (Single End)") {
     SpringReader reader(archive_spring, 1);
 
+    CHECK_THROWS_WITH(
+        [&]() -> lossless_digest_check {
+          return reader.verify_digests();
+        }(),
+        "SpringReader digests are only available after the archive has "
+        "been fully consumed.");
+
     ReadRecord rec;
     int count = 0;
     while (reader.next(rec)) {
@@ -73,6 +80,10 @@ TEST_CASE("SpringReader Integration Test") {
     CHECK(seq_crc[0] == cp.read_info.sequence_crc[0]);
     CHECK(qual_crc[0] == cp.read_info.quality_crc[0]);
     CHECK(id_crc[0] == cp.read_info.id_crc[0]);
+
+    const lossless_digest_check check = reader.verify_digests();
+    CHECK_FALSE(check.mismatch);
+    CHECK(check.stream_count == 1);
   }
 
   fs::remove_all(test_dir);

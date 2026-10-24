@@ -105,9 +105,23 @@ public:
 
   /**
    * @brief Retrieves the computed integrity digests for the selected member.
+   *
+   * Digests are only available after the archive has been fully consumed via
+   * next(). Calling earlier throws. Prefer verify_digests() when the goal is
+   * to compare against params().read_info.
    */
   void get_digests(uint32_t seq_crc[2], uint32_t qual_crc[2],
                    uint32_t id_crc[2]);
+
+  /**
+   * @brief Compare reconstructed digests to params().read_info CRCs.
+   *
+   * Requires the same full-consume precondition as get_digests(). For lossy
+   * archives (stripped order/quality/ids or quality binning), returns an empty
+   * check with mismatch == false. When digests were not stored in metadata,
+   * also returns no mismatch.
+   */
+  [[nodiscard]] lossless_digest_check verify_digests();
 
 private:
   class Impl;
