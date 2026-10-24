@@ -8,6 +8,12 @@
 namespace spring {
 
 bool should_enable_rna_tail_stripping(const compression_params &cp) {
+  // Grouped index/read-3 members may inherit the primary assay label; do not
+  // apply genomic poly-A/T stripping to those lanes.
+  if (cp.read_info.note.find("index-group") != std::string::npos ||
+      cp.read_info.note.find("read3-group") != std::string::npos) {
+    return false;
+  }
   return !cp.encoding.long_flag && !cp.encoding.preserve_order &&
          (cp.read_info.assay == "rna" || cp.read_info.assay == "sc-rna") &&
          (cp.read_info.assay_confidence == "N/A" ||

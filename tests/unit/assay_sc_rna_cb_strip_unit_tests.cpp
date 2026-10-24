@@ -1,5 +1,6 @@
 #include "../support/doctest.h"
 
+#include "assay_rna.h"
 #include "assay_sc_rna.h"
 #include "params.h"
 
@@ -7,6 +8,7 @@
 
 using spring::append_grouped_sc_rna_index_suffix_to_id;
 using spring::compression_params;
+using spring::should_enable_rna_tail_stripping;
 using spring::should_enable_sc_rna_cb_prefix_stripping;
 using spring::strip_grouped_sc_rna_index_suffix_from_id;
 
@@ -59,6 +61,27 @@ TEST_CASE("Index-group archives do not strip R1 CB prefix") {
       make_sc_rna_cp("N/A", /*cb_len_was_explicit=*/true);
   cp.read_info.note = "index-group";
   CHECK_FALSE(should_enable_sc_rna_cb_prefix_stripping(cp));
+}
+
+TEST_CASE("Read3-group archives do not strip R1 CB prefix") {
+  compression_params cp =
+      make_sc_rna_cp("N/A", /*cb_len_was_explicit=*/true);
+  cp.read_info.note = "read3-group";
+  CHECK_FALSE(should_enable_sc_rna_cb_prefix_stripping(cp));
+}
+
+TEST_CASE("Grouped secondary notes disable poly-A strip despite inherited assay") {
+  compression_params cp{};
+  cp.encoding.long_flag = false;
+  cp.encoding.preserve_order = false;
+  cp.read_info.assay = "sc-rna";
+  cp.read_info.assay_confidence = "N/A";
+  CHECK(should_enable_rna_tail_stripping(cp));
+
+  cp.read_info.note = "index-group";
+  CHECK_FALSE(should_enable_rna_tail_stripping(cp));
+  cp.read_info.note = "read3-group";
+  CHECK_FALSE(should_enable_rna_tail_stripping(cp));
 }
 
 TEST_CASE("Grouped index-ID strip matches paired I1+I2 suffix") {

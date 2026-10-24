@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed grouped R3/index members treating an inherited auto assay as explicit `-y` (confidence `N/A`): secondaries now inherit the primary's confidence, and CB / poly-A transforms stay disabled on `read3-group` / `index-group` notes so a wrong primary auto-label cannot arm those strips on secondary lanes.
 - Removed the dead `should_enable_sc_bisulfite_cb_prefix_stripping` hook from preprocess (always false) and clarified docs/comments that sc-bisulfite does not strip R1 CB prefixes (unlike sc-RNA).
 - Fixed ATAC assay detection counting anywhere-in-read Tn5 12-mers while stripping only terminal overlap: `has_atac_adapter` now uses the same read-end mosaic-end match as strip, so internal genomic hits no longer inflate ATAC classification (medium-confidence auto-ATAC already does not arm stripping).
 - Fixed grouped sc-RNA index-ID suffix stripping locking disable on the first non-matching preprocess batch: enablement now latches on the first fully-matching batch (later mismatches still throw), and decompress skips restore for unstripped IDs that do not end in `:`.

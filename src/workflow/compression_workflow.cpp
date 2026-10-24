@@ -321,22 +321,24 @@ load_reordered_stream_artifact(const std::string &root_dir) {
   return artifact;
 }
 
-void compress_standard(const string_list &input_paths,
-                       const string_list &output_paths, const int num_thr,
-                       const bool pairing_only_flag, const bool no_quality_flag,
-                       const bool no_ids_flag,
-                       const string_list &quality_options,
-                       const int compression_level, const std::string &note,
-                       const log_level /*verbosity_level*/,
-                       const bool audit_flag, const std::string &r3_path,
-                       const std::string &i1_path, const std::string &i2_path,
-                       const std::string &assay_type,
-                       const std::string &cb_source_path, uint32_t cb_len,
-                       bool cb_len_was_explicit = false,
-                       std::string *archive_bytes_output = nullptr,
-                       const compression_storage_path storage_path =
-                           compression_storage_path::memory_path,
-                       const uint64_t available_memory_bytes = 0) {
+void compress_standard(
+    const string_list &input_paths, const string_list &output_paths,
+    const int num_thr, const bool pairing_only_flag, const bool no_quality_flag,
+    const bool no_ids_flag, const string_list &quality_options,
+    const int compression_level, const std::string &note,
+    const log_level /*verbosity_level*/, const bool audit_flag,
+    const std::string &r3_path, const std::string &i1_path,
+    const std::string &i2_path, const std::string &assay_type,
+    const std::string &cb_source_path, uint32_t cb_len,
+    bool cb_len_was_explicit = false,
+    std::string *archive_bytes_output = nullptr,
+    const compression_storage_path storage_path =
+        compression_storage_path::memory_path,
+    const uint64_t available_memory_bytes = 0,
+    // When non-empty and assay_type is not "auto", store this confidence
+    // instead of "N/A" (used so grouped R3/index inherit auto confidence from
+    // the primary rather than looking like an explicit -y selection).
+    const std::string &inherited_assay_confidence = {}) {
   const auto compression_start = clock_type::now();
 
   const compression_io_config io_config =
@@ -495,6 +497,8 @@ void compress_standard(const string_list &input_paths,
       apply_sc_bisulfite_auto_config(cp, res);
       SPRING_LOG_INFO("Auto-detected assay: " + final_assay +
                       " (confidence: " + final_confidence + ")");
+    } else if (!inherited_assay_confidence.empty()) {
+      final_confidence = inherited_assay_confidence;
     }
 
     cp.read_info.assay = final_assay;
@@ -1069,11 +1073,18 @@ void compress(const CompressOptions &options) {
           options.i1_path, options.cb_len, options.cb_len_was_explicit, nullptr,
           storage_plan.selected_path, storage_plan.available_memory_bytes);
 
-      const std::string grouped_assay =
-          (options.assay == "auto")
-              ? assay_from_archive_metadata_path(read_archive_path,
-                                                 read_archive_name)
-              : options.assay;
+      // Keep R3/index assay labels consistent with the primary. After -y auto,
+      // also inherit confidence so secondaries are not treated as explicit -y
+      // (which would arm transforms more aggressively than the primary did).
+      std::string grouped_assay = options.assay;
+      std::string grouped_confidence;
+      if (options.assay == "auto") {
+        const archive_assay_metadata primary_assay =
+            assay_metadata_from_archive_path(read_archive_path,
+                                             read_archive_name);
+        grouped_assay = primary_assay.assay;
+        grouped_confidence = primary_assay.confidence;
+      }
 
       std::string read3_alias_source;
       if (has_r3) {
@@ -1091,7 +1102,8 @@ void compress(const CompressOptions &options) {
                                    : (options.note + " | read3-group"),
               options.verbosity, false, "", "", "", grouped_assay, "",
               options.cb_len, options.cb_len_was_explicit, nullptr,
-              storage_plan.selected_path, storage_plan.available_memory_bytes);
+              storage_plan.selected_path, storage_plan.available_memory_bytes,
+              grouped_confidence);
         }
       }
 
@@ -1104,7 +1116,8 @@ void compress(const CompressOptions &options) {
                                  : (options.note + " | index-group"),
             options.verbosity, false, "", "", "", grouped_assay, "",
             options.cb_len, options.cb_len_was_explicit, nullptr,
-            storage_plan.selected_path, storage_plan.available_memory_bytes);
+            storage_plan.selected_path, storage_plan.available_memory_bytes,
+            grouped_confidence);
       }
 
       bundle_manifest manifest{

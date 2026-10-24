@@ -81,8 +81,16 @@ void validate_output_targets(const std::string &archive_path,
                              const std::vector<std::string> &output_paths);
 void validate_compression_target(const std::vector<std::string> &input_paths,
                                  const std::string &archive_path);
-std::string assay_from_archive_metadata_path(const std::string &archive_path,
-                                             const std::string &archive_label);
+struct archive_assay_metadata {
+  std::string assay = "auto";
+  std::string confidence = "N/A";
+};
+
+// Read assay (+ confidence) from a member archive's cp.bin for grouped-lane
+// inheritance after the primary was compressed with -y auto.
+archive_assay_metadata
+assay_metadata_from_archive_path(const std::string &archive_path,
+                                 const std::string &archive_label);
 // Bind aliased R3 to the selected mate's CRCs from the primary read archive.
 void populate_read3_alias_digests_from_read_archive(
     bundle_manifest &manifest, const std::string &read_archive_path);

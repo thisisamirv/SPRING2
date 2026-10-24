@@ -17,10 +17,13 @@ bool is_grouped_read3_archive_note(const std::string &note) {
 }
 
 bool should_enable_sc_rna_cb_prefix_stripping(const compression_params &cp) {
+  // Index and read-3 grouped members inherit the primary assay label for
+  // metadata consistency; never strip CB prefixes from those lanes.
   if (cp.encoding.long_flag || !cp.encoding.preserve_order ||
       cp.encoding.cb_prefix_source_external || cp.encoding.cb_len == 0 ||
       cp.read_info.assay != "sc-rna" ||
-      is_grouped_index_archive_note(cp.read_info.note)) {
+      is_grouped_index_archive_note(cp.read_info.note) ||
+      is_grouped_read3_archive_note(cp.read_info.note)) {
     return false;
   }
 
