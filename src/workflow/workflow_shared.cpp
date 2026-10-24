@@ -944,16 +944,16 @@ decompression_io_config resolve_decompression_io(
     const std::string orig1 = stored_basename(original_filename_1);
     const std::string orig2 = stored_basename(original_filename_2);
     if (paired_end) {
-      io_config.output_path_1 = !orig1.empty() ? orig1 : (base_name + ".1");
-      io_config.output_path_2 = !orig2.empty() ? orig2 : (base_name + ".2");
+      io_config.output_path_1 = !orig1.empty() ? orig1 : (base_name + ".R1");
+      io_config.output_path_2 = !orig2.empty() ? orig2 : (base_name + ".R2");
     } else {
       io_config.output_path_1 =
           !orig1.empty() ? orig1 : (base_name + default_ext);
     }
   } else if (output_paths.size() == 1) {
     if (paired_end) {
-      io_config.output_path_1 = output_paths[0] + ".1";
-      io_config.output_path_2 = output_paths[0] + ".2";
+      io_config.output_path_1 = output_paths[0] + ".R1";
+      io_config.output_path_2 = output_paths[0] + ".R2";
     } else {
       io_config.output_path_1 = output_paths[0];
     }

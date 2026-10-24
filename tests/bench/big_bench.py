@@ -122,8 +122,8 @@ def main() -> int:
 
     output_file = TMP_OUTPUT_DIR / "SRR8185389_pe.sp"
     decomp_base = TMP_OUTPUT_DIR / "SRR8185389_pe.roundtrip.fastq"
-    decomp_file_1 = TMP_OUTPUT_DIR / "SRR8185389_pe.roundtrip.fastq.1"
-    decomp_file_2 = TMP_OUTPUT_DIR / "SRR8185389_pe.roundtrip.fastq.2"
+    decomp_file_1 = TMP_OUTPUT_DIR / "SRR8185389_pe.roundtrip.fastq.R1"
+    decomp_file_2 = TMP_OUTPUT_DIR / "SRR8185389_pe.roundtrip.fastq.R2"
     for path in (output_file, decomp_file_1, decomp_file_2):
         if path.exists():
             path.unlink()

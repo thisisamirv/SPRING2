@@ -32,8 +32,8 @@ TEST_CASE("Smoke paired fastq round-trip") {
   run_spring({"-c", "--R1", asset_path("test_1.fastq"), "--R2",
               asset_path("test_2.fastq"), "-o", archive});
   run_spring({"-d", "-i", archive, "-o", output_prefix});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fastq"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fastq"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fastq"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fastq"));
 }
 
 TEST_CASE("Smoke paired fasta round-trip") {
@@ -44,8 +44,8 @@ TEST_CASE("Smoke paired fasta round-trip") {
   run_spring({"-c", "--R1", asset_path("test_1.fasta"), "--R2",
               asset_path("test_2.fasta"), "-o", archive});
   run_spring({"-d", "-i", archive, "-o", output_prefix});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fasta"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fasta"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fasta"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fasta"));
 }
 
 TEST_CASE("Smoke long-read round-trip") {

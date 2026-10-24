@@ -83,9 +83,9 @@ spring2 --preview -i <archive.sp> [--audit]
 
 ## Output Naming Notes
 
-- For grouped archives, `-o prefix` expands to lane-specific suffixes such as
-  `.R1`, `.R2`, `.R3`, `.I1`, and `.I2`.
-- For paired-end decompression, multiple output names can be passed explicitly.
+- For paired-end or grouped archives, `-o prefix` expands to lane-specific
+  suffixes such as `.R1`, `.R2`, and (when present) `.R3`, `.I1`, and `.I2`.
+- Explicit full output paths can still be passed for each mate or lane.
 - Generated defaults and prefixes append `.gz` when the original stream was
   gzipped (unless `--unzip` is set). Explicit paths ending in `.gz` write
   gzipped restored output.

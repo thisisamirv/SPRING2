@@ -28,11 +28,11 @@ spring2 -d -i reads.sp -o restored_1.fastq restored_2.fastq
 If you omit `--output`, SPRING2 uses the original input names stored in the
 archive metadata when possible.
 
-## Grouped Archive Output Naming
+## Paired and Grouped Prefix Naming
 
-Grouped archives are restored with one command.
+Paired-end and grouped archives share the same single-prefix layout.
 
-If you provide a single prefix:
+If you provide one `-o` prefix:
 
 ```bash
 spring2 -d -i run.sp -o run_out
@@ -42,15 +42,12 @@ SPRING2 expands that to:
 
 - `run_out.R1`
 - `run_out.R2`
-- `run_out.R3` when a read-3 lane exists
-- `run_out.I1` when an index lane exists
-- `run_out.I2` when a second index lane exists
+- `run_out.R3` when a read-3 lane exists (grouped)
+- `run_out.I1` when an index lane exists (grouped)
+- `run_out.I2` when a second index lane exists (grouped)
 
-Example:
-
-```bash
-spring2 -d -i run.sp -o run_out
-```
+You can still pass explicit full paths for each mate or lane instead of a
+prefix.
 
 ## Gzip Restoration Rules
 
@@ -61,9 +58,9 @@ Behavior summary:
 - If you omit `--output`, SPRING2 prefers the original basenames stored in the
   archive. When a stream was gzipped, generated names keep or regain a `.gz`
   suffix so the restored file is gzipped (matching grouped-archive defaults).
-- If you give a single paired-end prefix (`-o out`), SPRING2 expands to
-  `out.1` / `out.2` (or grouped `.R1` / `.R2` / …) and appends `.gz` per stream
-  that was originally gzipped.
+- If you give a single paired-end or grouped prefix (`-o out`), SPRING2 expands
+  to `out.R1` / `out.R2` (plus optional grouped `.R3` / `.I1` / `.I2`) and
+  appends `.gz` per stream that was originally gzipped.
 - If you explicitly give full output names, a `.gz` suffix controls whether that
   file is written gzipped; names without `.gz` stay plain.
 - Preview mode reports stored gzip and BGZF metadata for each stream.

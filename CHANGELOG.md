@@ -12,6 +12,7 @@
 ### Changed
 
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
+- Unified paired-end decompression single-`-o` prefixes with grouped naming: `-o prefix` now writes `prefix.R1` / `prefix.R2` (previously `.1` / `.2`). Fallback names when metadata has no original filenames use the same suffixes.
 
 ### Fixed
 

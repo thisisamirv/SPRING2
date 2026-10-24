@@ -26,8 +26,8 @@ TEST_CASE("Smoke multi-threaded paired-end round-trip") {
               std::to_string(smoke_compress_threads())});
   run_spring({"-d", "-i", archive, "-o", output_prefix, "-t",
               std::to_string(smoke_decompress_threads())});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fastq"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fastq"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fastq"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fastq"));
 }
 
 TEST_CASE("Smoke sorted output single-end round-trip") {
@@ -51,8 +51,8 @@ TEST_CASE("Smoke sorted output paired-end round-trip") {
               std::to_string(smoke_compress_threads())});
   run_spring({"-d", "-i", archive, "-o", output_prefix, "-t",
               std::to_string(smoke_decompress_threads())});
-  expect_sorted_match(workspace.path("tmp.1"), asset_path("test_1.fastq"));
-  expect_sorted_match(workspace.path("tmp.2"), asset_path("test_2.fastq"));
+  expect_sorted_match(workspace.path("tmp.R1"), asset_path("test_1.fastq"));
+  expect_sorted_match(workspace.path("tmp.R2"), asset_path("test_2.fastq"));
 }
 
 TEST_CASE("Smoke memory capping round-trip") {
@@ -78,8 +78,8 @@ TEST_CASE(
   run_spring({"-m", "0.1", "-c", "--R1", asset_path("test_1.fastq"), "--R2",
               asset_path("test_2.fastq"), "-o", archive});
   run_spring({"-m", "0.1", "-d", "-i", archive, "-o", output_prefix});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fastq"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fastq"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fastq"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fastq"));
 }
 
 TEST_CASE("Smoke disk-path quality/ID reorder round-trip (order-stripped "

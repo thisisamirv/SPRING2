@@ -60,10 +60,9 @@ read-3 lane, and index lanes together.
 - Compression writes `.sp` archives.
 - Decompression uses the original input filenames when possible if you do not
   specify `--output`.
-- For grouped archives, `-o prefix` expands to `prefix.R1`, `prefix.R2`, and
-  optional `prefix.R3`, `prefix.I1`, and `prefix.I2`.
-- For paired-end decompression, supplying one output base name can expand into
-  two outputs when appropriate.
+- For paired-end or grouped decompression, `-o prefix` expands to `prefix.R1`
+  and `prefix.R2`, plus optional `prefix.R3`, `prefix.I1`, and `prefix.I2` when
+  those lanes are present.
 
 ## Logging and Verification
 

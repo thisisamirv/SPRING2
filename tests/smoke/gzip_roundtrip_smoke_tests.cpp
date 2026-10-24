@@ -24,8 +24,8 @@ TEST_CASE("Smoke paired fastq gzipped input round-trip") {
   run_spring({"-c", "--R1", asset_path("test_1.fastq.gz"), "--R2",
               asset_path("test_2.fastq.gz"), "-o", archive});
   run_spring({"-d", "-i", archive, "-o", output_prefix, "-u"});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fastq"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fastq"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fastq"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fastq"));
 }
 
 TEST_CASE("Smoke paired fasta gzipped input round-trip") {
@@ -36,8 +36,8 @@ TEST_CASE("Smoke paired fasta gzipped input round-trip") {
   run_spring({"-c", "--R1", asset_path("test_1.fasta.gz"), "--R2",
               asset_path("test_2.fasta.gz"), "-o", archive});
   run_spring({"-d", "-i", archive, "-o", output_prefix, "-u"});
-  expect_text_match(workspace.path("tmp.1"), asset_path("test_1.fasta"));
-  expect_text_match(workspace.path("tmp.2"), asset_path("test_2.fasta"));
+  expect_text_match(workspace.path("tmp.R1"), asset_path("test_1.fasta"));
+  expect_text_match(workspace.path("tmp.R2"), asset_path("test_2.fasta"));
 }
 
 TEST_CASE("Smoke single gzipped fastq round-trip") {
@@ -63,8 +63,8 @@ TEST_CASE("Smoke single gzipped fastq input to gzipped output") {
 TEST_CASE("Smoke paired gzipped fastq input to gzipped outputs") {
   SmokeWorkspace workspace("paired_fastq_gzip_to_gzip_outputs");
   const auto archive = workspace.path("archive.sp");
-  const auto output_1 = workspace.path("tmp.1.fastq.gz");
-  const auto output_2 = workspace.path("tmp.2.fastq.gz");
+  const auto output_1 = workspace.path("tmp.R1.fastq.gz");
+  const auto output_2 = workspace.path("tmp.R2.fastq.gz");
 
   run_spring({"-c", "--R1", asset_path("test_1.fastq.gz"), "--R2",
               asset_path("test_2.fastq.gz"), "-o", archive});
@@ -81,9 +81,9 @@ TEST_CASE("Smoke paired gzipped input restores .gz on generated prefix names") {
   run_spring({"-c", "--R1", asset_path("test_1.fastq.gz"), "--R2",
               asset_path("test_2.fastq.gz"), "-o", archive});
   run_spring({"-d", "-i", archive, "-o", output_prefix});
-  expect_gzip_output_matches(workspace.path("tmp.1.gz"),
+  expect_gzip_output_matches(workspace.path("tmp.R1.gz"),
                              asset_path("test_1.fastq"));
-  expect_gzip_output_matches(workspace.path("tmp.2.gz"),
+  expect_gzip_output_matches(workspace.path("tmp.R2.gz"),
                              asset_path("test_2.fastq"));
 }
 

@@ -86,9 +86,9 @@ Allowed options:
                                     - if not specified, it uses original input
                                       filenames (swapping extension to .sp during
                                       compression)
-                                    - for paired end decompression, if only one file
-                                      is specified, two output files will be created
-                                      by suffixing .1 and .2
+                                    - decompress with one -o <prefix>:
+                                      paired-end writes <prefix>.R1 / .R2;
+                                      grouped also adds optional .R3 / .I1 / .I2
   -t [ --threads ] arg            number of threads (default:
                                   min(max(1, hw_threads - 1), 16))
   -m [ --memory ] arg (=0)        approximate memory budget in GB; reduces
@@ -126,9 +126,9 @@ Allowed options:
   -u [ --unzip ]                  during decompression, force output to be
                                   uncompressed (even if original was .gz)
 
-When an archive was created with grouped lanes (`--R3` and/or `--I1/--I2`),
-decompression with a single `-o <prefix>` emits grouped outputs using suffixes
-`.R1`, `.R2`, optional `.R3`, optional `.I1`, and optional `.I2`.
+Decompression with a single `-o <prefix>` expands to `prefix.R1` / `prefix.R2`
+for paired-end archives. Grouped archives (`--R3` and/or `--I1/--I2`) also add
+optional `.R3`, `.I1`, and `.I2` for present lanes.
 ```
 
 ## Previewing Archives

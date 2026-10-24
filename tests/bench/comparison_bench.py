@@ -160,8 +160,8 @@ def run_benchmark(
             ]
         else:
             decompressed_paths = [
-                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.1",
-                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.2",
+                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.R1",
+                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.R2",
             ]
 
     for stale in compressed_paths + decompressed_paths:
