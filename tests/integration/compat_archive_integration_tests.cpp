@@ -192,6 +192,14 @@ void check_preview(const CompatFixture &fixture) {
                 "Preview missing '" << needle << "' for " << fixture.id
                                     << "\n--- preview ---\n"
                                     << output);
+  if (fixture.kind == "legacy_spring") {
+    CHECK(output.find(
+              "Original Inputs:   Unavailable in legacy spring archives") !=
+          std::string::npos);
+    CHECK(output.find(
+              "Assay Type:        Unavailable in legacy spring archives") !=
+          std::string::npos);
+  }
 }
 
 void check_audit(const CompatFixture &fixture) {
@@ -202,10 +210,53 @@ void check_audit(const CompatFixture &fixture) {
   CHECK_NOTHROW(preview(archive_path, true));
 }
 
+bool next_fastq_record(std::istringstream &stream, ReadRecord &record) {
+  std::string id_line;
+  std::string plus_line;
+  if (!std::getline(stream, id_line)) {
+    return false;
+  }
+  REQUIRE(std::getline(stream, record.sequence));
+  REQUIRE(std::getline(stream, plus_line));
+  REQUIRE(std::getline(stream, record.quality));
+  REQUIRE_FALSE(id_line.empty());
+  record.id = id_line.substr(1);
+  return true;
+}
+
 void check_reader(const CompatFixture &fixture) {
   const std::string archive_path = asset_path(fixture.archive);
   REQUIRE(fs::exists(archive_path));
   SpringReader reader(archive_path, 1);
+
+  if (!fixture.ref_r2.empty()) {
+    std::istringstream r1_stream(
+        load_reference_bytes(fixture.ref_r1, fixture.refs_gzipped));
+    std::istringstream r2_stream(
+        load_reference_bytes(fixture.ref_r2, fixture.refs_gzipped));
+    ReadRecord actual_r1;
+    ReadRecord actual_r2;
+    ReadRecord expected_r1;
+    ReadRecord expected_r2;
+    int count = 0;
+    while (reader.next(actual_r1, actual_r2)) {
+      REQUIRE(next_fastq_record(r1_stream, expected_r1));
+      REQUIRE(next_fastq_record(r2_stream, expected_r2));
+      CHECK(normalize_record_id(actual_r1.id) ==
+            normalize_record_id(expected_r1.id));
+      CHECK(actual_r1.sequence == expected_r1.sequence);
+      CHECK(actual_r1.quality == expected_r1.quality);
+      CHECK(normalize_record_id(actual_r2.id) ==
+            normalize_record_id(expected_r2.id));
+      CHECK(actual_r2.sequence == expected_r2.sequence);
+      CHECK(actual_r2.quality == expected_r2.quality);
+      ++count;
+    }
+    CHECK_MESSAGE(count > 0,
+                  "SpringReader produced no paired records for " << fixture.id);
+    return;
+  }
+
   ReadRecord record;
   int record_count = 0;
   while (reader.next(record)) {

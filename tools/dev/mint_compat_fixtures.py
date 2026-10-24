@@ -49,14 +49,14 @@ SPRING2_CASES = (
 )
 
 LEGACY_ROWS = (
-    "legacy_spring_sample\tlegacy_spring\tsample.spring_v1\tlegacy spring\t"
-    "sample.fastq\t\t0\tdecompress,preview\n",
-    "legacy_spring_test_1_fastq\tlegacy_spring\ttest_1_fastq.spring_v1\t"
+    "legacy_spring_sample\tlegacy_spring\tcompat/legacy/sample.spring\t"
+    "legacy spring\tsample.fastq\t\t0\tdecompress,preview\n",
+    "legacy_spring_se_fastq\tlegacy_spring\tcompat/legacy/se_fastq.spring\t"
     "legacy spring\ttest_1.fastq\t\t0\tdecompress,preview,reader\n",
-    "legacy_spring_test_1_fasta\tlegacy_spring\ttest_1_fasta.spring_v1\t"
+    "legacy_spring_se_fasta\tlegacy_spring\tcompat/legacy/se_fasta.spring\t"
     "legacy spring\ttest_1.fasta\t\t0\tdecompress,preview\n",
-    "legacy_spring_test_3\tlegacy_spring\ttest_3.spring_v1\tlegacy spring\t"
-    "test_3_R1.fastq.gz\ttest_3_R2.fastq.gz\t1\tdecompress\n",
+    "legacy_spring_pe_fastq\tlegacy_spring\tcompat/legacy/pe_fastq.spring\t"
+    "legacy spring\ttest_3_R1.fastq.gz\ttest_3_R2.fastq.gz\t1\tdecompress,reader\n",
 )
 
 
