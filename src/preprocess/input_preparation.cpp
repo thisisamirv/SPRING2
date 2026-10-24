@@ -472,9 +472,15 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
       should_enable_sc_bisulfite_cb_prefix_stripping(cp);
   const bool maybe_strip_grouped_index_id_suffix =
       should_enable_grouped_sc_rna_index_suffix_stripping(cp);
+  // Paired index IDs use I1+I2; I2 is only available after stream 1 is read, so
+  // stream-0 ID compression is deferred until both mates can be verified.
+  const bool defer_stream0_id_write_for_index_suffix =
+      maybe_strip_grouped_index_id_suffix && cp.encoding.paired_end;
   bool grouped_index_id_suffix_strip_active = false;
   bool grouped_index_id_suffix_strip_decided =
       !maybe_strip_grouped_index_id_suffix;
+  std::vector<std::string> index_id_strip_i1_seqs;
+  uint32_t deferred_stream0_id_reads_in_step = 0;
 
   std::string cb_seq_bytes;
   std::string cb_qual_bytes;
@@ -717,36 +723,63 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
       // Sequence CRC was already computed by read_fastq_block above on original
       // data, matching what decompression will compute after full restoration.
 
-      if (maybe_strip_grouped_index_id_suffix && stream_index == 0 &&
-          reads_in_step > 0) {
-        if (!grouped_index_id_suffix_strip_decided) {
-          grouped_index_id_suffix_strip_active = true;
-          for (uint32_t ri = 0; ri < reads_in_step; ++ri) {
-            std::string candidate_id = id_array[ri];
-            if (!strip_grouped_sc_rna_index_suffix_from_id(
-                    candidate_id, read_array[ri], cp.encoding.paired_end)) {
-              grouped_index_id_suffix_strip_active = false;
-              break;
+      if (maybe_strip_grouped_index_id_suffix && reads_in_step > 0) {
+        if (stream_index == 0 && defer_stream0_id_write_for_index_suffix) {
+          // Snapshot I1 sequences; strip after I2 is read so both sides of
+          // I1+I2 are verified before rewriting the ID.
+          index_id_strip_i1_seqs.assign(read_array.begin(),
+                                        read_array.begin() + reads_in_step);
+          deferred_stream0_id_reads_in_step = reads_in_step;
+        } else if (stream_index == 0 ||
+                   (stream_index == 1 &&
+                    defer_stream0_id_write_for_index_suffix)) {
+          std::string *strip_ids =
+              (stream_index == 1) ? id_array_1.data() : id_array;
+          const std::vector<std::string> *i1_seqs =
+              (stream_index == 1) ? &index_id_strip_i1_seqs : nullptr;
+          if (stream_index == 1 &&
+              deferred_stream0_id_reads_in_step != reads_in_step) {
+            throw std::runtime_error(
+                "Grouped sc-RNA index-ID suffix stripping requires equal "
+                "I1/I2 read counts in each step.");
+          }
+          if (!grouped_index_id_suffix_strip_decided) {
+            grouped_index_id_suffix_strip_active = true;
+            for (uint32_t ri = 0; ri < reads_in_step; ++ri) {
+              std::string candidate_id = strip_ids[ri];
+              const std::string &seq1 =
+                  (i1_seqs != nullptr) ? (*i1_seqs)[ri] : read_array[ri];
+              const std::string *seq2 =
+                  (stream_index == 1) ? &read_array[ri] : nullptr;
+              if (!strip_grouped_sc_rna_index_suffix_from_id(candidate_id, seq1,
+                                                             seq2)) {
+                grouped_index_id_suffix_strip_active = false;
+                break;
+              }
+            }
+            grouped_index_id_suffix_strip_decided = true;
+            if (grouped_index_id_suffix_strip_active) {
+              SPRING_LOG_DEBUG(
+                  "Grouped sc-RNA index-ID suffix stripping enabled "
+                  "(reconstruct trailing I1/I2 token from index reads)");
             }
           }
-          grouped_index_id_suffix_strip_decided = true;
-          if (grouped_index_id_suffix_strip_active) {
-            SPRING_LOG_DEBUG(
-                "Grouped sc-RNA index-ID suffix stripping enabled "
-                "(reconstruct trailing I1/I2 token from index reads)");
-          }
-        }
 
-        if (grouped_index_id_suffix_strip_active) {
-          for (uint32_t ri = 0; ri < reads_in_step; ++ri) {
-            if (!strip_grouped_sc_rna_index_suffix_from_id(
-                    id_array[ri], read_array[ri], cp.encoding.paired_end)) {
-              throw std::runtime_error(
-                  "Grouped sc-RNA index-ID suffix stripping became "
-                  "inconsistent across reads.");
+          if (grouped_index_id_suffix_strip_active) {
+            for (uint32_t ri = 0; ri < reads_in_step; ++ri) {
+              const std::string &seq1 =
+                  (i1_seqs != nullptr) ? (*i1_seqs)[ri] : read_array[ri];
+              const std::string *seq2 =
+                  (stream_index == 1) ? &read_array[ri] : nullptr;
+              if (!strip_grouped_sc_rna_index_suffix_from_id(strip_ids[ri], seq1,
+                                                             seq2)) {
+                throw std::runtime_error(
+                    "Grouped sc-RNA index-ID suffix stripping became "
+                    "inconsistent across reads.");
+              }
             }
+            cp.encoding.index_id_suffix_reconstructed = true;
           }
-          cp.encoding.index_id_suffix_reconstructed = true;
         }
       }
 
@@ -854,17 +887,42 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
           if (!cp.encoding.long_flag) {
             if (cp.encoding.preserve_order) {
               if (cp.encoding.preserve_id) {
-                add_archive_member(
-                    thread_archive_members[static_cast<size_t>(thread_id)],
-                    std::filesystem::path(
-                        block_file_path(paths.id_output_paths[stream_index],
-                                        num_blocks_done +
-                                            static_cast<uint32_t>(thread_id)))
-                        .filename()
-                        .string(),
-                    compress_id_block_bytes(id_array +
-                                                thread_id * num_reads_per_block,
-                                            thread_read_count));
+                // Skip stream-0 IDs when paired index-suffix strip is pending;
+                // they are written below after I2-verified stripping.
+                if (!(stream_index == 0 &&
+                      defer_stream0_id_write_for_index_suffix)) {
+                  add_archive_member(
+                      thread_archive_members[static_cast<size_t>(thread_id)],
+                      std::filesystem::path(
+                          block_file_path(paths.id_output_paths[stream_index],
+                                          num_blocks_done +
+                                              static_cast<uint32_t>(thread_id)))
+                          .filename()
+                          .string(),
+                      compress_id_block_bytes(
+                          id_array + thread_id * num_reads_per_block,
+                          thread_read_count));
+                }
+                if (stream_index == 1 &&
+                    defer_stream0_id_write_for_index_suffix) {
+                  const uint32_t deferred_thread_read_count =
+                      reads_for_thread_step(deferred_stream0_id_reads_in_step,
+                                            num_reads_per_block, thread_id);
+                  if (deferred_thread_read_count > 0) {
+                    add_archive_member(
+                        thread_archive_members[static_cast<size_t>(thread_id)],
+                        std::filesystem::path(
+                            block_file_path(
+                                paths.id_output_paths[0],
+                                num_blocks_done +
+                                    static_cast<uint32_t>(thread_id)))
+                            .filename()
+                            .string(),
+                        compress_id_block_bytes(
+                            id_array_1.data() + thread_id * num_reads_per_block,
+                            deferred_thread_read_count));
+                  }
+                }
               }
               if (cp.encoding.preserve_quality) {
                 add_archive_member(

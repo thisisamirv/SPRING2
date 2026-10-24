@@ -30,9 +30,9 @@ bool should_enable_grouped_sc_rna_index_suffix_stripping(
          is_grouped_index_archive_note(cp.read_info.note);
 }
 
-bool strip_grouped_sc_rna_index_suffix_from_id(std::string &id,
-                                               const std::string &stream_1_seq,
-                                               bool paired_index) {
+bool strip_grouped_sc_rna_index_suffix_from_id(
+    std::string &id, const std::string &stream_1_seq,
+    const std::string *stream_2_seq) {
   const size_t last_colon = id.rfind(':');
   if (last_colon == std::string::npos || last_colon + 1 >= id.size()) {
     return false;
@@ -40,12 +40,15 @@ bool strip_grouped_sc_rna_index_suffix_from_id(std::string &id,
 
   std::string_view suffix{id};
   suffix.remove_prefix(last_colon + 1);
-  if (paired_index) {
+  if (stream_2_seq != nullptr) {
     const size_t plus = suffix.find('+');
-    if (plus == std::string::npos || plus == 0) {
+    if (plus == std::string::npos || plus == 0 || plus + 1 >= suffix.size()) {
       return false;
     }
     if (suffix.substr(0, plus) != stream_1_seq) {
+      return false;
+    }
+    if (suffix.substr(plus + 1) != *stream_2_seq) {
       return false;
     }
   } else if (suffix != stream_1_seq) {

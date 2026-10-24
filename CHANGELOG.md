@@ -16,6 +16,7 @@
 - Fixed BGZF writer `BSIZE` wrapping on incompressible data: uncompressed chunks are capped with htslib-style headroom, deflate output is limited to the 64 KiB block budget, and oversize attempts shrink and retry instead of emitting an invalid block.
 - Fixed case-sensitive `.gz` detection disagreeing with size planning on Windows (e.g. `reads.fastq.GZ`): gzip path checks now share case-insensitive `path_has_gzip_suffix` across preprocess, workflow, decompress output naming, and preview.
 - Fixed ATAC auto-detection missing reverse-orientation Tn5 adapters: adapter kmers are now taken from both mosaic-end sequences (`CTGTCTCTTATACACATCT` and `AGATGTGTATAAGAGACAG`) instead of a reverse kmer that was not a substring of either.
+- Fixed grouped sc-RNA paired index-ID stripping verifying only the I1 token before `+`: stripping now requires the full `I1+I2` suffix to match both index reads, so a mismatched I2 is no longer overwritten on restore.
 
 ## V1.3.6
 
