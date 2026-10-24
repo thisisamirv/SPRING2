@@ -320,10 +320,32 @@ void parse_command_line(int argc, char **argv, command_line_options &options) {
       options.output_paths.insert(options.output_paths.end(), values.begin(),
                                   values.end());
     } else if (arg == "-q" || arg == "--qmod") {
+      // Fixed arity per mode so a following path is not swallowed:
+      // lossless / ill_bin take only the mode token; binary takes thr high low.
       require_value(args, index, "--qmod");
-      options.quality_options = collect_option_values(args, index);
-      if (options.quality_options.empty())
-        throw std::runtime_error("--qmod requires at least 1 value.");
+      if (is_option_token(args[index])) {
+        throw std::runtime_error(
+            "--qmod requires a mode: lossless, ill_bin, or binary.");
+      }
+      const std::string mode = args[index++];
+      options.quality_options = {mode};
+      if (mode == "lossless" || mode == "ill_bin" || mode == "qvz") {
+        // No further arguments.
+      } else if (mode == "binary") {
+        for (const char *name : {"threshold", "high", "low"}) {
+          if (index >= args.size() || is_option_token(args[index])) {
+            throw std::runtime_error(
+                std::string("--qmod binary requires three integers: thr high "
+                            "low (missing ") +
+                name + ").");
+          }
+          options.quality_options.push_back(args[index++]);
+        }
+      } else {
+        throw std::runtime_error(
+            "Invalid --qmod mode: " + mode +
+            ". Valid modes are: lossless, ill_bin, binary.");
+      }
     } else if (arg == "-n" || arg == "--note") {
       require_value(args, index, "--note");
       options.note = strip_quotes(args[index++]);

@@ -130,6 +130,20 @@ TEST_CASE("Smoke lossy binary preserves record count") {
   expect_line_count_match(output, asset_path("test_1.fastq"));
 }
 
+TEST_CASE("Smoke -q lossless leaves following -o path for output") {
+  // Regression: greedy -q used to swallow the next non-option token, so
+  // `-q lossless -o archive.sp` was fine but a misplaced path after lossless
+  // must not be treated as a quality argument.
+  SmokeWorkspace workspace("qmod_fixed_arity");
+  const auto archive = workspace.path("archive.sp");
+  const auto output = workspace.path("tmp.fastq");
+
+  run_spring({"-c", "--R1", asset_path("test_1.fastq"), "-q", "lossless", "-o",
+              archive});
+  run_spring({"-d", "-i", archive, "-o", output});
+  expect_text_match(output, asset_path("test_1.fastq"));
+}
+
 TEST_CASE("Smoke stripping ids preserves record count") {
   SmokeWorkspace workspace("strip_ids");
   const auto archive = workspace.path("archive.sp");

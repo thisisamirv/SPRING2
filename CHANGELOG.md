@@ -23,6 +23,7 @@
 - Fixed decompression default/prefix output names ignoring stored gzip metadata so originally gzipped streams were restored as plain files unless the caller passed an explicit `.gz` path. Generated names now restore `.gz` from archive metadata (and prefer stored input basenames when `-o` is omitted); `--unzip` still forces plain output and strips `.gz` from those generated names.
 - Fixed `spring -d -a` silently ignoring `--audit`: decompress now runs `perform_audit` on the archive before writing outputs.
 - Fixed paired `SpringReader::next` indexing mate-2 without checking step sizes: mismatched mate counts now throw instead of reading past the end of the mate-2 batch.
+- Fixed `-q`/`--qmod` greedily consuming every following non-option token so a path after `lossless`/`ill_bin` could be swallowed: parsing now takes a fixed arity per mode (`lossless`/`ill_bin`: mode only; `binary`: thr high low).
 
 ### Changed
 

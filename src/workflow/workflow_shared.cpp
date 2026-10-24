@@ -670,6 +670,10 @@ compression_io_config resolve_compression_io(const string_list &input_paths,
 void configure_quality_options(compression_params &compression_params,
                                const string_list &quality_options) {
   if (quality_options.empty() || quality_options[0] == "lossless") {
+    if (quality_options.size() > 1) {
+      throw std::runtime_error(
+          "Quality mode lossless does not take additional arguments.");
+    }
     compression_params.quality.ill_bin_flag = false;
     compression_params.quality.bin_thr_flag = false;
     SPRING_LOG_DEBUG("Quality mode set to lossless.");
@@ -683,6 +687,10 @@ void configure_quality_options(compression_params &compression_params,
   }
 
   if (quality_options[0] == "ill_bin") {
+    if (quality_options.size() > 1) {
+      throw std::runtime_error(
+          "Quality mode ill_bin does not take additional arguments.");
+    }
     compression_params.quality.ill_bin_flag = true;
     compression_params.quality.bin_thr_flag = false;
     SPRING_LOG_DEBUG("Quality mode set to ill_bin.");
@@ -691,7 +699,8 @@ void configure_quality_options(compression_params &compression_params,
 
   if (quality_options[0] == "binary") {
     if (quality_options.size() != 4)
-      throw std::runtime_error("Invalid quality options.");
+      throw std::runtime_error(
+          "Quality mode binary requires exactly three integers: thr high low.");
 
     compression_params.quality.bin_thr_thr = parse_int_or_throw(
         quality_options[1], "Invalid binary quality threshold.");
