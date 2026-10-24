@@ -503,6 +503,54 @@ void expect_sorted_match(const std::string &actual_path,
   CHECK(actual_lines == expected_lines);
 }
 
+void expect_files_identical(const std::string &left_path,
+                            const std::string &right_path) {
+  const std::string left = read_file_binary(left_path);
+  const std::string right = read_file_binary(right_path);
+  const bool match = left == right;
+  CHECK_MESSAGE(match, "Binary mismatch: "
+                           << left_path << " (" << left.size() << " bytes) vs "
+                           << right_path << " (" << right.size() << " bytes)");
+}
+
+ScopedEnvVar::ScopedEnvVar(const char *name, const char *value)
+    : name(name), had_prior(false) {
+  const char *existing = std::getenv(name);
+  if (existing != nullptr) {
+    had_prior = true;
+    prior = existing;
+  }
+#ifdef _WIN32
+  if (value == nullptr) {
+    _putenv_s(name, "");
+  } else {
+    _putenv_s(name, value);
+  }
+#else
+  if (value == nullptr) {
+    unsetenv(name);
+  } else {
+    setenv(name, value, 1);
+  }
+#endif
+}
+
+ScopedEnvVar::~ScopedEnvVar() {
+#ifdef _WIN32
+  if (had_prior) {
+    _putenv_s(name, prior.c_str());
+  } else {
+    _putenv_s(name, "");
+  }
+#else
+  if (had_prior) {
+    setenv(name, prior.c_str(), 1);
+  } else {
+    unsetenv(name);
+  }
+#endif
+}
+
 unsigned smoke_compress_threads() {
   return capped_threads("SMOKE_THREADS_COMPRESS", 8u);
 }

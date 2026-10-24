@@ -40,6 +40,22 @@ void expect_line_count_match(const std::string &actual_path,
                              const std::string &expected_path);
 void expect_sorted_match(const std::string &actual_path,
                          const std::string &expected_path);
+void expect_files_identical(const std::string &left_path,
+                            const std::string &right_path);
+
+// Temporarily set or clear an environment variable; restores prior value on
+// destruction (including when the variable was previously unset).
+struct ScopedEnvVar {
+  ScopedEnvVar(const char *name, const char *value);
+  ~ScopedEnvVar();
+
+  ScopedEnvVar(const ScopedEnvVar &) = delete;
+  ScopedEnvVar &operator=(const ScopedEnvVar &) = delete;
+
+  const char *name;
+  bool had_prior;
+  std::string prior;
+};
 
 unsigned smoke_compress_threads();
 unsigned smoke_decompress_threads();

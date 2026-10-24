@@ -80,6 +80,13 @@ spring2 -c --R1 reads.fastq -o reads.sp --threads 8
 
 The default thread count is `min(max(1, hw_threads - 1), 16)`.
 
+Single-thread compression (`-t 1`) is bit-deterministic: two runs on the same
+input produce identical `.sp` archives. Multi-thread reordering can skip
+contested dictionary buckets for throughput, so archive bytes may differ across
+runs even though decompression remains lossless. Set
+`SPRING_DETERMINISTIC_REORDER=1` to serialize match selection to one thread and
+get the same archive bytes as `-t 1` (slower than the default parallel path).
+
 ### Memory Budget
 
 Use `--memory` to cap effective worker concurrency based on an approximate

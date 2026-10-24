@@ -585,8 +585,19 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
   {
     bool done = false;
     int thread_id = omp_get_thread_num();
-    const int64_t scan_stride = std::max<int64_t>(1, omp_get_num_threads());
-    int64_t remaining_read_scan = rg.numreads - 1 - thread_id;
+    // Deterministic mode serializes match selection to thread 0 while still
+    // materializing empty per-thread shard files for downstream stages.
+    // Thread 0 must use stride 1 (not team size) so it visits every read —
+    // otherwise seeds/singletons on non-zero residues are skipped and the
+    // archive diverges from single-thread compression.
+    if (deterministic_mode && thread_id != 0) {
+      done = true;
+    }
+    const int64_t scan_stride =
+        deterministic_mode ? 1 : std::max<int64_t>(1, omp_get_num_threads());
+    int64_t remaining_read_scan =
+        deterministic_mode ? (rg.numreads > 0 ? rg.numreads - 1 : -1)
+                           : (rg.numreads - 1 - thread_id);
     if (remaining_read_scan < 0)
       remaining_read_scan = -1;
     std::string orientation_output;
@@ -595,12 +606,6 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
     std::string order_output;
     std::string singleton_order_output;
     std::string read_length_output;
-
-    // Deterministic mode serializes match selection to thread 0 while still
-    // materializing empty per-thread shard files for downstream stages.
-    if (deterministic_mode && thread_id != 0) {
-      done = true;
-    }
 
     unmatched_counts_data[thread_id] = 0;
     std::bitset<bitset_size> reference_read, reverse_reference_read,

@@ -6,6 +6,7 @@
 
 ### Added
 
+- Added smoke regressions that require bit-identical archives across dual compress runs for `-t 1` and for multi-thread runs with `SPRING_DETERMINISTIC_REORDER=1`, plus a check that DET multi-thread and `-t 1` decompress to identical mates on the paired bisulfite fixture (`test_3`).
 - Added advanced compression routing controls: `-r/--compression-route auto|memory|disk` forces the memory or disk intermediate path (default remains automatic), and `-w/--tmp-dir <path>` places disk-path workspaces (`.work-tmp` / `.grouped-tmp`) under a chosen directory (e.g. `/dev/shm`). Both are also exposed on `CompressOptions` (`compression_route`, `temp_dir`).
 - Added per-member SHA-256 container integrity: new `.sp` archives embed `integrity.meta` with a SHA-256 of every tar member payload plus a root hash of the sorted digest list. Decompress, audit, and `SpringReader` verify the manifest (legacy archives without it warn and skip).
 - Added `SpringReaderLane` (`Reads`, `Read3`, `Index`) so library callers can stream R3 or index members from grouped bundles; the default constructor still opens the primary read member. Aliased R3 is exposed as single-end records via `next(ReadRecord&)`.
@@ -18,8 +19,10 @@
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 - Unified paired-end decompression single-`-o` prefixes with grouped naming: `-o prefix` now writes `prefix.R1` / `prefix.R2` (previously `.1` / `.2`). Fallback names when metadata has no original filenames use the same suffixes.
 - Split the monolithic root `CMakeLists.txt` (~1.7k lines) into focused modules under `cmake/` (`ProjectSetup`, `Toolchain`, `Compiler`, `OpenMP`, `HostTools`, `Vendors`, `Sources`, `Targets`, `Install`, `Tests`, …); the root file is now a thin include orchestrator.
+
 ### Fixed
 
+- Fixed `SPRING_DETERMINISTIC_REORDER` using the OpenMP team size as the read-scan stride while only thread 0 performed matching, which skipped most seeds/singletons and produced larger archives than `-t 1`. Deterministic mode now scans every read on thread 0.
 - Fixed bisulfite auto domain compression losing size vs DNA on directional PE libraries: depleted-base reorder masks and ternary contig packing are armed only when both streams share the same depleted base (`C` or `G`); G-depleted libraries pack/decode with an `{A,C,T}` alphabet via new `bisulfite_ternary_escape_base` metadata (legacy archives default to escape-on-`C`). Directional PE (C vs G) keeps DNA-equivalent encoding while still labeling the assay from detection.
 - Fixed embedded assay-reference kmer collisions where later blocks overwrote earlier exon/promoter/intron labels: conflicting specialty kmers are now marked ambiguous and ignored when scoring; backbone never erases specialty.
 - Fixed multiome assay detection ignoring R3 sequence content: R3 is sampled for Tn5/poly-A/kmer chemistry (without polluting R1/R2 bisulfite composition or length asymmetry); I1/I2 remain layout-only.

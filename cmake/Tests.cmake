@@ -79,6 +79,7 @@ set(smoke_test_sources
     tests/smoke/grouped_roundtrip_smoke_tests.cpp
     tests/smoke/gzip_roundtrip_smoke_tests.cpp
     tests/smoke/cli_mode_smoke_tests.cpp
+    tests/smoke/determinism_smoke_tests.cpp
 )
 add_executable(smoke-tests ${smoke_test_sources})
 add_dependencies(smoke-tests spring2)
