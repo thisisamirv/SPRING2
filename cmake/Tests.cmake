@@ -43,6 +43,7 @@ set(integration_test_sources
     tests/integration/integration_tests.cpp
     tests/integration/integration_test_support.cpp
     tests/integration/archive_integration_tests.cpp
+    tests/integration/compat_archive_integration_tests.cpp
     tests/integration/reader_integration_tests.cpp
     tests/integration/storage_path_integration_tests.cpp
     tests/integration/workflow_metadata_integration_tests.cpp

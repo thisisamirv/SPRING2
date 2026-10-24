@@ -139,14 +139,33 @@ That same `out/build` tree is also the default source for `out/clangd/compile_co
 
 ### Archive Metadata Version Compatibility
 
-SPRING2 now treats archive creator versioning as part of the compatibility contract:
+SPRING2 treats archive creator versioning as part of the compatibility contract:
 
 - New archives write a metadata header version and preserve the exact creator version string in `cp.bin`.
 - Older archives that predate the metadata header are still supported and default to creator version `1.0.0-rc.1` when no explicit version string is present.
 - User-facing preview output should show the effective human-readable archive version and should not expose internal compatibility-routing labels unless you are debugging the implementation.
 - Future decompression-path changes should continue to route by parsed archive version, not by a coarse legacy/current split.
 
-Coverage for this behavior lives in `tests/unit/archive_metadata_version_unit_tests.cpp`. If you change metadata layout, version parsing, preview version reporting, or decompression routing, update that test first and keep backward compatibility expectations explicit.
+There are three layers to keep straight:
+
+1. **`cp.bin` format version** (0 headerless / 1 peek trailer / 2 length-prefixed trailer).
+2. **Creator semver** stored in metadata (`1.0`–`1.3` supported; `2.0.0` rejected).
+3. **Container side-cars** (`integrity.meta` / `bundle.meta` version strings). Absence of `integrity.meta` warns and skips; unknown side-car versions must fail closed.
+
+**Parser coverage** lives in `tests/unit/archive_metadata_version_unit_tests.cpp`. Update that test first when metadata layout, version parsing, preview version reporting, or decompression routing changes.
+
+**End-to-end decompress coverage** lives in `tests/data/compat/` and
+`tests/integration/compat_archive_integration_tests.cpp`. The TSV manifest lists
+frozen archives (legacy Spring `*.spring_v1` plus SPRING2 `compat/<version>/*.sp`)
+and the checks to run (`decompress`, `preview`, `audit`, `reader`). Mint a new
+SPRING2 golden set before tagging a release:
+
+```bash
+python tools/dev/mint_compat_fixtures.py --spring2 path/to/spring2
+```
+
+Never overwrite an older `compat/<version>/` tree with a newer binary. Commit the
+new directory and the updated `manifest.tsv` with the release.
 
 ### Benchmark/Test Scripts
 
