@@ -4,10 +4,37 @@
 #include "params.h"
 #include "core_utils.h"
 
+#include <cstdint>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 
 namespace spring {
+
+namespace {
+
+// Metadata strings (paths, notes, assay labels, versions) should be small.
+// Cap before allocating so a corrupt length cannot OOM the process.
+constexpr uint32_t kMaxMetadataStringBytes = 16u * 1024u * 1024u;
+
+std::optional<uint64_t> remaining_stream_bytes(std::istream &in) {
+  const std::istream::pos_type current = in.tellg();
+  if (current == std::istream::pos_type(-1)) {
+    return std::nullopt;
+  }
+
+  in.seekg(0, std::ios::end);
+  const std::istream::pos_type end = in.tellg();
+  in.seekg(current);
+  if (!in || end == std::istream::pos_type(-1) || end < current) {
+    in.clear();
+    in.seekg(current);
+    return std::nullopt;
+  }
+  return static_cast<uint64_t>(end - current);
+}
+
+} // namespace
 
 void write_bool(std::ostream &out, bool value) {
   uint8_t byte = value ? 1 : 0;
@@ -31,11 +58,33 @@ void write_string(std::ostream &out, const std::string &s) {
 std::string read_string(std::istream &in) {
   uint32_t len = 0;
   in.read(byte_ptr(&len), sizeof(uint32_t));
+  if (!in) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated string length in metadata.");
+  }
   if (len == 0) {
     return std::string();
   }
+  if (len > kMaxMetadataStringBytes) {
+    throw std::runtime_error(
+        "Corrupt archive: metadata string length is too large (" +
+        std::to_string(len) + " bytes).");
+  }
+
+  if (const std::optional<uint64_t> remaining = remaining_stream_bytes(in)) {
+    if (static_cast<uint64_t>(len) > *remaining) {
+      throw std::runtime_error(
+          "Corrupt archive: string length exceeds remaining metadata (" +
+          std::to_string(len) + " > " + std::to_string(*remaining) + ").");
+    }
+  }
+
   std::string s(len, '\0');
-  in.read(&s[0], len);
+  in.read(s.data(), static_cast<std::streamsize>(len));
+  if (!in || in.gcount() != static_cast<std::streamsize>(len)) {
+    throw std::runtime_error(
+        "Corrupt archive: truncated string payload in metadata.");
+  }
   return s;
 }
 

@@ -12,6 +12,7 @@
 - Fixed gzip input reading treating mid-stream `gzread` errors as EOF. `gzip_istreambuf::underflow` now checks `gzerror` and throws instead of silently truncating the FASTQ and continuing compression on partial data.
 - Fixed paired-id code 3 round-trips for headers with an earlier `" 1"` before the Illumina mate field (e.g. `@sample 1 1:N:0:AAAA`). Matching and `modify_id` now share the same mate-digit selection, preferring the first `" 1:"` token.
 - Fixed CLI parsing for `--cb-len` (invalid values now report a clean error via `parse_int_or_throw` instead of an uncaught `std::stoi` exception) and for `-v`/`--verbose` (the optional level is consumed only when the next token is `info` or `debug`, so `spring -d -v sample.sp` keeps `sample.sp` as the archive path).
+- Fixed archive metadata `read_string` allocating from an unchecked length: truncated or corrupt string fields now throw instead of risking OOM or leaving `failbit` set so later optional metadata silently falls back to defaults.
 
 ## V1.3.6
 
