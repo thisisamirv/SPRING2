@@ -8,13 +8,33 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
+#include <stdexcept>
 
 namespace spring {
 
 namespace {
 log_level g_log_level = log_level::quiet;
 std::atomic<ProgressBar *> g_global_progress_bar{nullptr};
+std::atomic<bool> g_interrupt_requested{false};
 } // namespace
+
+void request_interrupt() noexcept {
+  g_interrupt_requested.store(true, std::memory_order_relaxed);
+}
+
+bool interrupt_requested() noexcept {
+  return g_interrupt_requested.load(std::memory_order_relaxed);
+}
+
+void clear_interrupt() noexcept {
+  g_interrupt_requested.store(false, std::memory_order_relaxed);
+}
+
+void throw_if_interrupted() {
+  if (interrupt_requested()) {
+    throw std::runtime_error("Interrupted");
+  }
+}
 
 void Logger::set_level(log_level level) { g_log_level = level; }
 

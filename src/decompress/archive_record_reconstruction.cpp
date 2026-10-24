@@ -8,7 +8,6 @@
 #include "assay_sc_rna.h"
 #include "decompress_archive_io.h"
 #include "dna_utils.h"
-#include "integrity_utils.h"
 #include "io_utils.h"
 #include "params.h"
 #include "parse_utils.h"
@@ -58,13 +57,11 @@ void apply_noise_codes_to_read(
     const uint16_t noise_position_delta =
         noisepos_cursor.read<uint16_t>(position_label);
     const uint32_t noise_position =
-        previous_noise_position +
-        static_cast<uint32_t>(noise_position_delta);
+        previous_noise_position + static_cast<uint32_t>(noise_position_delta);
     if (noise_position >= read.size()) {
       throw std::runtime_error(
           "Corrupt archive: noise position " + std::to_string(noise_position) +
-          " is out of range for read of length " +
-          std::to_string(read.size()));
+          " is out of range for read of length " + std::to_string(read.size()));
     }
     read[noise_position] =
         decoded_noise_table[static_cast<uint8_t>(read[noise_position])]
@@ -282,6 +279,7 @@ void decompress_short(const decompression_archive_artifact &artifact,
   uint32_t num_blocks_done = 0;
   uint32_t num_reads_done = 0;
   for (;;) {
+    throw_if_interrupted();
     const uint32_t num_reads_cur_step = compute_num_reads_cur_step(
         num_reads, num_reads_done, num_reads_per_step, paired_end);
     if (num_reads_cur_step == 0) {
@@ -493,9 +491,9 @@ void decompress_short(const decompression_archive_artifact &artifact,
                         seq.read(read_2_position, read_lengths_buffer_2[i]);
                     const std::string noise_codes =
                         noise_cursor.read_line("mate noise code stream");
-                    apply_noise_codes_to_read(read, noise_codes, noisepos_cursor,
-                                              decoded_noise_table,
-                                              "mate noise position delta");
+                    apply_noise_codes_to_read(
+                        read, noise_codes, noisepos_cursor, decoded_noise_table,
+                        "mate noise position delta");
                     read_buffer_2[i] =
                         (read_2_orientation == 'd')
                             ? read
@@ -746,6 +744,7 @@ void decompress_long(const decompression_archive_artifact &artifact,
   uint32_t num_blocks_done = 0;
   uint32_t num_reads_done = 0;
   for (;;) {
+    throw_if_interrupted();
     const uint32_t num_reads_cur_step = compute_num_reads_cur_step(
         num_reads, num_reads_done, num_reads_per_step, paired_end);
     if (num_reads_cur_step == 0) {

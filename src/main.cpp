@@ -166,7 +166,8 @@ std::string build_options_description() {
       << "* Decompression Options:\n"
       << "  -d [ --decompress ]             decompress\n"
       << "  -i [ --input ] arg              input archive file (.sp)\n"
-      << "  -a [ --audit ]                  run a full archive integrity audit\n"
+      << "  -a [ --audit ]                  run a full archive integrity "
+         "audit\n"
       << "                                  before writing outputs\n"
       << "  -u [ --unzip ]                  during decompression, force\n"
       << "                                  plain-text output (and strip .gz\n"
@@ -542,8 +543,7 @@ int max_threads_for_memory_cap_gb(const double memory_cap_gb) {
   const double capped_threads =
       std::floor(memory_cap_gb / kApproxMemoryCapPerThreadGiB);
   // Avoid UB from casting values outside the int range (e.g. --memory 1e20).
-  if (capped_threads >=
-      static_cast<double>(std::numeric_limits<int>::max())) {
+  if (capped_threads >= static_cast<double>(std::numeric_limits<int>::max())) {
     return std::numeric_limits<int>::max();
   }
   return std::max(1, static_cast<int>(capped_threads));
@@ -631,16 +631,35 @@ void log_options_for_debugging(const command_line_options &options) {
       ", outputs=" + std::to_string(options.output_paths.size()));
 }
 
+int print_interrupt_and_exit() {
+  std::cerr << "Interrupted.\n";
+  return 130; // conventional 128 + SIGINT
+}
+
+int handle_run_exception(const std::exception &e) {
+  if (spring::interrupt_requested()) {
+    return print_interrupt_and_exit();
+  }
+  return print_unexpected_error_and_exit(
+      std::string("Program terminated unexpectedly with error: ") + e.what());
+}
+
 } // namespace
 
+// Async-signal-safe: only touch an atomic flag. A second Ctrl+C restores the
+// default handler and re-raises so the process can be force-killed.
 void signalHandler(int signum) {
-  std::cout << "Interrupt signal (" << signum << ") received.\n";
-  std::cout << "Program terminated unexpectedly\n";
-  std::exit(signum);
+  if (spring::interrupt_requested()) {
+    std::signal(signum, SIG_DFL);
+    std::raise(signum);
+    return;
+  }
+  spring::request_interrupt();
 }
 
 int main(int argc, char **argv) {
-  signal(SIGINT, signalHandler);
+  spring::clear_interrupt();
+  std::signal(SIGINT, signalHandler);
 
 #ifdef _WIN32
   // Make stdout/stderr fully unbuffered so every write is immediately
@@ -711,16 +730,17 @@ int main(int argc, char **argv) {
 
   if (options.preview_flag) {
     try {
+      spring::clear_interrupt();
       run_requested_mode(options);
-    } catch (const std::runtime_error &e) {
-      return print_unexpected_error_and_exit(
-          std::string("Program terminated unexpectedly with error: ") +
-          e.what());
+      if (spring::interrupt_requested()) {
+        return print_interrupt_and_exit();
+      }
     } catch (const std::exception &e) {
-      return print_unexpected_error_and_exit(
-          std::string("Program terminated unexpectedly with std::exception: ") +
-          e.what());
+      return handle_run_exception(e);
     } catch (...) {
+      if (spring::interrupt_requested()) {
+        return print_interrupt_and_exit();
+      }
       return print_unexpected_error_and_exit("Program terminated unexpectedly");
     }
     return 0;
@@ -729,15 +749,17 @@ int main(int argc, char **argv) {
   apply_memory_cap(options);
   log_options_for_debugging(options);
   try {
+    spring::clear_interrupt();
     run_requested_mode(options);
-  } catch (const std::runtime_error &e) {
-    return print_unexpected_error_and_exit(
-        std::string("Program terminated unexpectedly with error: ") + e.what());
+    if (spring::interrupt_requested()) {
+      return print_interrupt_and_exit();
+    }
   } catch (const std::exception &e) {
-    return print_unexpected_error_and_exit(
-        std::string("Program terminated unexpectedly with std::exception: ") +
-        e.what());
+    return handle_run_exception(e);
   } catch (...) {
+    if (spring::interrupt_requested()) {
+      return print_interrupt_and_exit();
+    }
     return print_unexpected_error_and_exit("Program terminated unexpectedly");
   }
   return 0;

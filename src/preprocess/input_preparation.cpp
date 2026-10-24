@@ -771,8 +771,8 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                   (i1_seqs != nullptr) ? (*i1_seqs)[ri] : read_array[ri];
               const std::string *seq2 =
                   (stream_index == 1) ? &read_array[ri] : nullptr;
-              if (!strip_grouped_sc_rna_index_suffix_from_id(strip_ids[ri], seq1,
-                                                             seq2)) {
+              if (!strip_grouped_sc_rna_index_suffix_from_id(strip_ids[ri],
+                                                             seq1, seq2)) {
                 throw std::runtime_error(
                     "Grouped sc-RNA index-ID suffix stripping became "
                     "inconsistent across reads.");
@@ -1162,6 +1162,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
     if (done[0] && done[1])
       break;
     num_blocks_done += cp.encoding.num_thr;
+    throw_if_interrupted();
     if (progress && total_input_bytes > 0) {
       uint64_t bytes_read = 0;
       for (int i = 0; i < 2; i++) {

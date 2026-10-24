@@ -255,6 +255,7 @@ void decompress(const std::vector<std::string> &input_paths,
                 const std::vector<std::string> &output_paths, const int num_thr,
                 const log_level verbosity_level, const bool unzip_flag) {
   Logger::set_level(verbosity_level);
+  throw_if_interrupted();
   if (num_thr <= 0) {
     throw std::runtime_error(
         "Number of decompression threads must be positive.");

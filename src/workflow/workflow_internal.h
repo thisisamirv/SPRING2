@@ -100,9 +100,11 @@ void print_step_summary(const char *step_name,
 template <typename Func>
 void run_timed_step(const char *start_message, const char *step_name,
                     Func &&step) {
+  throw_if_interrupted();
   SPRING_LOG_INFO(start_message);
   const auto step_start = clock_type::now();
   std::forward<Func>(step)();
+  throw_if_interrupted();
   const auto step_end = clock_type::now();
   print_step_summary(step_name, step_start, step_end);
 }

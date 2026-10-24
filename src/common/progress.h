@@ -4,12 +4,21 @@
 #ifndef SPRING_PROGRESS_H
 #define SPRING_PROGRESS_H
 
+#include <cstdint>
 #include <mutex>
 #include <string>
 
 namespace spring {
 
 enum class log_level : uint8_t { quiet = 0, info = 1, debug = 2 };
+
+// Cooperative Ctrl+C / SIGINT handling. The signal handler may only call
+// request_interrupt() (async-signal-safe). Long-running work polls via
+// throw_if_interrupted() from sequential stage boundaries.
+void request_interrupt() noexcept;
+bool interrupt_requested() noexcept;
+void clear_interrupt() noexcept;
+void throw_if_interrupted();
 
 class Logger {
 public:

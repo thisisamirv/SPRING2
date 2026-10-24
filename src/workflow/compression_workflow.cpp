@@ -964,6 +964,7 @@ void compress(const std::vector<std::string> &input_paths,
               const std::string &cb_source_path, uint32_t cb_len,
               const double memory_cap_gb) {
   Logger::set_level(verbosity_level);
+  throw_if_interrupted();
   const compression_storage_plan storage_plan =
       build_compression_storage_plan(input_paths, memory_cap_gb);
   if (storage_plan.selected_path == compression_storage_path::disk_path) {
