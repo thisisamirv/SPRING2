@@ -1085,122 +1085,121 @@ reorder_compress_streams(const compression_params &cp,
   std::vector<std::unordered_map<std::string, std::string>> block_members(
       static_cast<size_t>(output_blocks));
 
-#pragma omp parallel
-  {
-    uint64_t thread_id = omp_get_thread_num();
-    uint64_t block_num = thread_id;
-    while (true) {
-      const block_range current_block =
-          block_read_range(block_num, num_reads_per_block, read_limit);
-      if (!current_block.valid) {
-        break;
-      }
+  // Use parallel for so every output block is processed even when
+  // ClangCL/libomp on Windows creates fewer threads than requested inside
+  // a bare #pragma omp parallel region that strides by requested num_thr.
+#pragma omp parallel for schedule(static, 1) num_threads(num_thr)
+  for (int64_t block_num_i = 0;
+       block_num_i < static_cast<int64_t>(output_blocks); ++block_num_i) {
+    const uint64_t block_num = static_cast<uint64_t>(block_num_i);
+    const block_range current_block =
+        block_read_range(block_num, num_reads_per_block, read_limit);
+    if (!current_block.valid) {
+      continue;
+    }
 
-      output_block_buffers block_buffers;
-      uint64_t previous_position = 0;
-      for (uint64_t read_index = current_block.begin;
-           read_index < current_block.end; read_index++) {
-        if (!paired_end) {
-          append_binary(block_buffers.read_length_bytes,
-                        read_lengths_by_read[read_index]);
-          if (aligned_flags[read_index]) {
-            block_buffers.flag_bytes.push_back('0');
+    output_block_buffers block_buffers;
+    uint64_t previous_position = 0;
+    for (uint64_t read_index = current_block.begin;
+         read_index < current_block.end; read_index++) {
+      if (!paired_end) {
+        append_binary(block_buffers.read_length_bytes,
+                      read_lengths_by_read[read_index]);
+        if (aligned_flags[read_index]) {
+          block_buffers.flag_bytes.push_back('0');
+          block_buffers.orientation_bytes.push_back(
+              orientation_by_read[read_index]);
+          write_aligned_position(block_buffers.position_bytes, preserve_order,
+                                 read_index == current_block.begin,
+                                 position_by_read[read_index],
+                                 previous_position);
+          write_noise_for_read(
+              block_buffers.noise_bytes, block_buffers.noise_position_bytes,
+              noise_codes, noise_positions, noise_offset_by_read,
+              noise_count_by_read, read_index);
+        } else {
+          block_buffers.flag_bytes.push_back('2');
+          write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
+                               position_by_read, read_lengths_by_read,
+                               read_index);
+        }
+      } else {
+        const uint64_t mate_read_index = half_read_count + read_index;
+        append_binary(block_buffers.read_length_bytes,
+                      read_lengths_by_read[read_index]);
+        append_binary(block_buffers.read_length_bytes,
+                      read_lengths_by_read[mate_read_index]);
+        const int64_t mate_position_delta =
+            static_cast<int64_t>(position_by_read[mate_read_index]) -
+            static_cast<int64_t>(position_by_read[read_index]);
+        int read_flag = 2;
+        if (aligned_flags[read_index] && aligned_flags[mate_read_index] &&
+            mate_position_delta >= 0 && mate_position_delta < 32767) {
+          read_flag = 0;
+        } else if (aligned_flags[read_index] &&
+                   aligned_flags[mate_read_index]) {
+          read_flag = 1;
+        } else if (!aligned_flags[read_index] &&
+                   !aligned_flags[mate_read_index]) {
+          read_flag = 2;
+        } else if (aligned_flags[read_index] &&
+                   !aligned_flags[mate_read_index]) {
+          read_flag = 3;
+        } else if (!aligned_flags[read_index] &&
+                   aligned_flags[mate_read_index]) {
+          read_flag = 4;
+        }
+
+        block_buffers.flag_bytes.push_back(static_cast<char>('0' + read_flag));
+        if (read_flag == 0) {
+          const int16_t mate_position_delta_16 =
+              static_cast<int16_t>(mate_position_delta);
+          append_binary(block_buffers.mate_position_bytes,
+                        mate_position_delta_16);
+          block_buffers.mate_orientation_bytes.push_back(
+              orientation_by_read[read_index] !=
+                      orientation_by_read[mate_read_index]
+                  ? '0'
+                  : '1');
+        }
+        if (read_flag == 0 || read_flag == 1 || read_flag == 3) {
+          write_aligned_position(block_buffers.position_bytes, preserve_order,
+                                 read_index == current_block.begin,
+                                 position_by_read[read_index],
+                                 previous_position);
+          write_noise_for_read(
+              block_buffers.noise_bytes, block_buffers.noise_position_bytes,
+              noise_codes, noise_positions, noise_offset_by_read,
+              noise_count_by_read, read_index);
+          block_buffers.orientation_bytes.push_back(
+              orientation_by_read[read_index]);
+        } else {
+          write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
+                               position_by_read, read_lengths_by_read,
+                               read_index);
+        }
+
+        if (read_flag == 0 || read_flag == 1 || read_flag == 4) {
+          write_noise_for_read(
+              block_buffers.noise_bytes, block_buffers.noise_position_bytes,
+              noise_codes, noise_positions, noise_offset_by_read,
+              noise_count_by_read, mate_read_index);
+          if (read_flag == 1 || read_flag == 4) {
+            append_binary(block_buffers.position_bytes,
+                          position_by_read[mate_read_index]);
             block_buffers.orientation_bytes.push_back(
-                orientation_by_read[read_index]);
-            write_aligned_position(block_buffers.position_bytes, preserve_order,
-                                   read_index == current_block.begin,
-                                   position_by_read[read_index],
-                                   previous_position);
-            write_noise_for_read(
-                block_buffers.noise_bytes, block_buffers.noise_position_bytes,
-                noise_codes, noise_positions, noise_offset_by_read,
-                noise_count_by_read, read_index);
-          } else {
-            block_buffers.flag_bytes.push_back('2');
-            write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
-                                 position_by_read, read_lengths_by_read,
-                                 read_index);
+                orientation_by_read[mate_read_index]);
           }
         } else {
-          const uint64_t mate_read_index = half_read_count + read_index;
-          append_binary(block_buffers.read_length_bytes,
-                        read_lengths_by_read[read_index]);
-          append_binary(block_buffers.read_length_bytes,
-                        read_lengths_by_read[mate_read_index]);
-          const int64_t mate_position_delta =
-              static_cast<int64_t>(position_by_read[mate_read_index]) -
-              static_cast<int64_t>(position_by_read[read_index]);
-          int read_flag = 2;
-          if (aligned_flags[read_index] && aligned_flags[mate_read_index] &&
-              mate_position_delta >= 0 && mate_position_delta < 32767) {
-            read_flag = 0;
-          } else if (aligned_flags[read_index] &&
-                     aligned_flags[mate_read_index]) {
-            read_flag = 1;
-          } else if (!aligned_flags[read_index] &&
-                     !aligned_flags[mate_read_index]) {
-            read_flag = 2;
-          } else if (aligned_flags[read_index] &&
-                     !aligned_flags[mate_read_index]) {
-            read_flag = 3;
-          } else if (!aligned_flags[read_index] &&
-                     aligned_flags[mate_read_index]) {
-            read_flag = 4;
-          }
-
-          block_buffers.flag_bytes.push_back(
-              static_cast<char>('0' + read_flag));
-          if (read_flag == 0) {
-            const int16_t mate_position_delta_16 =
-                static_cast<int16_t>(mate_position_delta);
-            append_binary(block_buffers.mate_position_bytes,
-                          mate_position_delta_16);
-            block_buffers.mate_orientation_bytes.push_back(
-                orientation_by_read[read_index] !=
-                        orientation_by_read[mate_read_index]
-                    ? '0'
-                    : '1');
-          }
-          if (read_flag == 0 || read_flag == 1 || read_flag == 3) {
-            write_aligned_position(block_buffers.position_bytes, preserve_order,
-                                   read_index == current_block.begin,
-                                   position_by_read[read_index],
-                                   previous_position);
-            write_noise_for_read(
-                block_buffers.noise_bytes, block_buffers.noise_position_bytes,
-                noise_codes, noise_positions, noise_offset_by_read,
-                noise_count_by_read, read_index);
-            block_buffers.orientation_bytes.push_back(
-                orientation_by_read[read_index]);
-          } else {
-            write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
-                                 position_by_read, read_lengths_by_read,
-                                 read_index);
-          }
-
-          if (read_flag == 0 || read_flag == 1 || read_flag == 4) {
-            write_noise_for_read(
-                block_buffers.noise_bytes, block_buffers.noise_position_bytes,
-                noise_codes, noise_positions, noise_offset_by_read,
-                noise_count_by_read, mate_read_index);
-            if (read_flag == 1 || read_flag == 4) {
-              append_binary(block_buffers.position_bytes,
-                            position_by_read[mate_read_index]);
-              block_buffers.orientation_bytes.push_back(
-                  orientation_by_read[mate_read_index]);
-            }
-          } else {
-            write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
-                                 position_by_read, read_lengths_by_read,
-                                 mate_read_index);
-          }
+          write_unaligned_read(block_buffers.unaligned_bytes, unaligned_chars,
+                               position_by_read, read_lengths_by_read,
+                               mate_read_index);
         }
       }
-
-      block_members[static_cast<size_t>(block_num)] =
-          compress_output_block(block_buffers, paths, block_num, paired_end);
-      block_num += num_thr;
     }
+
+    block_members[static_cast<size_t>(block_num)] =
+        compress_output_block(block_buffers, paths, block_num, paired_end);
   }
 
   SPRING_LOG_DEBUG("reorder_compress_streams complete: blocks_written=" +

@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size.
+
 ## V1.3.6
 
 ### Changed

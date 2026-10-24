@@ -330,69 +330,71 @@ void compress_block_batch(
       std::string(mode_name) + ", input=" + input_path + ", begin=" +
       std::to_string(batch.begin) + ", end=" + std::to_string(batch.end) +
       ", reads_per_block=" + std::to_string(num_reads_per_block));
-#pragma omp parallel
-  {
-    const uint64_t thread_id = omp_get_thread_num();
-    const uint64_t block_offset = batch.begin / num_reads_per_block;
-    uint64_t block_index = thread_id;
+  const uint64_t batch_size = batch.end - batch.begin;
+  const uint64_t num_blocks_in_batch =
+      (batch_size == 0)
+          ? 0
+          : (batch_size + static_cast<uint64_t>(num_reads_per_block) - 1) /
+                static_cast<uint64_t>(num_reads_per_block);
+  const uint64_t block_offset = batch.begin / num_reads_per_block;
+  // Use parallel for so every batch block is processed even when
+  // ClangCL/libomp on Windows creates fewer threads than requested inside
+  // a bare #pragma omp parallel region that strides by requested num_threads.
+#pragma omp parallel for schedule(static, 1) num_threads(num_threads)
+  for (int64_t block_index_i = 0;
+       block_index_i < static_cast<int64_t>(num_blocks_in_batch);
+       ++block_index_i) {
+    const uint64_t block_index = static_cast<uint64_t>(block_index_i);
     std::vector<uint32_t> read_lengths;
     if (mode == reorder_compress_mode::quality)
       read_lengths.resize(num_reads_per_block);
 
-    while (true) {
-      const uint64_t block_begin = block_index * num_reads_per_block;
-      if (block_begin >= batch.end - batch.begin)
-        break;
+    const uint64_t block_begin = block_index * num_reads_per_block;
+    uint64_t block_end = (block_index + 1) * num_reads_per_block;
+    if (block_end > batch_size)
+      block_end = batch_size;
 
-      uint64_t block_end = (block_index + 1) * num_reads_per_block;
-      if (block_end > batch.end - batch.begin)
-        block_end = batch.end - batch.begin;
+    const uint32_t reads_in_block = block_read_count(block_begin, block_end);
+    const uint64_t global_block_idx = block_offset + block_index;
 
-      const uint32_t reads_in_block = block_read_count(block_begin, block_end);
-      const uint64_t global_block_idx = block_offset + block_index;
-
-      if (mode == reorder_compress_mode::id) {
-        if (id_block_outputs != nullptr) {
-          (*id_block_outputs)[block_index] = compress_id_block_bytes(
-              reordered_strings.data() + block_begin, reads_in_block);
-        } else {
-          block_outputs[block_index] = compress_id_block_bytes(
-              reordered_strings.data() + block_begin, reads_in_block);
-        }
-        if (global_block_idx <
-            compression_params::ReadMetadata::kFileLenThrSize) {
-          cp.read_info.file_len_id_thr[global_block_idx] =
-              (id_block_outputs != nullptr)
-                  ? (*id_block_outputs)[block_index].size()
-                  : block_outputs[block_index].size();
-          SPRING_LOG_DEBUG(
-              "block_id=id-block-" + std::to_string(global_block_idx) +
-              ", Compressed id block=" + std::to_string(global_block_idx) +
-              ", reads=" + std::to_string(reads_in_block) + ", bytes=" +
-              std::to_string(cp.read_info.file_len_id_thr[global_block_idx]));
-        } else {
-          throw std::runtime_error(
-              std::string("Exceeded maximum supported block count (") +
-              std::to_string(
-                  compression_params::ReadMetadata::kFileLenThrSize) +
-              "). Increase array size in util.h.");
-        }
+    if (mode == reorder_compress_mode::id) {
+      if (id_block_outputs != nullptr) {
+        (*id_block_outputs)[block_index] = compress_id_block_bytes(
+            reordered_strings.data() + block_begin, reads_in_block);
       } else {
-        for (uint64_t read_offset = 0; read_offset < reads_in_block;
-             read_offset++) {
-          read_lengths[read_offset] = static_cast<uint32_t>(
-              reordered_strings[block_begin + read_offset].size());
-        }
-        block_outputs[block_index] =
-            bsc_str_array_compress_bytes(reordered_strings.data() + block_begin,
-                                         reads_in_block, read_lengths.data());
-        SPRING_LOG_DEBUG(
-            "block_id=quality-block-" + std::to_string(global_block_idx) +
-            ", Compressed quality block=" + std::to_string(global_block_idx) +
-            ", reads=" + std::to_string(reads_in_block));
+        block_outputs[block_index] = compress_id_block_bytes(
+            reordered_strings.data() + block_begin, reads_in_block);
       }
-
-      block_index += num_threads;
+      if (global_block_idx <
+          compression_params::ReadMetadata::kFileLenThrSize) {
+        cp.read_info.file_len_id_thr[global_block_idx] =
+            (id_block_outputs != nullptr)
+                ? (*id_block_outputs)[block_index].size()
+                : block_outputs[block_index].size();
+        SPRING_LOG_DEBUG(
+            "block_id=id-block-" + std::to_string(global_block_idx) +
+            ", Compressed id block=" + std::to_string(global_block_idx) +
+            ", reads=" + std::to_string(reads_in_block) + ", bytes=" +
+            std::to_string(cp.read_info.file_len_id_thr[global_block_idx]));
+      } else {
+        throw std::runtime_error(
+            std::string("Exceeded maximum supported block count (") +
+            std::to_string(compression_params::ReadMetadata::kFileLenThrSize) +
+            "). Increase array size in util.h.");
+      }
+    } else {
+      for (uint64_t read_offset = 0; read_offset < reads_in_block;
+           read_offset++) {
+        read_lengths[read_offset] = static_cast<uint32_t>(
+            reordered_strings[block_begin + read_offset].size());
+      }
+      block_outputs[block_index] =
+          bsc_str_array_compress_bytes(reordered_strings.data() + block_begin,
+                                       reads_in_block, read_lengths.data());
+      SPRING_LOG_DEBUG(
+          "block_id=quality-block-" + std::to_string(global_block_idx) +
+          ", Compressed quality block=" + std::to_string(global_block_idx) +
+          ", reads=" + std::to_string(reads_in_block));
     }
   }
 }

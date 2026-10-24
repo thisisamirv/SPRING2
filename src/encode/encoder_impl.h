@@ -298,10 +298,12 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
   // Declared outside the parallel block so the shared data-sharing rule
   // applies cleanly and to avoid a static local inside an outlined function.
   std::atomic<uint32_t> total_reads_encoded{0};
-#pragma omp parallel
-  {
+  // Use parallel for so every shard slot is processed even when
+  // ClangCL/libomp on Windows creates fewer threads than requested inside
+  // a bare #pragma omp parallel region.
+#pragma omp parallel for schedule(static, 1) num_threads(eg.num_thr)
+  for (int thread_id = 0; thread_id < eg.num_thr; ++thread_id) {
     bool done = false;
-    int thread_id = omp_get_thread_num();
     const std::string block_id =
         std::string("enc-thread-") + std::to_string(thread_id);
     encoded_metadata_buffer thread_metadata;
