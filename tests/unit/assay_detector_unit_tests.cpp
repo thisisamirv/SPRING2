@@ -123,6 +123,49 @@ TEST_CASE("Testing AssayDetector") {
     std::filesystem::remove(test_i1);
   }
 
+  SUBCASE("Multiome R3 Tn5 chemistry influences base assay") {
+    std::string test_r1 = "test_multiome_R1.fq";
+    std::string test_r2 = "test_multiome_R2.fq";
+    std::string test_r3 = "test_multiome_R3.fq";
+    std::string test_i1 = "test_multiome_I1.fq";
+    std::ofstream out_r1(test_r1);
+    std::ofstream out_r2(test_r2);
+    std::ofstream out_r3(test_r3);
+    std::ofstream out_i1(test_i1);
+    for (int i = 0; i < 100; ++i) {
+      out_r1 << "@r1_" << i << "\n";
+      out_r1 << "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT\n";
+      out_r1 << "+\n";
+      out_r1 << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+      out_r2 << "@r2_" << i << "\n";
+      out_r2 << "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT\n";
+      out_r2 << "+\n";
+      out_r2 << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+      out_r3 << "@r3_" << i << "\n";
+      out_r3 << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTCTTATACACATCT\n";
+      out_r3 << "+\n";
+      out_r3 << "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n";
+      out_i1 << "@i1_" << i << "\n";
+      out_i1 << "ACGTACGTACGTACGT\n";
+      out_i1 << "+\n";
+      out_i1 << "IIIIIIIIIIIIIIII\n";
+    }
+    out_r1.close();
+    out_r2.close();
+    out_r3.close();
+    out_i1.close();
+
+    AssayDetector::DetectionResult res =
+        detector.detect(test_r1, test_r2, test_r3, test_i1, "");
+    CHECK(res.assay == "sc-atac");
+    CHECK(res.confidence.find("Tn5 adapters") != std::string::npos);
+
+    std::filesystem::remove(test_r1);
+    std::filesystem::remove(test_r2);
+    std::filesystem::remove(test_r3);
+    std::filesystem::remove(test_i1);
+  }
+
   SUBCASE("Missing index path does not force sc-atac") {
     std::string test_fq = "test_atac_missing_i1.fq";
     std::ofstream out(test_fq);

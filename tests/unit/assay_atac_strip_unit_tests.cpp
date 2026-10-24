@@ -116,6 +116,14 @@ TEST_CASE("PE ATAC adapter rate uses max per-mate rate not hits/fragments") {
   se.atac_adapters_r1 = 5;
   const auto se_score = score_atac_assay(se, /*reference_loaded=*/false);
   CHECK(se_score.score == pe_score.score);
+
+  // R3-only adapters at 5% match SE/PE rate (multiome chemistry lane).
+  AssayDetectionStats r3_only;
+  r3_only.total_reads = 100;
+  r3_only.r1_lengths.assign(100, 50);
+  r3_only.r3_lengths.assign(100, 50);
+  r3_only.atac_adapters_r3 = 5;
+  CHECK(score_atac_assay(r3_only, false).score == pe_score.score);
 }
 
 TEST_CASE("PE poly-A on one mate is not diluted by the other") {

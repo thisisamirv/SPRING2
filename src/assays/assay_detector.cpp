@@ -227,13 +227,36 @@ void AssayDetector::load_reference() {
   BlockID current_block = BlockID::NONE;
   std::string current_seq;
 
+  auto insert_kmer = [&](uint64_t can, BlockID block) {
+    // Avoid last-wins collisions that blur exon/promoter/intron scores:
+    // specialty labels that disagree become AMBIGUOUS (ignored at score time);
+    // backbone never overwrites specialty; specialty may replace backbone.
+    const auto it = kmer_index_.find(can);
+    if (it == kmer_index_.end()) {
+      kmer_index_.emplace(can, block);
+      return;
+    }
+    if (it->second == block || it->second == BlockID::AMBIGUOUS) {
+      return;
+    }
+    if (it->second == BlockID::GENOME_BACKBONE) {
+      if (block != BlockID::GENOME_BACKBONE) {
+        it->second = block;
+      }
+      return;
+    }
+    if (block == BlockID::GENOME_BACKBONE) {
+      return;
+    }
+    it->second = BlockID::AMBIGUOUS;
+  };
+
   auto process_seq = [&]() {
     if (current_seq.length() >= kKmerSize && current_block != BlockID::NONE) {
       for (size_t i = 0; i <= current_seq.length() - kKmerSize; i += 5) {
         uint64_t code = encode_kmer(current_seq, i, kKmerSize);
         if (code != std::numeric_limits<uint64_t>::max()) {
-          uint64_t can = canonical_kmer(code, kKmerSize);
-          kmer_index_[can] = current_block;
+          insert_kmer(canonical_kmer(code, kKmerSize), current_block);
         }
       }
     }
@@ -276,8 +299,10 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
   StartupAnalysisResult result;
   AssayDetectionStats stats;
 
+  enum class SampleLane { R1, R2, R3 };
+
   auto record_sequence = [&](const std::string &header, const std::string &seq,
-                             const bool is_r1) {
+                             SampleLane lane) {
     result.input_summary.max_read_length =
         std::max(result.input_summary.max_read_length,
                  static_cast<uint32_t>(seq.size()));
@@ -295,47 +320,58 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
       stats.headers_with_umi_tag++;
     }
 
-    if (is_r1) {
+    // R3 is chemistry-only: adapters/poly-A/kmers influence base assay, but
+    // barcode-ish I1/I2 are not sampled here, and R3 must not pollute PE
+    // bisulfite composition or R1/R2 length asymmetry.
+    if (lane == SampleLane::R1) {
       stats.r1_lengths.push_back(static_cast<int>(seq.length()));
-    } else {
+    } else if (lane == SampleLane::R2) {
       stats.r2_lengths.push_back(static_cast<int>(seq.length()));
+    } else {
+      stats.r3_lengths.push_back(static_cast<int>(seq.length()));
     }
 
-    for (const char c : seq) {
-      const char upper = dna_ascii_upper(c);
-      if (is_r1) {
-        if (upper == 'C')
-          stats.r1_C++;
-        else if (upper == 'T')
-          stats.r1_T++;
-        else if (upper == 'G')
-          stats.r1_G++;
-        else if (upper == 'A')
-          stats.r1_A++;
-      } else {
-        if (upper == 'C')
-          stats.r2_C++;
-        else if (upper == 'T')
-          stats.r2_T++;
-        else if (upper == 'G')
-          stats.r2_G++;
-        else if (upper == 'A')
-          stats.r2_A++;
+    if (lane != SampleLane::R3) {
+      for (const char c : seq) {
+        const char upper = dna_ascii_upper(c);
+        if (lane == SampleLane::R1) {
+          if (upper == 'C')
+            stats.r1_C++;
+          else if (upper == 'T')
+            stats.r1_T++;
+          else if (upper == 'G')
+            stats.r1_G++;
+          else if (upper == 'A')
+            stats.r1_A++;
+        } else {
+          if (upper == 'C')
+            stats.r2_C++;
+          else if (upper == 'T')
+            stats.r2_T++;
+          else if (upper == 'G')
+            stats.r2_G++;
+          else if (upper == 'A')
+            stats.r2_A++;
+        }
       }
     }
 
     if (has_atac_adapter(seq)) {
-      if (is_r1) {
+      if (lane == SampleLane::R1) {
         stats.atac_adapters_r1++;
-      } else {
+      } else if (lane == SampleLane::R2) {
         stats.atac_adapters_r2++;
+      } else {
+        stats.atac_adapters_r3++;
       }
     }
     if (has_poly_a_tail(seq)) {
-      if (is_r1) {
+      if (lane == SampleLane::R1) {
         stats.poly_a_tails_r1++;
-      } else {
+      } else if (lane == SampleLane::R2) {
         stats.poly_a_tails_r2++;
+      } else {
+        stats.poly_a_tails_r3++;
       }
     }
 
@@ -362,6 +398,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
           stats.intron_hits++;
           break;
         default:
+          // GENOME_BACKBONE / AMBIGUOUS / NONE: no specialty credit
           break;
         }
       }
@@ -410,7 +447,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
                              result.input_summary.use_crlf_by_stream[0])) {
         break;
       }
-      record_sequence(header_1, seq_1, true);
+      record_sequence(header_1, seq_1, SampleLane::R1);
 
       if (paired_end) {
         std::string header_2;
@@ -420,7 +457,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
           throw std::runtime_error(
               "Paired-end input truncated during startup sampling.");
         }
-        record_sequence(header_2, seq_2, false);
+        record_sequence(header_2, seq_2, SampleLane::R2);
       }
 
       stats.total_reads++;
@@ -484,7 +521,7 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
                              result.input_summary.use_crlf_by_stream[0])) {
         break;
       }
-      record_sequence(header_1, seq_1, true);
+      record_sequence(header_1, seq_1, SampleLane::R1);
 
       if (paired_end) {
         std::string header_2;
@@ -494,11 +531,90 @@ AssayDetector::StartupAnalysisResult AssayDetector::analyze_startup_sample(
           throw std::runtime_error(
               "Paired-end FASTA input truncated during startup sampling.");
         }
-        record_sequence(header_2, seq_2, false);
+        record_sequence(header_2, seq_2, SampleLane::R2);
       }
 
       stats.total_reads++;
       result.input_summary.sampled_fragments++;
+    }
+  }
+
+  // Multiome R3 carries genomic chemistry (e.g. ATAC adapters) that R1/R2 may
+  // lack; sample it for assay signals. I1/I2 stay layout-only (barcodes).
+  if (readable_grouped_lane_present(r3_path)) {
+    gzip_istream r3_stream(r3_path);
+    if (r3_stream.is_open()) {
+      bool r3_crlf = false;
+      if (!fasta_input) {
+        auto read_fastq_record = [](std::istream &stream, std::string &header,
+                                    std::string &seq, bool &stream_saw_crlf) {
+          std::string plus_line;
+          std::string quality_line;
+          if (!std::getline(stream, header)) {
+            return false;
+          }
+          if (!std::getline(stream, seq) || !std::getline(stream, plus_line) ||
+              !std::getline(stream, quality_line)) {
+            throw std::runtime_error(
+                "Invalid FASTQ while sampling grouped R3 reads.");
+          }
+          remove_sample_cr(header, stream_saw_crlf);
+          remove_sample_cr(seq, stream_saw_crlf);
+          remove_sample_cr(plus_line, stream_saw_crlf);
+          remove_sample_cr(quality_line, stream_saw_crlf);
+          return true;
+        };
+        for (int sampled = 0; sampled < kMaxReadsToScan; ++sampled) {
+          std::string header;
+          std::string seq;
+          if (!read_fastq_record(r3_stream, header, seq, r3_crlf)) {
+            break;
+          }
+          record_sequence(header, seq, SampleLane::R3);
+        }
+      } else {
+        auto read_fasta_record =
+            [](std::istream &stream, std::string &pending_header,
+               std::string &header, std::string &seq, bool &stream_saw_crlf) {
+              header.clear();
+              seq.clear();
+              std::string line;
+              if (!pending_header.empty()) {
+                header = pending_header;
+                pending_header.clear();
+              } else {
+                while (std::getline(stream, line)) {
+                  remove_sample_cr(line, stream_saw_crlf);
+                  if (!line.empty() && line.front() == '>') {
+                    header = line;
+                    break;
+                  }
+                }
+              }
+              if (header.empty()) {
+                return false;
+              }
+              while (std::getline(stream, line)) {
+                remove_sample_cr(line, stream_saw_crlf);
+                if (!line.empty() && line.front() == '>') {
+                  pending_header = line;
+                  break;
+                }
+                seq += line;
+              }
+              return true;
+            };
+        std::string pending_header;
+        for (int sampled = 0; sampled < kMaxReadsToScan; ++sampled) {
+          std::string header;
+          std::string seq;
+          if (!read_fasta_record(r3_stream, pending_header, header, seq,
+                                 r3_crlf)) {
+            break;
+          }
+          record_sequence(header, seq, SampleLane::R3);
+        }
+      }
     }
   }
 

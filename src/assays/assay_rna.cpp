@@ -26,16 +26,17 @@ AssayScoreBreakdown score_rna_assay(const AssayDetectionStats &stats,
                                     bool reference_loaded,
                                     bool suppress_poly_a_signal) {
   AssayScoreBreakdown result;
-  if (stats.r1_lengths.empty() && stats.r2_lengths.empty()) {
+  if (stats.r1_lengths.empty() && stats.r2_lengths.empty() &&
+      stats.r3_lengths.empty()) {
     return result;
   }
 
-  // Max per-mate rate: PE both-mates hits no longer score as ~2x SE, and a
-  // signal on only one mate (typical sc-RNA poly-A on R2) is preserved.
-  // Thresholds are calibrated to contiguous-run rates (same as strip), which
-  // are lower than the old composition-window rates.
-  const double poly_a_frac = max_mate_signal_rate(
-      stats.poly_a_tails_r1, stats.poly_a_tails_r2, stats);
+  // Max per-lane rate: PE both-mates hits no longer score as ~2x SE; a signal
+  // on only one mate (typical sc-RNA poly-A on R2) or R3 is preserved.
+  // Thresholds are calibrated to contiguous-run rates (same as strip).
+  const double poly_a_frac = max_lane_signal_rate(
+      stats.poly_a_tails_r1, stats.poly_a_tails_r2, stats.poly_a_tails_r3,
+      stats);
   if (!suppress_poly_a_signal) {
     if (poly_a_frac > 0.05) {
       result.score += 80.0;

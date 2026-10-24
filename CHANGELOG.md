@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Fixed embedded assay-reference kmer collisions where later blocks overwrote earlier exon/promoter/intron labels: conflicting specialty kmers are now marked ambiguous and ignored when scoring; backbone never erases specialty.
+- Fixed multiome assay detection ignoring R3 sequence content: R3 is sampled for Tn5/poly-A/kmer chemistry (without polluting R1/R2 bisulfite composition or length asymmetry); I1/I2 remain layout-only.
 - Fixed `AssayDetector::detect` always sampling as FASTQ: R1 is sniffed for FASTA (`>`) vs FASTQ (`@`) so the library/API path matches compression's `analyze_startup_sample` format handling.
 - Fixed silent assay-reference inflate failure: a failed zlib decompress of the embedded reference is logged once and detection continues with composition/adapter signals only (no endless retry).
 - Fixed bisulfite detection preferring C whenever both C and G looked strong on the same stream: the depleted base is now the more depleted of the two (lower ratio).
