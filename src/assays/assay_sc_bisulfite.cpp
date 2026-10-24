@@ -3,6 +3,8 @@
 
 #include "assay_sc_bisulfite.h"
 
+#include "assay_bisulfite.h"
+
 namespace spring {
 
 bool is_sc_bisulfite_assay(const compression_params &cp) {
@@ -15,13 +17,7 @@ void apply_sc_bisulfite_auto_config(
   if (detection_result.assay != "sc-bisulfite") {
     return;
   }
-  if (detection_result.c_ratio < 0.05 || detection_result.g_ratio < 0.05) {
-    cp.encoding.bisulfite_ternary = true;
-    cp.encoding.depleted_base_by_stream[0] =
-        detection_result.depleted_base_by_stream[0];
-    cp.encoding.depleted_base_by_stream[1] =
-        detection_result.depleted_base_by_stream[1];
-  }
+  apply_bisulfite_encoding_from_detection(cp, detection_result);
 }
 
 } // namespace spring

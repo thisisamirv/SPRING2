@@ -17,9 +17,9 @@
 - Replaced the positional `compress(...)` library API (long bool/string argument list) with `CompressOptions` named fields so strip/audit/assay/lane settings cannot be swapped by mistake.
 - Unified paired-end decompression single-`-o` prefixes with grouped naming: `-o prefix` now writes `prefix.R1` / `prefix.R2` (previously `.1` / `.2`). Fallback names when metadata has no original filenames use the same suffixes.
 - Split the monolithic root `CMakeLists.txt` (~1.7k lines) into focused modules under `cmake/` (`ProjectSetup`, `Toolchain`, `Compiler`, `OpenMP`, `HostTools`, `Vendors`, `Sources`, `Targets`, `Install`, `Tests`, …); the root file is now a thin include orchestrator.
-
 ### Fixed
 
+- Fixed bisulfite auto domain compression losing size vs DNA on directional PE libraries: depleted-base reorder masks and ternary contig packing are armed only when both streams share the same depleted base (`C` or `G`); G-depleted libraries pack/decode with an `{A,C,T}` alphabet via new `bisulfite_ternary_escape_base` metadata (legacy archives default to escape-on-`C`). Directional PE (C vs G) keeps DNA-equivalent encoding while still labeling the assay from detection.
 - Fixed embedded assay-reference kmer collisions where later blocks overwrote earlier exon/promoter/intron labels: conflicting specialty kmers are now marked ambiguous and ignored when scoring; backbone never erases specialty.
 - Fixed multiome assay detection ignoring R3 sequence content: R3 is sampled for Tn5/poly-A/kmer chemistry (without polluting R1/R2 bisulfite composition or length asymmetry); I1/I2 remain layout-only.
 - Fixed `AssayDetector::detect` always sampling as FASTQ: R1 is sniffed for FASTA (`>`) vs FASTQ (`@`) so the library/API path matches compression's `analyze_startup_sample` format handling.

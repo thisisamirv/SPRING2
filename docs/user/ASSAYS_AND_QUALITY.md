@@ -61,6 +61,11 @@ Examples include:
   an explicit `--cb-len` (the default length alone is not enough for auto)
 - grouped scRNA with index lanes: trailing index tokens in IDs can be
   reconstructed from decoded I1/I2 reads
+- bisulfite / sc-bisulfite (`--assay auto`): when both mates share the same
+  depleted base, enable C/T or G/A reorder masking plus ternary packing
+  (`C` → `{A,G,T}`, `G` → `{A,C,T}`). Directional PE (R1 C-depleted /
+  R2 G-depleted) keeps DNA-equivalent encoding so mixed alphabets cannot
+  inflate the archive; the assay label and confidence still record depletion
 
 These behaviors are recorded in archive metadata and surfaced by preview mode.
 

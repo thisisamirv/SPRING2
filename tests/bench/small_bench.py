@@ -192,6 +192,10 @@ def run_assay_suite() -> None:
         assay_mode = (
             sample["expected"] if sample["expected"] == "sc-bisulfite" else "auto"
         )
+        # Size comparison must be single-threaded: multi-thread OpenMP
+        # reorder/encode is nondeterministic and can swing archive size by
+        # ~0.5% independent of assay mode (false domain gain/loss).
+        compare_threads = "1"
         print(
             f"  Step 1: Compression with --assay {assay_mode} (expected: {sample['expected']})"
         )
@@ -203,7 +207,7 @@ def run_assay_suite() -> None:
                 "-o",
                 str(auto_archive),
                 "-t",
-                current_threads(),
+                compare_threads,
                 "-q",
                 "lossless",
                 "--assay",
@@ -242,7 +246,7 @@ def run_assay_suite() -> None:
                 "-o",
                 str(dna_archive),
                 "-t",
-                current_threads(),
+                compare_threads,
                 "-q",
                 "lossless",
                 "--assay",
@@ -259,8 +263,12 @@ def run_assay_suite() -> None:
         print(f"    Auto archive size:           {size_auto:,} bytes")
         print(f"    Generic DNA-mode size:       {size_dna:,} bytes")
         print(f"    Optimization Gain:           {gain:.2f}%")
-        if gain < 0:
+        # Ignore tiny negatives from metadata/tar padding; real regressions
+        # are well above this (previously ~6% for broken bisulfite ternary).
+        if gain < -0.5:
             print("    Warning: Domain optimization was larger than DNA mode!")
+        elif gain < 0:
+            print("    Domain optimization NEUTRAL (within noise vs DNA mode)")
         else:
             print("    Domain optimization SUCCESS")
 

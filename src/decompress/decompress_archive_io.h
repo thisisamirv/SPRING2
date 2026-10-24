@@ -139,10 +139,10 @@ uint32_t compute_thread_read_count(uint32_t step_read_count,
                                    uint32_t num_reads_per_block,
                                    uint64_t thread_id);
 
-std::string
-decode_packed_sequence_chunk_bytes(const std::vector<char> &packed_bytes,
-                                   int encoding_thread_id, uint64_t num_bases,
-                                   bool bisulfite_ternary);
+std::string decode_packed_sequence_chunk_bytes(
+    const std::vector<char> &packed_bytes, int encoding_thread_id,
+    uint64_t num_bases, bool bisulfite_ternary,
+    char bisulfite_ternary_escape_base = 'C');
 
 uint64_t compute_num_reads_per_step(const uint32_t num_reads,
                                     const uint32_t num_reads_per_block,

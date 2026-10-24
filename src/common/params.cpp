@@ -114,6 +114,7 @@ void initialize_optional_archive_metadata_defaults(compression_params &cp) {
   cp.encoding.bisulfite_ternary = false;
   cp.encoding.depleted_base_by_stream[0] = 'N';
   cp.encoding.depleted_base_by_stream[1] = 'N';
+  cp.encoding.bisulfite_ternary_escape_base = 'C';
   cp.encoding.poly_at_stripped = false;
   cp.encoding.cb_prefix_stripped = false;
   cp.encoding.cb_prefix_len = 0;
@@ -258,6 +259,8 @@ void write_extension_fields_after_digests(std::ostream &out,
   // Appended after the v2 fixed fields so older readers that stop at
   // digest_length_framed still parse; mate defaults to stream 0 when absent.
   out.write(byte_ptr(&cp.encoding.depleted_base_by_stream[1]), sizeof(char));
+  // Ternary pack alphabet escape base; absent in older archives => 'C'.
+  out.write(byte_ptr(&cp.encoding.bisulfite_ternary_escape_base), sizeof(char));
 }
 
 // Format v2+ trailer: explicit digests_present, then optional digests, then the
@@ -346,6 +349,20 @@ void read_extension_fields_after_digests(
   } else {
     cp.encoding.depleted_base_by_stream[1] =
         cp.encoding.depleted_base_by_stream[0];
+  }
+  // Optional ternary escape base (absent => legacy AGT / escape-on-C).
+  cp.encoding.bisulfite_ternary_escape_base = 'C';
+  if (in.peek() != std::char_traits<char>::eof()) {
+    in.read(byte_ptr(&cp.encoding.bisulfite_ternary_escape_base), sizeof(char));
+    if (!in) {
+      throw std::runtime_error(
+          "Corrupt archive: truncated bisulfite_ternary_escape_base.");
+    }
+    if (cp.encoding.bisulfite_ternary_escape_base != 'C' &&
+        cp.encoding.bisulfite_ternary_escape_base != 'G') {
+      throw std::runtime_error(
+          "Corrupt archive: invalid bisulfite_ternary_escape_base.");
+    }
   }
 }
 

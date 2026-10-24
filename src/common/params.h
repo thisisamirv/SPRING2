@@ -89,10 +89,14 @@ struct compression_params {
     bool cb_len_was_explicit = false;
     bool barcode_sort = false; // Legacy field; always false in new archives.
     bool bisulfite_ternary = false;
-    // Per-stream depleted base for bisulfite ternary reorder modeling.
-    // [0]=R1/SE, [1]=R2. Older archives stored only [0]; readers copy it to
-    // [1] when the mate field is absent.
+    // Per-stream depleted base for bisulfite reorder masking (and for gating
+    // ternary packing). [0]=R1/SE, [1]=R2. Older archives stored only [0];
+    // readers copy it to [1] when the mate field is absent.
     char depleted_base_by_stream[2] = {'N', 'N'};
+    // Rare base excluded from ternary packing alphabet when bisulfite_ternary
+    // is set: 'C' => pack {A,G,T}; 'G' => pack {A,C,T}. Absent in older
+    // archives (default 'C') so legacy AGT packs still decode.
+    char bisulfite_ternary_escape_base = 'C';
     bool cb_prefix_source_external =
         false; // Compression-time only: CB comes from I1/external lane.
     bool poly_at_stripped = false; // True when poly-A/T tail stripping was

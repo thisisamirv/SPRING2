@@ -104,19 +104,38 @@ bool is_bisulfite_assay(const compression_params &cp) {
   return cp.read_info.assay == "bisulfite";
 }
 
+void apply_bisulfite_encoding_from_detection(
+    compression_params &cp,
+    const AssayDetector::DetectionResult &detection_result) {
+  const char d0 = detection_result.depleted_base_by_stream[0];
+  const char d1 = detection_result.depleted_base_by_stream[1];
+  const bool strong_depletion =
+      detection_result.c_ratio < 0.05 || detection_result.g_ratio < 0.05;
+  // Contig consensus and dictionary keys need one consistent alphabet.
+  // Enable reorder masks + ternary packing only when both streams share the
+  // same depleted base C or G (SE mirrors into d1). Directional PE (C vs G)
+  // keeps DNA-equivalent encoding: mixed masks inflate noise via false
+  // matches, and a single ternary alphabet constantly escapes.
+  if (strong_depletion && d0 == d1 && (d0 == 'C' || d0 == 'G')) {
+    cp.encoding.depleted_base_by_stream[0] = d0;
+    cp.encoding.depleted_base_by_stream[1] = d1;
+    cp.encoding.bisulfite_ternary = true;
+    cp.encoding.bisulfite_ternary_escape_base = d0;
+  } else {
+    cp.encoding.depleted_base_by_stream[0] = 'N';
+    cp.encoding.depleted_base_by_stream[1] = 'N';
+    cp.encoding.bisulfite_ternary = false;
+    cp.encoding.bisulfite_ternary_escape_base = 'C';
+  }
+}
+
 void apply_bisulfite_auto_config(
     compression_params &cp,
     const AssayDetector::DetectionResult &detection_result) {
   if (detection_result.assay != "bisulfite") {
     return;
   }
-  if (detection_result.c_ratio < 0.05 || detection_result.g_ratio < 0.05) {
-    cp.encoding.bisulfite_ternary = true;
-    cp.encoding.depleted_base_by_stream[0] =
-        detection_result.depleted_base_by_stream[0];
-    cp.encoding.depleted_base_by_stream[1] =
-        detection_result.depleted_base_by_stream[1];
-  }
+  apply_bisulfite_encoding_from_detection(cp, detection_result);
 }
 
 } // namespace spring

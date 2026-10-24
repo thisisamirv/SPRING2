@@ -33,6 +33,8 @@ struct encoder_global {
 
   char enc_noise[128][128] = {{0}};
   bool bisulfite_ternary = false;
+  // 'C' => pack {A,G,T}; 'G' => pack {A,C,T}. Meaningful only when ternary.
+  char bisulfite_ternary_escape_base = 'C';
   // When non-empty, the encoder flushes per-thread metadata to this directory
   // instead of accumulating all entries in RAM.  Set from
   // compression_params::encoding::encoder_metadata_spill_dir.

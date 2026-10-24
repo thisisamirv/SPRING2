@@ -402,12 +402,21 @@ uint32_t compute_thread_read_count(const uint32_t step_read_count,
 
 std::string decode_packed_sequence_chunk_bytes(
     const std::vector<char> &packed_bytes, const int encoding_thread_id,
-    const uint64_t num_bases, const bool bisulfite_ternary) {
-  SPRING_LOG_DEBUG("decode_packed_sequence_chunk start: chunk=" +
-                   std::to_string(encoding_thread_id) +
-                   ", num_bases=" + std::to_string(num_bases) +
-                   ", ternary=" + (bisulfite_ternary ? "yes" : "no"));
+    const uint64_t num_bases, const bool bisulfite_ternary,
+    const char bisulfite_ternary_escape_base) {
+  SPRING_LOG_DEBUG(
+      "decode_packed_sequence_chunk start: chunk=" +
+      std::to_string(encoding_thread_id) +
+      ", num_bases=" + std::to_string(num_bases) +
+      ", ternary=" + (bisulfite_ternary ? "yes" : "no") +
+      ", escape_base=" + std::string(1, bisulfite_ternary_escape_base));
   static const char base_lookup[4] = {'A', 'G', 'C', 'T'};
+  // escape 'C' => {A,G,T}; escape 'G' => {A,C,T}. Legacy default is 'C'.
+  const char ternary_bases[3] = {
+      'A',
+      bisulfite_ternary_escape_base == 'G' ? 'C' : 'G',
+      'T',
+  };
 
   std::string decoded;
   decoded.reserve(static_cast<size_t>(num_bases));
@@ -431,8 +440,7 @@ std::string decode_packed_sequence_chunk_bytes(
         for (int k = 0; k < 5 && bases_decoded < num_bases; k++) {
           uint8_t val = byte % 3;
           byte /= 3;
-          static constexpr char kBases[3] = {'A', 'G', 'T'};
-          decoded.push_back(kBases[val]);
+          decoded.push_back(ternary_bases[val]);
           bases_decoded++;
         }
       } else {
@@ -590,7 +598,8 @@ std::vector<std::string> decompress_unpack_seq_chunks(
               packed_chunks_data[static_cast<size_t>(encoding_thread_id)],
               encoding_thread_id,
               cp.read_info.file_len_seq_thr[encoding_thread_id],
-              cp.encoding.bisulfite_ternary);
+              cp.encoding.bisulfite_ternary,
+              cp.encoding.bisulfite_ternary_escape_base);
     } catch (...) {
 #pragma omp critical
       {

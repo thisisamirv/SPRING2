@@ -33,7 +33,9 @@ template <typename T> void append_binary(std::string &buffer, const T &value) {
 
 uint64_t write_packed_sequence(const std::string &sequence_bytes,
                                std::vector<char> &packed_bytes,
-                               bool bisulfite_ternary) {
+                               bool bisulfite_ternary,
+                               char bisulfite_ternary_escape_base) {
+  // DNA 2-bit indices used for non-ternary and for escape payloads.
   static const std::array<uint8_t, 128> base_to_int = []() {
     std::array<uint8_t, 128> table{};
     table[static_cast<uint8_t>('A')] = 0;
@@ -46,6 +48,35 @@ uint64_t write_packed_sequence(const std::string &sequence_bytes,
     table[static_cast<uint8_t>('t')] = 3;
     return table;
   }();
+
+  // Ternary digit for bases in the non-escape alphabet.
+  // escape 'C' => {A,G,T} as 0,1,2; escape 'G' => {A,C,T} as 0,1,2.
+  const bool escape_g = bisulfite_ternary && bisulfite_ternary_escape_base == 'G';
+  auto ternary_digit = [escape_g](char base) -> uint8_t {
+    const char upper = (base >= 'a' && base <= 'z')
+                           ? static_cast<char>(base - 'a' + 'A')
+                           : base;
+    if (upper == 'A')
+      return 0;
+    if (escape_g) {
+      if (upper == 'C')
+        return 1;
+      if (upper == 'T')
+        return 2;
+    } else {
+      if (upper == 'G')
+        return 1;
+      if (upper == 'T')
+        return 2;
+    }
+    return 255; // escape base or invalid
+  };
+  auto is_escape_base = [escape_g](char base) -> bool {
+    const char upper = (base >= 'a' && base <= 'z')
+                           ? static_cast<char>(base - 'a' + 'A')
+                           : base;
+    return escape_g ? (upper == 'G') : (upper == 'C');
+  };
 
   packed_bytes.clear();
   packed_bytes.reserve(std::max<size_t>(sequence_bytes.size() / 2, 1));
@@ -84,22 +115,20 @@ uint64_t write_packed_sequence(const std::string &sequence_bytes,
                               4 * base_to_int[(uint8_t)trailing_bases[1]] +
                               base_to_int[(uint8_t)trailing_bases[0]]));
       } else {
-        bool has_c = false;
+        bool needs_escape = false;
         for (int k = 0; k < 5; k++) {
-          if (trailing_bases[k] == 'C' || trailing_bases[k] == 'c') {
-            has_c = true;
+          if (is_escape_base(trailing_bases[k])) {
+            needs_escape = true;
             break;
           }
         }
-        if (!has_c) {
+        if (!needs_escape) {
           uint8_t packed = 0;
           uint8_t p3 = 1;
           for (int k = 0; k < 5; k++) {
-            uint8_t val = base_to_int[static_cast<uint8_t>(trailing_bases[k])];
-            if (val == 3)
-              val = 2; // T is 2 in ternary
-            packed += val * p3;
-            p3 *= 3;
+            const uint8_t val = ternary_digit(trailing_bases[k]);
+            packed = static_cast<uint8_t>(packed + val * p3);
+            p3 = static_cast<uint8_t>(p3 * 3);
           }
           packed_bytes.push_back(static_cast<char>(packed));
         } else {
@@ -107,7 +136,7 @@ uint64_t write_packed_sequence(const std::string &sequence_bytes,
           uint16_t escape = 0;
           for (int k = 0; k < 5; k++) {
             uint8_t val = base_to_int[static_cast<uint8_t>(trailing_bases[k])];
-            escape |= (val << (2 * k));
+            escape |= static_cast<uint16_t>(val << (2 * k));
           }
           const size_t old_size = packed_bytes.size();
           packed_bytes.resize(old_size + sizeof(uint16_t));
@@ -131,7 +160,7 @@ uint64_t write_packed_sequence(const std::string &sequence_bytes,
       uint16_t escape = 0;
       for (size_t i = 0; i < trailing_count; ++i) {
         uint8_t val = base_to_int[static_cast<uint8_t>(trailing_bases[i])];
-        escape |= (val << (2 * i));
+        escape |= static_cast<uint16_t>(val << (2 * i));
       }
       const size_t old_size = packed_bytes.size();
       packed_bytes.resize(old_size + sizeof(uint16_t));
@@ -163,10 +192,11 @@ std::string pack_compress_seq(
         "block_id=enc-pack-chunk-" + std::to_string(tid) +
         ", pack_sequence_chunk start: bytes=" +
         std::to_string(thread_metadata_outputs[tid].sequence_bytes.size()));
-    const uint64_t sequence_length =
-        write_packed_sequence(thread_metadata_outputs[tid].sequence_bytes,
-                              packed_chunks[static_cast<size_t>(tid)],
-                              encoder_state.bisulfite_ternary);
+    const uint64_t sequence_length = write_packed_sequence(
+        thread_metadata_outputs[tid].sequence_bytes,
+        packed_chunks[static_cast<size_t>(tid)],
+        encoder_state.bisulfite_ternary,
+        encoder_state.bisulfite_ternary_escape_base);
     thread_sequence_lengths[tid] = sequence_length;
     if (sequence_length != thread_metadata_outputs[tid].sequence_base_count) {
       throw std::runtime_error(
@@ -354,6 +384,7 @@ void getDataParams(encoder_global &eg, const compression_params &cp,
   eg.numreads = clean_read_count - eg.numreads_s;
   eg.numreads_N = total_read_count - clean_read_count;
   eg.bisulfite_ternary = cp.encoding.bisulfite_ternary;
+  eg.bisulfite_ternary_escape_base = cp.encoding.bisulfite_ternary_escape_base;
 }
 
 void correct_order(uint32_t *order_s, const encoder_global &eg,

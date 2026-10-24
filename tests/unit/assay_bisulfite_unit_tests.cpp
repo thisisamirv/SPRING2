@@ -40,9 +40,68 @@ TEST_CASE("Directional PE bisulfite keeps per-stream depleted bases") {
 
   compression_params cp{};
   apply_bisulfite_auto_config(cp, detection);
+  // Directional PE: DNA-equivalent encoding (mixed alphabets hurt size).
+  CHECK_FALSE(cp.encoding.bisulfite_ternary);
+  CHECK(cp.encoding.depleted_base_by_stream[0] == 'N');
+  CHECK(cp.encoding.depleted_base_by_stream[1] == 'N');
+}
+
+TEST_CASE("Uniform C-depleted PE arms C-escape ternary packing") {
+  AssayDetectionStats stats;
+  stats.total_reads = 2000;
+  stats.r1_C = 10;
+  stats.r1_T = 800;
+  stats.r1_G = 400;
+  stats.r1_A = 400;
+  stats.r2_C = 12;
+  stats.r2_T = 780;
+  stats.r2_G = 390;
+  stats.r2_A = 410;
+
+  const auto score = score_bisulfite_assay(stats);
+  CHECK(score.depleted_base_by_stream[0] == 'C');
+  CHECK(score.depleted_base_by_stream[1] == 'C');
+
+  AssayDetector::DetectionResult detection;
+  detection.assay = "bisulfite";
+  detection.c_ratio = score.c_ratio;
+  detection.g_ratio = score.g_ratio;
+  detection.depleted_base_by_stream[0] = 'C';
+  detection.depleted_base_by_stream[1] = 'C';
+
+  compression_params cp{};
+  apply_bisulfite_auto_config(cp, detection);
   CHECK(cp.encoding.bisulfite_ternary);
-  CHECK(cp.encoding.depleted_base_by_stream[0] == 'C');
-  CHECK(cp.encoding.depleted_base_by_stream[1] == 'G');
+  CHECK(cp.encoding.bisulfite_ternary_escape_base == 'C');
+}
+
+TEST_CASE("Uniform G-depleted PE arms G-escape ternary packing") {
+  AssayDetectionStats stats;
+  stats.total_reads = 2000;
+  stats.r1_C = 400;
+  stats.r1_T = 400;
+  stats.r1_G = 10;
+  stats.r1_A = 800;
+  stats.r2_C = 390;
+  stats.r2_T = 410;
+  stats.r2_G = 12;
+  stats.r2_A = 780;
+
+  const auto score = score_bisulfite_assay(stats);
+  CHECK(score.depleted_base_by_stream[0] == 'G');
+  CHECK(score.depleted_base_by_stream[1] == 'G');
+
+  AssayDetector::DetectionResult detection;
+  detection.assay = "bisulfite";
+  detection.c_ratio = score.c_ratio;
+  detection.g_ratio = score.g_ratio;
+  detection.depleted_base_by_stream[0] = 'G';
+  detection.depleted_base_by_stream[1] = 'G';
+
+  compression_params cp{};
+  apply_bisulfite_auto_config(cp, detection);
+  CHECK(cp.encoding.bisulfite_ternary);
+  CHECK(cp.encoding.bisulfite_ternary_escape_base == 'G');
 }
 
 TEST_CASE("SE bisulfite mirrors depleted base into stream 1") {
@@ -91,6 +150,7 @@ TEST_CASE("Archive metadata round-trips mate depleted base") {
   cp.encoding.bisulfite_ternary = true;
   cp.encoding.depleted_base_by_stream[0] = 'C';
   cp.encoding.depleted_base_by_stream[1] = 'G';
+  cp.encoding.bisulfite_ternary_escape_base = 'G';
   cp.read_info.digest_length_framed = true;
 
   std::ostringstream out(std::ios::binary);
@@ -102,4 +162,5 @@ TEST_CASE("Archive metadata round-trips mate depleted base") {
   CHECK(parsed.encoding.bisulfite_ternary);
   CHECK(parsed.encoding.depleted_base_by_stream[0] == 'C');
   CHECK(parsed.encoding.depleted_base_by_stream[1] == 'G');
+  CHECK(parsed.encoding.bisulfite_ternary_escape_base == 'G');
 }
