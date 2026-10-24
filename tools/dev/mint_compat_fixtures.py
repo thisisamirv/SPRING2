@@ -91,8 +91,6 @@ SPRING2_CASES = (
 )
 
 LEGACY_ROWS = (
-    "legacy_spring_sample\tlegacy_spring\tcompat/legacy/sample.spring\t"
-    "legacy spring\tsample.fastq\t\t\t\t\t0\tdecompress,preview\t\n",
     "legacy_spring_se_fastq\tlegacy_spring\tcompat/legacy/se_fastq.spring\t"
     "legacy spring\ttest_1.fastq\t\t\t\t\t0\tdecompress,preview,reader\t\n",
     "legacy_spring_se_fasta\tlegacy_spring\tcompat/legacy/se_fasta.spring\t"
