@@ -7,6 +7,7 @@
 #include "assay_rna.h"
 #include "dna_utils.h"
 #include "io_utils.h"
+#include "progress.h"
 #include <algorithm>
 #include <limits>
 #include <sstream>
@@ -95,6 +96,28 @@ bool readable_grouped_lane_present(const std::string &path) {
   return static_cast<bool>(std::getline(stream, line)) && !line.empty();
 }
 
+// Peek R1 content so AssayDetector::detect works for FASTA without an explicit
+// fasta_input flag (compression already passes the real flag to analyze_*).
+bool peek_r1_is_fasta(const std::string &r1_path) {
+  if (r1_path.empty()) {
+    return false;
+  }
+  gzip_istream stream(r1_path);
+  if (!stream.is_open()) {
+    return false;
+  }
+  std::string line;
+  bool saw_crlf = false;
+  while (std::getline(stream, line)) {
+    remove_sample_cr(line, saw_crlf);
+    if (line.empty()) {
+      continue;
+    }
+    return line.front() == '>';
+  }
+  return false;
+}
+
 } // namespace
 
 const char *pick_specialty_assay(double bisulfite_score, double atac_score,
@@ -181,15 +204,22 @@ extern const std::size_t kEmbeddedReferenceCompressedSize;
 extern const std::size_t kEmbeddedReferenceUncompressedSize;
 
 void AssayDetector::load_reference() {
-  if (reference_loaded_)
+  if (reference_loaded_ || reference_load_attempted_)
     return;
+  reference_load_attempted_ = true;
 
   std::string raw(kEmbeddedReferenceUncompressedSize, '\0');
   uLongf dest_len = static_cast<uLongf>(kEmbeddedReferenceUncompressedSize);
-  if (uncompress(reinterpret_cast<Bytef *>(raw.data()), &dest_len,
+  const int zlib_rc =
+      uncompress(reinterpret_cast<Bytef *>(raw.data()), &dest_len,
                  kEmbeddedReference,
-                 static_cast<uLong>(kEmbeddedReferenceCompressedSize)) != Z_OK)
+                 static_cast<uLong>(kEmbeddedReferenceCompressedSize));
+  if (zlib_rc != Z_OK) {
+    SPRING_LOG_INFO(
+        "Assay reference inflate failed (zlib rc=" + std::to_string(zlib_rc) +
+        "); continuing with composition/adapter signals only");
     return;
+  }
   raw.resize(dest_len);
 
   std::istringstream in(std::move(raw));
@@ -562,8 +592,9 @@ AssayDetector::DetectionResult
 AssayDetector::detect(const std::string &r1_path, const std::string &r2_path,
                       const std::string &r3_path, const std::string &i1_path,
                       const std::string &i2_path) {
+  const bool fasta_input = peek_r1_is_fasta(r1_path);
   return analyze_startup_sample(r1_path, r2_path, r3_path, i1_path, i2_path,
-                                !r2_path.empty(), false)
+                                !r2_path.empty(), fasta_input)
       .assay_result;
 }
 

@@ -99,8 +99,8 @@ public:
     DetectionResult assay_result;
   };
 
-  // Runs the 5-stage heuristic detection on the provided FASTQ files.
-  // Returns the final predicted assay type and stats.
+  // Runs the 5-stage heuristic detection on the provided FASTQ or FASTA
+  // inputs (format is sniffed from R1). Returns the predicted assay type.
   DetectionResult detect(const std::string &r1_path, const std::string &r2_path,
                          const std::string &r3_path, const std::string &i1_path,
                          const std::string &i2_path);
@@ -126,6 +126,7 @@ private:
 
   std::unordered_map<uint64_t, BlockID> kmer_index_;
   bool reference_loaded_ = false;
+  bool reference_load_attempted_ = false;
   static constexpr int kKmerSize = 17;
   static constexpr int kMaxReadsToScan = 10000;
 };

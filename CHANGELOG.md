@@ -18,6 +18,8 @@
 
 ### Fixed
 
+- Fixed `AssayDetector::detect` always sampling as FASTQ: R1 is sniffed for FASTA (`>`) vs FASTQ (`@`) so the library/API path matches compression's `analyze_startup_sample` format handling.
+- Fixed silent assay-reference inflate failure: a failed zlib decompress of the embedded reference is logged once and detection continues with composition/adapter signals only (no endless retry).
 - Fixed bisulfite detection preferring C whenever both C and G looked strong on the same stream: the depleted base is now the more depleted of the two (lower ratio).
 - Fixed assay detection ignoring lowercase FASTQ bases for composition, poly-A/ATAC tail matching, and non-ACGTN checks (kmers already accepted lowercase).
 - Fixed bisulfite auto-detection ignoring libraries with fewer than 500 fragments (ATAC/RNA had no such floor): depletion scoring now relies on per-stream base-count checks only, so small clear BS inputs can classify as `bisulfite`.

@@ -57,6 +57,23 @@ TEST_CASE("Testing AssayDetector") {
     CHECK(res.confidence == "low (no reads parsed)");
   }
 
+  SUBCASE("detect() sniffs FASTA and classifies poly-A tails") {
+    std::string test_fa = "test_rna_detect.fa";
+    std::ofstream out(test_fa);
+    for (int i = 0; i < 100; ++i) {
+      out << ">read" << i << "\n";
+      out << "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
+    }
+    out.close();
+
+    AssayDetector::DetectionResult res =
+        detector.detect(test_fa, "", "", "", "");
+    CHECK(res.assay == "rna");
+    CHECK(res.confidence.find("poly-A/T tails") != std::string::npos);
+
+    std::filesystem::remove(test_fa);
+  }
+
   SUBCASE("Test poly-A detection signature directly") {
     std::string test_fq = "test_sc_rna.fq";
     std::ofstream out(test_fq);
