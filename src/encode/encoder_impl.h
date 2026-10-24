@@ -168,7 +168,8 @@ uint32_t write_unaligned_range_streaming(
 // Per-thread flush: append accumulated metadata (except sequence_bytes) to the
 // six open per-thread binary files and clear the in-memory vectors/strings.
 // Called periodically from within the OMP loop to cap per-thread RAM usage.
-inline void flush_thread_metadata_to_disk(encoded_metadata_buffer &metadata,
+// Returns false if any spill write failed so the caller can abort the shard.
+inline bool flush_thread_metadata_to_disk(encoded_metadata_buffer &metadata,
                                           std::ofstream &pos_out,
                                           std::ofstream &noise_out,
                                           std::ofstream &noisepos_out,
@@ -215,6 +216,9 @@ inline void flush_thread_metadata_to_disk(encoded_metadata_buffer &metadata,
                                      sizeof(uint32_t)));
     metadata.read_order_entries.clear();
   }
+  return static_cast<bool>(pos_out) && static_cast<bool>(noise_out) &&
+         static_cast<bool>(noisepos_out) && static_cast<bool>(orient_out) &&
+         static_cast<bool>(readlen_out) && static_cast<bool>(readorder_out);
 }
 
 // Number of read_order entries to accumulate per thread before flushing to
@@ -705,10 +709,15 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
           // the threshold is reached, keeping per-thread peak RAM < ~7 MB.
           if (flush_metadata && thread_metadata.read_order_entries.size() >=
                                     detail::kMetadataFlushThreshold) {
-            detail::flush_thread_metadata_to_disk(
-                thread_metadata, flush_pos_out, flush_noise_out,
-                flush_noisepos_out, flush_orient_out, flush_readlen_out,
-                flush_readorder_out);
+            if (!detail::flush_thread_metadata_to_disk(
+                    thread_metadata, flush_pos_out, flush_noise_out,
+                    flush_noisepos_out, flush_orient_out, flush_readlen_out,
+                    flush_readorder_out)) {
+              open_stream_errors[static_cast<size_t>(thread_id)] =
+                  std::string("Thread ") + std::to_string(thread_id) +
+                  ": Failed writing metadata flush files.";
+              done = true;
+            }
           }
         }
         if (!done) {
@@ -726,9 +735,14 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
     // Disk-path: final flush of any remaining metadata + close per-thread
     // files.
     if (flush_metadata) {
-      detail::flush_thread_metadata_to_disk(
-          thread_metadata, flush_pos_out, flush_noise_out, flush_noisepos_out,
-          flush_orient_out, flush_readlen_out, flush_readorder_out);
+      if (!detail::flush_thread_metadata_to_disk(
+              thread_metadata, flush_pos_out, flush_noise_out, flush_noisepos_out,
+              flush_orient_out, flush_readlen_out, flush_readorder_out) &&
+          open_stream_errors[static_cast<size_t>(thread_id)].empty()) {
+        open_stream_errors[static_cast<size_t>(thread_id)] =
+            std::string("Thread ") + std::to_string(thread_id) +
+            ": Failed writing final metadata flush files.";
+      }
       flush_pos_out.close();
       flush_noise_out.close();
       flush_noisepos_out.close();
@@ -746,10 +760,21 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
         ", absorbed_singletons=" + std::to_string(thread_singleton_absorbed));
   }
 
+  std::string encode_errors;
   for (const std::string &error_msg : open_stream_errors) {
-    if (!error_msg.empty()) {
-      std::cerr << error_msg << std::endl;
+    if (error_msg.empty()) {
+      continue;
     }
+    if (!encode_errors.empty()) {
+      encode_errors.push_back('\n');
+    }
+    encode_errors += error_msg;
+  }
+  if (!encode_errors.empty()) {
+    throw std::runtime_error(
+        "Encoder failed to process one or more shards (archive would be "
+        "incomplete):\n" +
+        encode_errors);
   }
 
   // length_masks and index_masks are RAII-managed and freed automatically

@@ -18,6 +18,7 @@
 - Fixed ATAC auto-detection missing reverse-orientation Tn5 adapters: adapter kmers are now taken from both mosaic-end sequences (`CTGTCTCTTATACACATCT` and `AGATGTGTATAAGAGACAG`) instead of a reverse kmer that was not a substring of either.
 - Fixed grouped sc-RNA paired index-ID stripping verifying only the I1 token before `+`: stripping now requires the full `I1+I2` suffix to match both index reads, so a mismatched I2 is no longer overwritten on restore.
 - Fixed `--memory` accepting non-finite values and undefined behavior when converting huge budgets to a thread cap: non-finite values are rejected, and thread counts are clamped to `INT_MAX` instead of `static_cast<int>` overflow.
+- Fixed encoder continuing after shard open or metadata-spill write failures and still packing an incomplete archive: those errors now abort encoding instead of only being printed.
 
 ## V1.3.6
 
