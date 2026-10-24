@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Fixed ATAC/sc-ATAC adapter stripping locking enable/disable on the first preprocess step with any reads (including all-N steps): accumulate a minimum non-N sample across steps/streams before deciding, decide on short EOF steps so small inputs can still strip, and require high (or explicit `-y`) confidence before arming strip consideration.
 - Fixed Windows MinGW/WinLibs CMake configure failing `find_package(OpenMP)` on the C language probe: require OpenMP CXX and reuse those flags/libs for C.
 - Fixed decompression always showing a timed "Verifying integrity" step even when digest comparison is skipped (order stripped / no stored digests): the step now runs only when a real CRC compare will execute.
 - Fixed archive metadata treating any trailing bytes after the core `cp.bin` body as a digest block via `peek()!=eof`: format v2 length-prefixes the extension trailer and stores an explicit `digests_present` flag (older formats still read via the peek path, and reject truncated digest blocks).

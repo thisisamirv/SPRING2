@@ -3,6 +3,8 @@
 
 #include "assay_sc_atac.h"
 
+#include "assay_atac.h"
+
 #include <algorithm>
 #include <array>
 #include <stdexcept>
@@ -20,18 +22,14 @@ bool should_consider_sc_atac_adapter_stripping(const compression_params &cp,
   return !fasta_input && !cp.encoding.long_flag &&
          cp.read_info.assay == "sc-atac" &&
          (cp.read_info.assay_confidence == "N/A" ||
-          cp.read_info.assay_confidence.starts_with("high") ||
-          cp.read_info.assay_confidence.starts_with("medium"));
+          cp.read_info.assay_confidence.starts_with("high"));
 }
 
 bool should_activate_sc_atac_adapter_stripping(uint32_t eligible_reads,
                                                uint64_t stripped_bases,
                                                double min_bases_per_read) {
-  const double avg_stripped_bases_per_read =
-      eligible_reads == 0 ? 0.0
-                          : static_cast<double>(stripped_bases) /
-                                static_cast<double>(eligible_reads);
-  return avg_stripped_bases_per_read >= min_bases_per_read;
+  return should_activate_atac_adapter_stripping(eligible_reads, stripped_bases,
+                                                min_bases_per_read);
 }
 
 uint8_t detect_sc_atac_adapter_tail_info(const std::string &read_str,

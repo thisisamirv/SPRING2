@@ -74,11 +74,13 @@ bool has_atac_adapter(const std::string &seq) {
 bool should_consider_atac_adapter_stripping(const compression_params &cp,
                                             bool fasta_input,
                                             bool grouped_archive_allowed) {
+  // Explicit `-y atac`/`sc-atac` uses confidence "N/A". Auto mode only arms
+  // stripping on high confidence so medium Tn5 hits cannot alone enable
+  // terminal strip of genomic 12-mers.
   return !fasta_input && !cp.encoding.long_flag &&
          (cp.read_info.assay == "atac" || cp.read_info.assay == "sc-atac") &&
          (cp.read_info.assay_confidence == "N/A" ||
-          cp.read_info.assay_confidence.starts_with("high") ||
-          cp.read_info.assay_confidence.starts_with("medium")) &&
+          cp.read_info.assay_confidence.starts_with("high")) &&
          grouped_archive_allowed;
 }
 
@@ -90,6 +92,26 @@ bool should_activate_atac_adapter_stripping(uint32_t eligible_reads,
                           : static_cast<double>(stripped_bases) /
                                 static_cast<double>(eligible_reads);
   return avg_stripped_bases_per_read >= min_bases_per_read;
+}
+
+bool update_atac_adapter_strip_sample(AtacAdapterStripSample &sample,
+                                      uint32_t step_eligible_reads,
+                                      uint64_t step_stripped_bases,
+                                      bool end_of_input,
+                                      uint32_t min_sample_reads,
+                                      double min_bases_per_read) {
+  if (sample.decided) {
+    return false;
+  }
+  sample.eligible_reads += step_eligible_reads;
+  sample.stripped_bases += step_stripped_bases;
+  if (!end_of_input && sample.eligible_reads < min_sample_reads) {
+    return false;
+  }
+  sample.active = should_activate_atac_adapter_stripping(
+      sample.eligible_reads, sample.stripped_bases, min_bases_per_read);
+  sample.decided = true;
+  return true;
 }
 
 uint8_t detect_atac_adapter_tail_info(const std::string &read_str,

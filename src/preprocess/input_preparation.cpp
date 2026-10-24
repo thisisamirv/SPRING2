@@ -441,8 +441,11 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
            : should_consider_atac_adapter_stripping(
                  cp, fasta_input, allow_grouped_atac_adapter_strip));
   constexpr double kMinAtacAdapterBasesPerRead = 1.0;
+  AtacAdapterStripSample atac_adapter_strip_sample;
+  if (!maybe_apply_atac_adapter_strip) {
+    atac_adapter_strip_sample.decided = true;
+  }
   bool atac_adapter_strip_active = false;
-  bool atac_adapter_strip_decided = !maybe_apply_atac_adapter_strip;
 
   if (apply_poly_at) {
     SPRING_LOG_DEBUG("poly-A/T tail stripping enabled (min run length > " +
@@ -450,8 +453,10 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
   }
 
   if (maybe_apply_atac_adapter_strip) {
-    SPRING_LOG_DEBUG("ATAC adapter stripping enabled (min overlap >= " +
-                     std::to_string(ATAC_ADAPTER_MIN_MATCH) + " bp)");
+    SPRING_LOG_DEBUG(
+        "ATAC adapter stripping under consideration (min overlap >= " +
+        std::to_string(ATAC_ADAPTER_MIN_MATCH) + " bp; sample >= " +
+        std::to_string(kAtacAdapterStripMinSampleReads) + " non-N reads)");
   }
 
   // Determine whether single-cell barcode prefix stripping should be applied.
@@ -683,23 +688,31 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
           eligible_reads++;
           stripped_bases += static_cast<uint64_t>(strip_info >> 1);
         }
-        if (!atac_adapter_strip_decided) {
+        // A short step means this stream hit EOF. For SE, decide now so small
+        // inputs can strip within this step. For PE, wait until mate (stream 1)
+        // so an all-N R1 prefix cannot permanently disable before R2 is seen.
+        const bool step_reached_eof =
+            reads_in_step < static_cast<uint32_t>(num_reads_per_step);
+        const bool treat_as_eof =
+            step_reached_eof &&
+            (!cp.encoding.paired_end || stream_index == 1);
+        if (update_atac_adapter_strip_sample(
+                atac_adapter_strip_sample, eligible_reads, stripped_bases,
+                treat_as_eof, kAtacAdapterStripMinSampleReads,
+                kMinAtacAdapterBasesPerRead)) {
+          atac_adapter_strip_active = atac_adapter_strip_sample.active;
           const double avg_stripped_bases_per_read =
-              eligible_reads == 0 ? 0.0
-                                  : static_cast<double>(stripped_bases) /
-                                        static_cast<double>(eligible_reads);
-          atac_adapter_strip_active =
-              sc_atac_assay ? should_activate_sc_atac_adapter_stripping(
-                                  eligible_reads, stripped_bases,
-                                  kMinAtacAdapterBasesPerRead)
-                            : should_activate_atac_adapter_stripping(
-                                  eligible_reads, stripped_bases,
-                                  kMinAtacAdapterBasesPerRead);
-          atac_adapter_strip_decided = true;
+              atac_adapter_strip_sample.eligible_reads == 0
+                  ? 0.0
+                  : static_cast<double>(
+                        atac_adapter_strip_sample.stripped_bases) /
+                        static_cast<double>(
+                            atac_adapter_strip_sample.eligible_reads);
           SPRING_LOG_DEBUG(
               std::string("ATAC adapter stripping ") +
               (atac_adapter_strip_active ? "enabled" : "disabled") +
-              " after sampling " + std::to_string(eligible_reads) +
+              " after sampling " +
+              std::to_string(atac_adapter_strip_sample.eligible_reads) +
               " reads (avg stripped bases/read=" +
               std::to_string(avg_stripped_bases_per_read) + ")");
         }
@@ -1200,6 +1213,26 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                          compressed_cb_qual);
     }
   }
+  if (maybe_apply_atac_adapter_strip &&
+      update_atac_adapter_strip_sample(
+          atac_adapter_strip_sample, /*step_eligible_reads=*/0,
+          /*step_stripped_bases=*/0, /*end_of_input=*/true,
+          kAtacAdapterStripMinSampleReads, kMinAtacAdapterBasesPerRead)) {
+    // No further reads remain to strip; log the sample outcome only.
+    const double avg_stripped_bases_per_read =
+        atac_adapter_strip_sample.eligible_reads == 0
+            ? 0.0
+            : static_cast<double>(atac_adapter_strip_sample.stripped_bases) /
+                  static_cast<double>(atac_adapter_strip_sample.eligible_reads);
+    SPRING_LOG_DEBUG(
+        std::string("ATAC adapter stripping ") +
+        (atac_adapter_strip_sample.active ? "would enable" : "disabled") +
+        " at end of input after sampling " +
+        std::to_string(atac_adapter_strip_sample.eligible_reads) +
+        " reads (avg stripped bases/read=" +
+        std::to_string(avg_stripped_bases_per_read) + ")");
+  }
+
   if (maybe_apply_atac_adapter_strip) {
     for (int stream_index = 0; stream_index < 2; ++stream_index) {
       if (stream_index == 1 && !cp.encoding.paired_end)

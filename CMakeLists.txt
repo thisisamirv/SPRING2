@@ -1597,6 +1597,7 @@ set(unit_test_sources
     tests/unit/dna_parse_unit_tests.cpp
     tests/unit/assay_detector_unit_tests.cpp
     tests/unit/assay_detector_real_data_unit_tests.cpp
+    tests/unit/assay_atac_strip_unit_tests.cpp
     tests/unit/compression_storage_plan_unit_tests.cpp
     tests/unit/archive_metadata_version_unit_tests.cpp
     tests/unit/archive_integrity_unit_tests.cpp

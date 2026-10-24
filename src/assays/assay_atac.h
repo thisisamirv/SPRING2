@@ -30,6 +30,27 @@ should_activate_atac_adapter_stripping(uint32_t eligible_reads,
                                        uint64_t stripped_bases,
                                        double min_bases_per_read = 1.0);
 
+// Minimum non-N reads to sample before locking enable/disable, so a single
+// early preprocess step (or an all-N first step) cannot permanently miss or
+// falsely enable terminal Tn5 stripping.
+inline constexpr uint32_t kAtacAdapterStripMinSampleReads = 1024;
+
+struct AtacAdapterStripSample {
+  uint32_t eligible_reads = 0;
+  uint64_t stripped_bases = 0;
+  bool decided = false;
+  bool active = false;
+};
+
+// Accumulate one step's detection totals. Decides once eligible_reads reaches
+// min_sample_reads, or immediately when end_of_input is true. Returns true
+// when a decision is newly made.
+[[nodiscard]] bool update_atac_adapter_strip_sample(
+    AtacAdapterStripSample &sample, uint32_t step_eligible_reads,
+    uint64_t step_stripped_bases, bool end_of_input,
+    uint32_t min_sample_reads = kAtacAdapterStripMinSampleReads,
+    double min_bases_per_read = 1.0);
+
 uint8_t detect_atac_adapter_tail_info(const std::string &read_str,
                                       uint32_t read_length);
 
