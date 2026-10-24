@@ -38,6 +38,7 @@ struct CompressOptions {
   std::string assay = "auto";
   std::string cb_source_path;
   uint32_t cb_len = 16;
+  bool cb_len_was_explicit = false;
   double memory_cap_gb = 0.0;
 };
 

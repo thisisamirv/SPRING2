@@ -17,10 +17,24 @@ bool is_grouped_read3_archive_note(const std::string &note) {
 }
 
 bool should_enable_sc_rna_cb_prefix_stripping(const compression_params &cp) {
-  return !cp.encoding.long_flag && cp.encoding.preserve_order &&
-         !cp.encoding.cb_prefix_source_external && cp.encoding.cb_len > 0 &&
-         cp.read_info.assay == "sc-rna" &&
-         !is_grouped_index_archive_note(cp.read_info.note);
+  if (cp.encoding.long_flag || !cp.encoding.preserve_order ||
+      cp.encoding.cb_prefix_source_external || cp.encoding.cb_len == 0 ||
+      cp.read_info.assay != "sc-rna" ||
+      is_grouped_index_archive_note(cp.read_info.note)) {
+    return false;
+  }
+
+  // Explicit `-y sc-rna` stores confidence "N/A": the user opted into the
+  // assay, so the default --cb-len 16 (or an explicit length) is intentional.
+  if (cp.read_info.assay_confidence == "N/A") {
+    return true;
+  }
+
+  // Auto-detected sc-rna: require high confidence and an explicit --cb-len so
+  // a misclassification (or wrong kit length) cannot silently strip genomic
+  // R1 prefixes with the default of 16.
+  return cp.encoding.cb_len_was_explicit &&
+         cp.read_info.assay_confidence.starts_with("high");
 }
 
 bool should_enable_grouped_sc_rna_index_suffix_stripping(

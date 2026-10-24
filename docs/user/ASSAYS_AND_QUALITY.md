@@ -55,8 +55,9 @@ Examples include:
   it is safe
 - ATAC and scATAC: terminal adapter read-through stripping when the overlap is
   strong enough
-- scRNA and sc-bisulfite: cellular barcode prefix extraction from R1 when no I1
-  lane is used
+- scRNA: cellular barcode prefix extraction from R1 when no I1 lane is used —
+  with explicit `-y sc-rna`, or with auto-detected high-confidence sc-rna plus
+  an explicit `--cb-len` (the default length alone is not enough for auto)
 - grouped scRNA with index lanes: trailing index tokens in IDs can be
   reconstructed from decoded I1/I2 reads
 

@@ -157,11 +157,11 @@ std::string build_options_description() {
       << "                                  auto, dna, rna, atac, bisulfite,\n"
       << "                                  sc-rna, sc-atac, sc-bisulfite\n"
       << "  -b [ --cb-len ] arg (=16)       cellular barcode length in bases.\n"
-      << "                                  Used when --assay is sc-rna,\n"
-      << "                                  sc-atac, or sc-bisulfite and no "
-         "I1\n"
-      << "                                  lane is provided. Ignored when I1\n"
-      << "                                  is present (auto-detected).\n"
+      << "                                  With explicit -y sc-rna and no I1,\n"
+      << "                                  strips that many R1 prefix bases.\n"
+      << "                                  Auto-detected sc-rna also requires\n"
+      << "                                  this flag (high confidence). Ignored\n"
+      << "                                  when I1 is present.\n"
       << "  -a [ --audit ]                  enable integrity verification; "
          "with --preview,\n"
       << "                                  perform full archive audit\n"
@@ -669,6 +669,7 @@ void run_requested_mode(const command_line_options &options) {
         // Use I1 lane for SC barcode extraction when present.
         .cb_source_path = options.i1_path,
         .cb_len = options.cb_len,
+        .cb_len_was_explicit = options.cb_len_was_explicit,
         .memory_cap_gb = options.memory_cap_gb,
     });
     return;

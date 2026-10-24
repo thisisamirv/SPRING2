@@ -463,8 +463,10 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
   // Only active for short-read, preserve_order archives when the assay keeps
   // the CB in R1 instead of a separate index lane.
   //
-  // For sc-RNA, CB stripping is always enabled when no external index is
-  // present, as RNA protocols consistently place barcodes in R1.
+  // For sc-RNA: explicit `-y sc-rna` allows the default/explicit --cb-len;
+  // auto-detected sc-rna also requires high confidence and an explicit
+  // --cb-len so a default of 16 cannot strip genomic R1 after a weak
+  // misclassification. With --I1, cb_prefix_source_external disables this.
   //
   // For sc-bisulfite, we disable CB stripping entirely as bisulfite protocols
   // vary widely in their read structure - some use R1 for barcodes (like 10x),

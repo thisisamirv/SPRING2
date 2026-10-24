@@ -332,6 +332,7 @@ void compress_standard(const string_list &input_paths,
                        const std::string &i1_path, const std::string &i2_path,
                        const std::string &assay_type,
                        const std::string &cb_source_path, uint32_t cb_len,
+                       bool cb_len_was_explicit = false,
                        std::string *archive_bytes_output = nullptr,
                        const compression_storage_path storage_path =
                            compression_storage_path::memory_path,
@@ -500,6 +501,7 @@ void compress_standard(const string_list &input_paths,
     cp.read_info.assay_confidence = final_confidence;
     cp.read_info.compressor_version = spring::VERSION;
     cp.encoding.cb_len = cb_len;
+    cp.encoding.cb_len_was_explicit = cb_len_was_explicit;
     cp.encoding.cb_prefix_source_external = !cb_source_path.empty();
 
     cp.encoding.fasta_mode = fasta_input;
@@ -1064,8 +1066,8 @@ void compress(const CompressOptions &options) {
           options.strip_order, options.strip_quality, options.strip_ids,
           options.quality_options, options.compression_level, options.note,
           options.verbosity, false, "", options.i1_path, "", options.assay,
-          options.i1_path, options.cb_len, nullptr, storage_plan.selected_path,
-          storage_plan.available_memory_bytes);
+          options.i1_path, options.cb_len, options.cb_len_was_explicit, nullptr,
+          storage_plan.selected_path, storage_plan.available_memory_bytes);
 
       const std::string grouped_assay =
           (options.assay == "auto")
@@ -1088,8 +1090,8 @@ void compress(const CompressOptions &options) {
               options.note.empty() ? std::string("read3-group")
                                    : (options.note + " | read3-group"),
               options.verbosity, false, "", "", "", grouped_assay, "",
-              options.cb_len, nullptr, storage_plan.selected_path,
-              storage_plan.available_memory_bytes);
+              options.cb_len, options.cb_len_was_explicit, nullptr,
+              storage_plan.selected_path, storage_plan.available_memory_bytes);
         }
       }
 
@@ -1101,8 +1103,8 @@ void compress(const CompressOptions &options) {
             options.note.empty() ? std::string("index-group")
                                  : (options.note + " | index-group"),
             options.verbosity, false, "", "", "", grouped_assay, "",
-            options.cb_len, nullptr, storage_plan.selected_path,
-            storage_plan.available_memory_bytes);
+            options.cb_len, options.cb_len_was_explicit, nullptr,
+            storage_plan.selected_path, storage_plan.available_memory_bytes);
       }
 
       bundle_manifest manifest{
@@ -1188,7 +1190,8 @@ void compress(const CompressOptions &options) {
       options.quality_options, options.compression_level, options.note,
       options.verbosity, options.audit, options.r3_path, options.i1_path,
       options.i2_path, options.assay, options.cb_source_path, options.cb_len,
-      nullptr, storage_plan.selected_path, storage_plan.available_memory_bytes);
+      options.cb_len_was_explicit, nullptr, storage_plan.selected_path,
+      storage_plan.available_memory_bytes);
 }
 
 } // namespace spring

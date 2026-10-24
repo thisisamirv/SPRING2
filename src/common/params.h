@@ -82,6 +82,11 @@ struct compression_params {
     bool use_crlf = false;
     bool use_crlf_by_stream[2] = {false, false};
     uint32_t cb_len = 16;      // CB length for extraction/display.
+    // Compression-time only (not archived): true when the caller set --cb-len
+    // / CompressOptions.cb_len_was_explicit. Auto-detected sc-rna requires
+    // this before R1 prefix stripping so a default of 16 cannot treat
+    // genomic sequence as barcode after a weak misclassification.
+    bool cb_len_was_explicit = false;
     bool barcode_sort = false; // Legacy field; always false in new archives.
     bool bisulfite_ternary = false;
     // Per-stream depleted base for bisulfite ternary reorder modeling.
