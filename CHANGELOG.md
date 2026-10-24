@@ -17,6 +17,7 @@
 
 ### Fixed
 
+- Fixed decompression always showing a timed "Verifying integrity" step even when digest comparison is skipped (order stripped / no stored digests): the step now runs only when a real CRC compare will execute.
 - Fixed archive metadata treating any trailing bytes after the core `cp.bin` body as a digest block via `peek()!=eof`: format v2 length-prefixes the extension trailer and stores an explicit `digests_present` flag (older formats still read via the peek path, and reject truncated digest blocks).
 - Fixed grouped archives that alias R3 to R1/R2 auditing clean after a flipped `read3_alias_source`: the bundle manifest now stores the aliased mate's digests, and audit/decompress/`SpringReader` verify that binding before emitting R3.
 - Fixed silent read/block drops during encode and reorder on Windows ClangCL/libomp when a bare `#pragma omp parallel` region started fewer threads than requested. Encoder shards, stream reorder blocks, and quality/ID batch blocks now use OpenMP `parallel for` work sharing (matching the preprocess path) so every logical slot is processed regardless of the actual team size. Quality/ID batch compression also calls `omp_set_num_threads` so ClangCL `/WX` does not treat the `num_threads` parameter as unused when it appears only in an OpenMP clause.
