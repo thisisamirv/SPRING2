@@ -106,6 +106,12 @@ public:
           rec.quality = quality_buffer[i];
         current_step_.second.push_back(std::move(rec));
       }
+      if (current_step_.first.size() != current_step_.second.size()) {
+        throw std::runtime_error(
+            "Paired-end decompression step has mismatched mate counts (" +
+            std::to_string(current_step_.first.size()) + " vs " +
+            std::to_string(current_step_.second.size()) + ").");
+      }
       queue_.get().push(std::move(current_step_));
       max_queue_depth_ = std::max(max_queue_depth_,
                                   static_cast<uint64_t>(queue_.get().size()));
@@ -282,6 +288,13 @@ public:
     for (;;) {
       if (!current_step_cache_.first.empty() &&
           cache_pos_ < current_step_cache_.first.size()) {
+        if (mate2 != nullptr && current_step_cache_.second.size() !=
+                                    current_step_cache_.first.size()) {
+          throw std::runtime_error(
+              "Paired-end SpringReader step has mismatched mate counts (" +
+              std::to_string(current_step_cache_.first.size()) + " vs " +
+              std::to_string(current_step_cache_.second.size()) + ").");
+        }
         mate1 = std::move(current_step_cache_.first[cache_pos_]);
         if (mate2)
           *mate2 = std::move(current_step_cache_.second[cache_pos_]);
@@ -330,6 +343,14 @@ public:
       queue_records_popped_ += current_step_cache_.first.size();
       lock.unlock();
       cv_.notify_all(); // Notify worker that space is available
+
+      if (mate2 != nullptr && current_step_cache_.second.size() !=
+                                  current_step_cache_.first.size()) {
+        throw std::runtime_error(
+            "Paired-end SpringReader step has mismatched mate counts (" +
+            std::to_string(current_step_cache_.first.size()) + " vs " +
+            std::to_string(current_step_cache_.second.size()) + ").");
+      }
 
       if ((queue_batches_popped_ > 0) && (queue_batches_popped_ % 128 == 0)) {
         SPRING_LOG_DEBUG(

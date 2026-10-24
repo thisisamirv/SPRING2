@@ -22,6 +22,7 @@
 - Fixed integrity digests hashing raw record concatenation so boundary shifts between reads (e.g. `AA|TT` vs `A|ATT`) could still match: new archives length-frame each record in the CRC, with a metadata flag so older unframed digests keep verifying.
 - Fixed decompression default/prefix output names ignoring stored gzip metadata so originally gzipped streams were restored as plain files unless the caller passed an explicit `.gz` path. Generated names now restore `.gz` from archive metadata (and prefer stored input basenames when `-o` is omitted); `--unzip` still forces plain output and strips `.gz` from those generated names.
 - Fixed `spring -d -a` silently ignoring `--audit`: decompress now runs `perform_audit` on the archive before writing outputs.
+- Fixed paired `SpringReader::next` indexing mate-2 without checking step sizes: mismatched mate counts now throw instead of reading past the end of the mate-2 batch.
 
 ## V1.3.6
 
