@@ -13,18 +13,6 @@ using namespace integration_test_support;
 
 namespace {
 
-std::string normalize_newlines(std::string text) {
-  std::erase(text, '\r');
-  return text;
-}
-
-std::string normalize_record_id(std::string text) {
-  if (!text.empty() && (text.front() == '@' || text.front() == '>')) {
-    text.erase(text.begin());
-  }
-  return text;
-}
-
 TEST_CASE("SpringReader Integration Test") {
   std::string test_dir = "reader_test_tmp";
   fs::create_directories(test_dir);
