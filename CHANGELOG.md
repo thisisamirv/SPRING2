@@ -2,13 +2,7 @@
 
 # Changelog
 
-## Unreleased
-
 ## V1.4.0
-
-### Changed
-
-- Bumped the embedded package version to `1.4.0` and accept `1.4.x` archives in the decompression version gate.
 
 ### Added
 

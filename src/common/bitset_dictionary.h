@@ -177,12 +177,13 @@ inline uint32_t sort_and_deduplicate_keys(uint64_t *dictionary_keys,
           split_thread_range(key_count, chunk_index, chunk_count).begin;
     }
     chunk_boundaries[static_cast<size_t>(chunk_count)] = key_count;
+    auto *const chunk_boundaries_data = chunk_boundaries.data();
 
 #pragma omp parallel for schedule(static)
     for (int chunk_index = 0; chunk_index < chunk_count; ++chunk_index) {
-      const uint64_t begin = chunk_boundaries[static_cast<size_t>(chunk_index)];
+      const uint64_t begin = chunk_boundaries_data[static_cast<size_t>(chunk_index)];
       const uint64_t end =
-          chunk_boundaries[static_cast<size_t>(chunk_index) + 1];
+          chunk_boundaries_data[static_cast<size_t>(chunk_index) + 1];
       if (begin < end) {
         std::sort(dictionary_keys + begin, dictionary_keys + end);
       }
@@ -201,11 +202,11 @@ inline uint32_t sort_and_deduplicate_keys(uint64_t *dictionary_keys,
         const int right_chunk =
             std::min(left_chunk + 2 * merge_width, chunk_count);
         const uint64_t left_begin =
-            chunk_boundaries[static_cast<size_t>(left_chunk)];
+            chunk_boundaries_data[static_cast<size_t>(left_chunk)];
         const uint64_t middle_end =
-            chunk_boundaries[static_cast<size_t>(middle_chunk)];
+            chunk_boundaries_data[static_cast<size_t>(middle_chunk)];
         const uint64_t right_end =
-            chunk_boundaries[static_cast<size_t>(right_chunk)];
+            chunk_boundaries_data[static_cast<size_t>(right_chunk)];
         if (middle_chunk == right_chunk) {
           std::copy(source_keys + left_begin, source_keys + right_end,
                     destination_keys + left_begin);
@@ -269,8 +270,12 @@ inline void count_bucket_sizes(bbhashdict &dictionary,
                                const int dict_index) {
   bbhashdict *local_dictionary = &dictionary;
   const std::vector<uint64_t> *local_hash_values = &hash_values;
+  // Atomic must target a scalar lvalue: unique_ptr::operator[] is a function
+  // call and is not valid/reliable under ClangCL/libomp (heap corruption).
+  uint32_t *const startpos_raw = dictionary.startpos.get();
 #pragma omp parallel for schedule(static) default(none)                        \
-    shared(local_dictionary, local_hash_values) firstprivate(dict_index)
+    shared(local_dictionary, local_hash_values, startpos_raw)                  \
+    firstprivate(dict_index)
   for (int64_t hash_index = 0;
        hash_index < static_cast<int64_t>(local_hash_values->size());
        hash_index++) {
@@ -285,20 +290,23 @@ inline void count_bucket_sizes(bbhashdict &dictionary,
       continue;
     }
 #pragma omp atomic update
-    local_dictionary->startpos[current_hash + 1]++;
+    startpos_raw[current_hash + 1]++;
   }
 }
 
 inline void finalize_bucket_offsets(bbhashdict &dictionary) {
   dictionary.empty_bin.assign(dictionary.numkeys, 0);
   bbhashdict *local_dictionary = &dictionary;
+  uint32_t *const startpos_raw = dictionary.startpos.get();
+  uint8_t *const empty_bin_data = dictionary.empty_bin.data();
 
-#pragma omp parallel for schedule(static) default(none) shared(local_dictionary)
+#pragma omp parallel for schedule(static) default(none)                        \
+    shared(local_dictionary, startpos_raw, empty_bin_data)
   for (int64_t key_index = 0;
        key_index < static_cast<int64_t>(local_dictionary->numkeys);
        key_index++) {
-    if (local_dictionary->startpos[key_index + 1] == 0)
-      local_dictionary->empty_bin[key_index] = 1;
+    if (startpos_raw[key_index + 1] == 0)
+      empty_bin_data[key_index] = 1;
   }
 
   const uint32_t scan_length =
@@ -310,9 +318,13 @@ inline void finalize_bucket_offsets(bbhashdict &dictionary) {
       std::max(1, std::min<int>(omp_get_max_threads(), scan_length));
   std::vector<uint32_t> block_totals(static_cast<size_t>(thread_count), 0);
   std::vector<uint32_t> block_offsets(static_cast<size_t>(thread_count), 0);
+  // ClangCL/libomp worker threads can get garbage shared std::vector captures;
+  // hoist .data() before the bare parallel region (same pattern as reorder).
+  auto *const block_totals_data = block_totals.data();
+  auto *const block_offsets_data = block_offsets.data();
 
 #pragma omp parallel num_threads(thread_count) default(none)                   \
-    shared(local_dictionary, block_totals, block_offsets, scan_length)         \
+    shared(startpos_raw, block_totals_data, block_offsets_data, scan_length)  \
     firstprivate(thread_count)
   {
     const int thread_id = omp_get_thread_num();
@@ -324,10 +336,10 @@ inline void finalize_bucket_offsets(bbhashdict &dictionary) {
     uint32_t running_sum = 0;
     for (uint32_t local_index = begin; local_index < end; local_index++) {
       const uint32_t startpos_index = local_index + 1;
-      running_sum += local_dictionary->startpos[startpos_index];
-      local_dictionary->startpos[startpos_index] = running_sum;
+      running_sum += startpos_raw[startpos_index];
+      startpos_raw[startpos_index] = running_sum;
     }
-    block_totals[static_cast<size_t>(thread_id)] = running_sum;
+    block_totals_data[static_cast<size_t>(thread_id)] = running_sum;
 
 #pragma omp barrier
 
@@ -335,16 +347,16 @@ inline void finalize_bucket_offsets(bbhashdict &dictionary) {
     {
       uint32_t prefix_sum = 0;
       for (int block_index = 0; block_index < thread_count; block_index++) {
-        block_offsets[static_cast<size_t>(block_index)] = prefix_sum;
-        prefix_sum += block_totals[static_cast<size_t>(block_index)];
+        block_offsets_data[static_cast<size_t>(block_index)] = prefix_sum;
+        prefix_sum += block_totals_data[static_cast<size_t>(block_index)];
       }
     }
 
-    const uint32_t carry = block_offsets[static_cast<size_t>(thread_id)];
+    const uint32_t carry = block_offsets_data[static_cast<size_t>(thread_id)];
     if (carry != 0) {
       for (uint32_t local_index = begin; local_index < end; local_index++) {
         const uint32_t startpos_index = local_index + 1;
-        local_dictionary->startpos[startpos_index] += carry;
+        startpos_raw[startpos_index] += carry;
       }
     }
   }
@@ -414,13 +426,16 @@ inline void populate_bucket_read_ids(bbhashdict &dictionary,
         ", actual_bytes=" + std::to_string(usable_count));
   }
 
+  // Hoist before OpenMP: ClangCL/libomp can pass a garbage shared std::vector.
+  auto *const bucket_starts_data = bucket_starts.data();
 #pragma omp parallel for schedule(static) default(none)                        \
-    shared(local_dictionary, bucket_starts)
+    shared(local_dictionary, bucket_starts_data)
   for (int64_t bucket_index = 0;
        bucket_index < static_cast<int64_t>(local_dictionary->numkeys);
        bucket_index++) {
-    const uint32_t begin = bucket_starts[static_cast<size_t>(bucket_index)];
-    const uint32_t end = bucket_starts[static_cast<size_t>(bucket_index) + 1];
+    const uint32_t begin = bucket_starts_data[static_cast<size_t>(bucket_index)];
+    const uint32_t end =
+        bucket_starts_data[static_cast<size_t>(bucket_index) + 1];
     if (end > begin + 1) {
       std::sort(&local_dictionary->read_id[begin],
                 &local_dictionary->read_id[end]);
@@ -471,6 +486,13 @@ void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
                   1000.0;
     return stream.str();
   };
+
+  // ClangCL/libomp still heap-corrupts inside the dictionary OpenMP helpers
+  // when the team size is >1 (atomics/vector hoists alone are not enough).
+  // Keep MPHF/config single-threaded and force the surrounding OpenMP stages
+  // to one worker as well; callers restore their own team size afterward.
+  const int previous_omp_threads = omp_get_max_threads();
+  omp_set_num_threads(1);
 
   auto index_masks = std::make_unique<std::bitset<bitset_size>[]>(
       static_cast<size_t>(numdict));
@@ -551,6 +573,7 @@ void constructdictionary(std::bitset<bitset_size> *read, bbhashdict *dict,
   }
 
   SPRING_LOG_INFO("  Done finalization.");
+  omp_set_num_threads(previous_omp_threads);
   return;
 }
 

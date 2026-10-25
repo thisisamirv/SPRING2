@@ -302,6 +302,12 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
   // Declared outside the parallel block so the shared data-sharing rule
   // applies cleanly and to avoid a static local inside an outlined function.
   std::atomic<uint32_t> total_reads_encoded{0};
+  // Hoist vector storage before the OpenMP region: ClangCL/libomp workers can
+  // get garbage shared std::vector captures (same class of AV as reorder).
+  auto *const index_masks_data = index_masks.data();
+  auto *const length_masks_row0 = length_masks_ptrs[0];
+  auto *const open_stream_errors_data = open_stream_errors.data();
+  auto *const thread_metadata_outputs_data = thread_metadata_outputs.data();
   // Use parallel for so every shard slot is processed even when
   // ClangCL/libomp on Windows creates fewer threads than requested inside
   // a bare #pragma omp parallel region.
@@ -313,7 +319,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
     encoded_metadata_buffer thread_metadata;
     if (static_cast<size_t>(thread_id) >=
         reorder_artifact.aligned_shards.size()) {
-      open_stream_errors[static_cast<size_t>(thread_id)] =
+      open_stream_errors_data[static_cast<size_t>(thread_id)] =
           std::string("Thread ") + std::to_string(thread_id) +
           ": Missing reorder shard.";
       done = true;
@@ -337,7 +343,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                                 std::ios::binary);
       if (!shard_flag_in || !shard_read_in || !shard_orientation_in ||
           !shard_position_in || !shard_order_in || !shard_read_length_in) {
-        open_stream_errors[static_cast<size_t>(thread_id)] =
+        open_stream_errors_data[static_cast<size_t>(thread_id)] =
             std::string("Thread ") + std::to_string(thread_id) +
             ": Failed to open shard files for streaming.";
         done = true;
@@ -364,7 +370,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
       std::error_code mkdir_ec;
       std::filesystem::create_directories(tdir, mkdir_ec);
       if (mkdir_ec) {
-        open_stream_errors[static_cast<size_t>(thread_id)] =
+        open_stream_errors_data[static_cast<size_t>(thread_id)] =
             std::string("Thread ") + std::to_string(thread_id) +
             ": Failed to create metadata spill dir: " + mkdir_ec.message();
         done = true;
@@ -380,7 +386,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                                  std::ios::binary);
         if (!flush_pos_out || !flush_noise_out || !flush_noisepos_out ||
             !flush_orient_out || !flush_readlen_out || !flush_readorder_out) {
-          open_stream_errors[static_cast<size_t>(thread_id)] =
+          open_stream_errors_data[static_cast<size_t>(thread_id)] =
               std::string("Thread ") + std::to_string(thread_id) +
               ": Failed to open metadata flush files.";
           done = true;
@@ -548,10 +554,10 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                      dictionary_index++) {
                   if (!orientation_index)
                     masked_window_bits =
-                        forward_bitset & index_masks[dictionary_index];
+                        forward_bitset & index_masks_data[dictionary_index];
                   else
                     masked_window_bits =
-                        reverse_bitset & index_masks[dictionary_index];
+                        reverse_bitset & index_masks_data[dictionary_index];
                   lookup_key = (masked_window_bits >>
                                 3 * dictionaries[dictionary_index].start)
                                    .to_ullong();
@@ -586,7 +592,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                   uint64_t candidate_key =
                       ((reads[dictionaries[dictionary_index]
                                   .read_id[bucket_range[0]]] &
-                        index_masks[dictionary_index]) >>
+                        index_masks_data[dictionary_index]) >>
                        3 * dictionaries[dictionary_index].start)
                           .to_ullong();
                   if (lookup_key == candidate_key) {
@@ -600,13 +606,13 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                       if (!orientation_index)
                         hamming = static_cast<int>(
                             ((forward_bitset ^ reads[read_id]) &
-                             length_masks[0][eg.max_readlen -
+                             length_masks_row0[eg.max_readlen -
                                              read_lengths[read_id]])
                                 .count());
                       else
                         hamming = static_cast<int>(
                             ((reverse_bitset ^ reads[read_id]) &
-                             length_masks[0][eg.max_readlen -
+                             length_masks_row0[eg.max_readlen -
                                              read_lengths[read_id]])
                                 .count());
                       if (hamming <= thresh_s) {
@@ -661,7 +667,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                              deleted_rids[delete_dict_index].begin();
                          deleted_it != deleted_rids[delete_dict_index].end();) {
                       masked_window_bits =
-                          reads[*deleted_it] & index_masks[delete_dict_index];
+                          reads[*deleted_it] & index_masks_data[delete_dict_index];
                       lookup_key = (masked_window_bits >>
                                     3 * dictionaries[delete_dict_index].start)
                                        .to_ullong();
@@ -687,11 +693,11 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
               if (window_start !=
                   (int64_t)reference_contig.size() - eg.max_readlen) {
                 forward_bitset >>= 3;
-                forward_bitset = forward_bitset & length_masks[0][0];
+                forward_bitset = forward_bitset & length_masks_row0[0];
                 forward_bitset |= egb.basemask[eg.max_readlen - 1][(
                     uint8_t)reference_contig[window_start + eg.max_readlen]];
                 reverse_bitset <<= 3;
-                reverse_bitset = reverse_bitset & length_masks[0][0];
+                reverse_bitset = reverse_bitset & length_masks_row0[0];
                 reverse_bitset |= egb.basemask[0][(uint8_t)chartorevchar[(
                     uint8_t)reference_contig[window_start + eg.max_readlen]]];
               }
@@ -710,7 +716,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
                     thread_metadata, flush_pos_out, flush_noise_out,
                     flush_noisepos_out, flush_orient_out, flush_readlen_out,
                     flush_readorder_out)) {
-              open_stream_errors[static_cast<size_t>(thread_id)] =
+              open_stream_errors_data[static_cast<size_t>(thread_id)] =
                   std::string("Thread ") + std::to_string(thread_id) +
                   ": Failed writing metadata flush files.";
               done = true;
@@ -735,8 +741,8 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
       if (!detail::flush_thread_metadata_to_disk(
               thread_metadata, flush_pos_out, flush_noise_out, flush_noisepos_out,
               flush_orient_out, flush_readlen_out, flush_readorder_out) &&
-          open_stream_errors[static_cast<size_t>(thread_id)].empty()) {
-        open_stream_errors[static_cast<size_t>(thread_id)] =
+          open_stream_errors_data[static_cast<size_t>(thread_id)].empty()) {
+        open_stream_errors_data[static_cast<size_t>(thread_id)] =
             std::string("Thread ") + std::to_string(thread_id) +
             ": Failed writing final metadata flush files.";
       }
@@ -747,7 +753,7 @@ void encode(std::bitset<bitset_size> *reads, bbhashdict *dictionaries,
       flush_readlen_out.close();
       flush_readorder_out.close();
     }
-    thread_metadata_outputs[static_cast<size_t>(thread_id)] =
+    thread_metadata_outputs_data[static_cast<size_t>(thread_id)] =
         std::move(thread_metadata);
     SPRING_LOG_DEBUG(
         "block_id=" + block_id + ", Encoder thread " +

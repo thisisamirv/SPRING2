@@ -560,20 +560,13 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
   auto *const remaining_read_lock_data = remaining_read_lock.data();
   auto *const unmatched_counts_data = unmatched_counts.data();
   auto *const singleton_order_buffers_data = singleton_order_buffers.data();
-  // Deterministic reorder runs on a single OpenMP thread. Spawning idle
-  // workers that only write empty shards into shared `artifact` crashes on
-  // Windows ClangCL/libomp (worker threads get garbage shared std::vector
-  // captures). Empty shards for threads 1..num_thr-1 already exist from
-  // assign() above.
+  // Deterministic reorder is fully serial: even `#pragma omp parallel
+  // num_threads(1)` outlines a worker under ClangCL/libomp and can AV when
+  // capturing locals (vectors, `rg`, etc.). Empty shards for threads
+  // 1..num_thr-1 already exist from assign() above.
   auto *const aligned_shards_data = artifact.aligned_shards.data();
   auto reorder_pass_start = std::chrono::steady_clock::now();
   auto last_progress_log_ts = reorder_pass_start;
-#pragma omp parallel num_threads(1) default(none) shared(                      \
-        rg, read, read_lengths, dict, remaining_reads, first_read,             \
-            index_masks_data, length_masks_data, dict_locks_data,              \
-            read_locks_data, remaining_read_lock_data, unmatched_counts_data,  \
-            singleton_order_buffers_data, aligned_shards_data,                 \
-            reorder_pass_start, last_progress_log_ts)
   {
     bool done = false;
     // Always shard index 0: matching is single-threaded for bit-identical
@@ -623,14 +616,10 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
     int64_t reference_position = 0;
     int64_t current_read_position;
 
-    // Claim an initial seed read from a shared cursor. Keep trying until we
-    // either reserve an unclaimed read or exhaust the input.
+    // Claim an initial seed read from the serial cursor.
     while (!done) {
-#pragma omp critical(spring_reorder_seed_claim)
-      {
-        scan_slot = first_read;
-        first_read += 1;
-      }
+      scan_slot = first_read;
+      first_read += 1;
       if (rg.numreads == 0 || scan_slot >= static_cast<int64_t>(rg.numreads)) {
         done = true;
         break;
@@ -1012,14 +1001,15 @@ void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
                  reorder_encoder_artifact &artifact) {
   std::vector<std::string> write_errors(static_cast<size_t>(rg.num_thr));
   artifact.singleton_read_bytes.clear();
+  auto *const write_errors_data = write_errors.data();
+  auto *const aligned_shards_data = artifact.aligned_shards.data();
 
 #pragma omp parallel for schedule(static)
   for (int tid = 0; tid < rg.num_thr; tid++) {
-    reorder_encoder_shard &shard =
-        artifact.aligned_shards[static_cast<size_t>(tid)];
+    reorder_encoder_shard &shard = aligned_shards_data[static_cast<size_t>(tid)];
     const size_t aligned_count = shard.orientation_bytes.size();
     if (shard.order_bytes.size() != aligned_count * sizeof(uint32_t)) {
-      write_errors[static_cast<size_t>(tid)] =
+      write_errors_data[static_cast<size_t>(tid)] =
           "Reorder shard order/orientation size mismatch.";
       continue;
     }
@@ -1032,7 +1022,7 @@ void writetofile(std::bitset<bitset_size> *read, uint16_t *read_lengths,
                   shard.order_bytes.data() + read_index * sizeof(uint32_t),
                   sizeof(uint32_t));
       if (current >= rg.numreads) {
-        write_errors[static_cast<size_t>(tid)] =
+        write_errors_data[static_cast<size_t>(tid)] =
             "Reorder shard read id out of bounds.";
         break;
       }

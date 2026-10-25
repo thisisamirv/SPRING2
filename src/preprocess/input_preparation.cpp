@@ -855,6 +855,10 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
       }
       std::vector<std::unordered_map<std::string, std::string>>
           thread_archive_members(static_cast<size_t>(cp.encoding.num_thr));
+      // ClangCL/libomp workers can get garbage shared std::vector captures;
+      // index via hoisted .data() pointers instead.
+      auto *const paired_id_match_array_data = paired_id_match_array.data();
+      auto *const thread_archive_members_data = thread_archive_members.data();
       // Use parallel for so every thread_id slot is processed even when
       // ClangCL/libomp on Windows creates fewer threads than requested inside
       // a bare #pragma omp parallel region.
@@ -864,7 +868,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
         uint64_t thread_id = static_cast<uint64_t>(thread_id_int);
         bool thread_done = false;
         if (stream_index == 1)
-          paired_id_match_array[thread_id] = paired_id_match ? 1 : 0;
+          paired_id_match_array_data[thread_id] = paired_id_match ? 1 : 0;
         if (thread_id * num_reads_per_block >= reads_in_step)
           thread_done = true;
         const uint32_t block_num =
@@ -884,9 +888,9 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
               throw std::runtime_error("Too long read length");
             }
 
-            if (stream_index == 1 && paired_id_match_array[thread_id] &&
+            if (stream_index == 1 && paired_id_match_array_data[thread_id] &&
                 !grouped_index_id_suffix_strip_active)
-              paired_id_match_array[thread_id] =
+              paired_id_match_array_data[thread_id] =
                   check_id_pattern(id_array_1[read_index],
                                    id_array_2[read_index], paired_id_code);
           }
@@ -904,7 +908,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                 if (!(stream_index == 0 &&
                       defer_stream0_id_write_for_index_suffix)) {
                   add_archive_member(
-                      thread_archive_members[static_cast<size_t>(thread_id)],
+                      thread_archive_members_data[static_cast<size_t>(thread_id)],
                       std::filesystem::path(
                           block_file_path(paths.id_output_paths[stream_index],
                                           num_blocks_done +
@@ -922,7 +926,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                                             num_reads_per_block, thread_id);
                   if (deferred_thread_read_count > 0) {
                     add_archive_member(
-                        thread_archive_members[static_cast<size_t>(thread_id)],
+                        thread_archive_members_data[static_cast<size_t>(thread_id)],
                         std::filesystem::path(
                             block_file_path(
                                 paths.id_output_paths[0],
@@ -938,7 +942,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
               }
               if (cp.encoding.preserve_quality) {
                 add_archive_member(
-                    thread_archive_members[static_cast<size_t>(thread_id)],
+                    thread_archive_members_data[static_cast<size_t>(thread_id)],
                     std::filesystem::path(
                         block_file_path(
                             paths.quality_output_paths[stream_index],
@@ -954,7 +958,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
             }
           } else {
             add_archive_member(
-                thread_archive_members[static_cast<size_t>(thread_id)],
+                thread_archive_members_data[static_cast<size_t>(thread_id)],
                 std::filesystem::path(
                     compressed_block_file_path(
                         paths.read_length_paths[stream_index], block_num))
@@ -965,7 +969,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                     thread_read_count)));
             if (cp.encoding.preserve_id) {
               add_archive_member(
-                  thread_archive_members[static_cast<size_t>(thread_id)],
+                  thread_archive_members_data[static_cast<size_t>(thread_id)],
                   std::filesystem::path(
                       compressed_block_file_path(
                           paths.id_output_paths[stream_index], block_num))
@@ -977,7 +981,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
             }
             if (cp.encoding.preserve_quality) {
               add_archive_member(
-                  thread_archive_members[static_cast<size_t>(thread_id)],
+                  thread_archive_members_data[static_cast<size_t>(thread_id)],
                   std::filesystem::path(
                       block_file_path(paths.quality_output_paths[stream_index],
                                       block_num))
@@ -990,7 +994,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
                           thread_id * num_reads_per_block)));
             }
             add_archive_member(
-                thread_archive_members[static_cast<size_t>(thread_id)],
+                thread_archive_members_data[static_cast<size_t>(thread_id)],
                 std::filesystem::path(
                     compressed_block_file_path(
                         paths.read_block_paths[stream_index], block_num))
@@ -1029,6 +1033,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
           thread_buffer.clean_read_count = 0;
         }
 
+        auto *const short_read_buffers_data = short_read_buffers.data();
 #pragma omp parallel for schedule(static)
         for (int thread_id = 0; thread_id < cp.encoding.num_thr; thread_id++) {
           const uint32_t begin_read =
@@ -1039,7 +1044,7 @@ preprocess(const std::string &infile_1, const std::string &infile_2,
               std::min(begin_read + num_reads_per_block, reads_in_step);
 
           short_read_thread_buffers &thread_buffer =
-              short_read_buffers[static_cast<size_t>(thread_id)];
+              short_read_buffers_data[static_cast<size_t>(thread_id)];
           const uint32_t thread_read_count = end_read - begin_read;
           thread_buffer.n_read_positions.reserve(thread_read_count / 2 + 1);
 
