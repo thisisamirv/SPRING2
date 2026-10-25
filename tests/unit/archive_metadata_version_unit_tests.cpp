@@ -420,6 +420,19 @@ TEST_CASE("Version 1.3.x archives are accepted for decompression") {
   CHECK(spring::archive_decompression_route_name(plan) == "1.3.0");
 }
 
+TEST_CASE("Version 1.4.x archives are accepted for decompression") {
+  spring::compression_params cp = make_sample_params();
+  cp.read_info.compressor_version = "1.4.0";
+
+  const spring::archive_decompression_plan plan =
+      spring::build_archive_decompression_plan(cp);
+  CHECK(plan.archive_version.valid);
+  CHECK(plan.archive_version.major == 1);
+  CHECK(plan.archive_version.minor == 4);
+  CHECK(plan.archive_version.patch == 0);
+  CHECK(spring::archive_decompression_route_name(plan) == "1.4.0");
+}
+
 TEST_CASE("Legacy Spring raw metadata is detected") {
   spring::decompression_archive_artifact artifact;
   artifact.files["cp.bin"] = serialize_legacy_spring_raw_cp();

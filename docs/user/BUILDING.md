@@ -36,8 +36,7 @@ By default, SPRING2 builds for portability:
 -Dspring_optimize_for_portability=ON
 ```
 
-Use that default when you want binaries that run across a broader range of
-machines. For a machine-specific build, switch those flags:
+Use that default when you want binaries that run across a broader range of machines. For a machine-specific build, switch those flags:
 
 ```text
 -Dspring_optimize_for_native=ON
@@ -48,8 +47,7 @@ machines. For a machine-specific build, switch those flags:
 
 - Build artifacts go under `out/build/`.
 - Installed binaries go under `out/bin/` by default unless you provide a custom prefix.
-- On supported hosts, vendored Ninja and NASM under `tools/host/` are used
-  automatically when available.
+- On supported hosts, vendored Ninja and NASM under `tools/host/` are used automatically when available.
 
 ## Platform Commands
 
@@ -66,10 +64,8 @@ That guide contains separate sections for:
 
 ## Editor Tooling
 
-If you want a compilation database for editor integration, build once and use
-`out/build/compile_commands.json`.
+If you want a compilation database for editor integration, build once and use `out/build/compile_commands.json`.
 
 ## Installation Alternative
 
-If you do not need to build from source, prefer the prebuilt binaries and
-installers documented in [Installing SPRING2](INSTALLING.md).
+If you do not need to build from source, prefer the prebuilt binaries and installers documented in [Installing SPRING2](INSTALLING.md).

@@ -5,6 +5,12 @@
   <a href="https://github.com/thisisamirv/SPRING2/actions/workflows/ci.yml">
     <img src="https://github.com/thisisamirv/SPRING2/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
+  <a href="https://anaconda.org/channels/bioconda/packages/spring2/overview">
+    <img src="https://img.shields.io/conda/vn/bioconda/spring2.svg?label=bioconda" alt="bioconda">
+  </a>
+  <a href="https://spring2.readthedocs.io/">
+    <img src="https://readthedocs.org/projects/spring2/badge/?version=latest" alt="Documentation">
+  </a>
 </p>
 
 <p align="center">

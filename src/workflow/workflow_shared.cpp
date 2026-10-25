@@ -108,7 +108,7 @@ bool is_supported_archive_decompression_version(
     const archive_semantic_version &version) {
   return version.valid && version.major == 1 &&
          (version.minor == 0 || version.minor == 1 || version.minor == 2 ||
-          version.minor == 3);
+          version.minor == 3 || version.minor == 4);
 }
 
 bool looks_like_legacy_spring_archive(

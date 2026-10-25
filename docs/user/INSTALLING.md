@@ -1,7 +1,6 @@
 # Installing SPRING2
 
-This page covers installing SPRING2 from prebuilt release artifacts. If you
-want to compile from source instead, see [Building SPRING2](BUILDING.md).
+This page covers installing SPRING2 from prebuilt release artifacts. If you want to compile from source instead, see [Building SPRING2](BUILDING.md).
 
 ## Download Releases
 
@@ -48,22 +47,17 @@ chmod +x spring2-linux-x86_64.AppImage
 ./spring2-linux-x86_64.AppImage --version
 ```
 
-If you prefer, you can keep the AppImage in a tools directory and invoke it
-from there.
+If you prefer, you can keep the AppImage in a tools directory and invoke it from there.
 
 ## macOS
 
 macOS releases provide `.app` bundles packaged as zip archives per architecture.
 
-- Download the zip for your architecture:
-  - `spring2-macos-arm64.app.zip`
-  - `spring2-macos-x86_64.app.zip`
+- Download the zip for your architecture: - `spring2-macos-arm64.app.zip` - `spring2-macos-x86_64.app.zip`
 - Extract the zip file.
 - Run SPRING2 from Terminal:
 
-    ```bash
-    ./SPRING2.app/Contents/MacOS/spring2 --version
-    ```
+    ```bash ./SPRING2.app/Contents/MacOS/spring2 --version ```
 
 If you prefer, move `SPRING2.app` to `/Applications` and invoke it from there.
 
@@ -71,14 +65,10 @@ If you prefer, move `SPRING2.app` to `/Applications` and invoke it from there.
 
 Windows releases provide standalone executables per architecture.
 
-1. Download the executable for your architecture:
-   - `spring2-windows-x86_64.exe`
-   - `spring2-windows-arm64.exe`
-  
+1. Download the executable for your architecture: - `spring2-windows-x86_64.exe` - `spring2-windows-arm64.exe`
+
 2. Rename to `spring2.exe` (optional) and place it in a folder on your `PATH`.
 
 3. Open a new terminal and run:
 
-    ```powershell
-    spring2 --version
-    ```
+    ```powershell spring2 --version ```

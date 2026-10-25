@@ -1,7 +1,6 @@
 # SPRING2 Assays and Quality Modes
 
-This guide explains the higher-level data behaviors that affect how SPRING2
-stores and restores reads.
+This guide explains the higher-level data behaviors that affect how SPRING2 stores and restores reads.
 
 ## Assay Selection
 
@@ -22,18 +21,13 @@ Supported values are:
 - `sc-atac`
 - `sc-bisulfite`
 
-`auto` is the default. During compression, SPRING2 samples the startup portion
-of the input and classifies the dataset using assay-specific heuristics and the
-bundled assay reference.
+`auto` is the default. During compression, SPRING2 samples the startup portion of the input and classifies the dataset using assay-specific heuristics and the bundled assay reference.
 
-For technical background on the assay reference, see
-[../assays/ASSAY_REFERENCE.md](../assays/ASSAY_REFERENCE.md).
+For technical background on the assay reference, see [../assays/ASSAY_REFERENCE.md](../assays/ASSAY_REFERENCE.md).
 
 ## Cellular Barcode Length
 
-Use `--cb-len` when **sc-RNA** stores cellular barcodes in the start of R1
-instead of a dedicated I1 lane (`sc-bisulfite` does not extract an R1 CB
-prefix):
+Use `--cb-len` when **sc-RNA** stores cellular barcodes in the start of R1 instead of a dedicated I1 lane (`sc-bisulfite` does not extract an R1 CB prefix):
 
 ```bash
 spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --assay sc-rna --cb-len 16
@@ -42,30 +36,19 @@ spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --assay sc-rna --cb-l
 Notes:
 
 - Valid range is `1..64`.
-- When `--I1` is present, barcode length is inferred from the I1 read length
-  and `--cb-len` is ignored.
+- When `--I1` is present, barcode length is inferred from the I1 read length and `--cb-len` is ignored.
 
 ## Assay-Aware Compression Behaviors
 
-Depending on assay and confidence, SPRING2 can enable internal transforms that
-remain reversible for lossless archives.
+Depending on assay and confidence, SPRING2 can enable internal transforms that remain reversible for lossless archives.
 
 Examples include:
 
-- RNA and scRNA: poly-A/T tail stripping when assay detection strongly suggests
-  it is safe
-- ATAC and scATAC: terminal adapter read-through stripping when the overlap is
-  strong enough
-- scRNA: cellular barcode prefix extraction from R1 when no I1 lane is used —
-  with explicit `-y sc-rna`, or with auto-detected high-confidence sc-rna plus
-  an explicit `--cb-len` (the default length alone is not enough for auto)
-- grouped scRNA with index lanes: trailing index tokens in IDs can be
-  reconstructed from decoded I1/I2 reads
-- bisulfite / sc-bisulfite (`--assay auto`): when both mates share the same
-  depleted base, enable C/T or G/A reorder masking plus ternary packing
-  (`C` → `{A,G,T}`, `G` → `{A,C,T}`). Directional PE (R1 C-depleted /
-  R2 G-depleted) keeps DNA-equivalent encoding so mixed alphabets cannot
-  inflate the archive; the assay label and confidence still record depletion
+- RNA and scRNA: poly-A/T tail stripping when assay detection strongly suggests it is safe
+- ATAC and scATAC: terminal adapter read-through stripping when the overlap is strong enough
+- scRNA: cellular barcode prefix extraction from R1 when no I1 lane is used — with explicit `-y sc-rna`, or with auto-detected high-confidence sc-rna plus an explicit `--cb-len` (the default length alone is not enough for auto)
+- grouped scRNA with index lanes: trailing index tokens in IDs can be reconstructed from decoded I1/I2 reads
+- bisulfite / sc-bisulfite (`--assay auto`): when both mates share the same depleted base, enable C/T or G/A reorder masking plus ternary packing (`C` → `{A,G,T}`, `G` → `{A,C,T}`). Directional PE (R1 C-depleted / R2 G-depleted) keeps DNA-equivalent encoding so mixed alphabets cannot inflate the archive; the assay label and confidence still record depletion
 
 These behaviors are recorded in archive metadata and surfaced by preview mode.
 
@@ -89,8 +72,7 @@ This preserves qualities bit-for-bit.
 spring2 -c --R1 reads.fastq -o reads.sp -q ill_bin
 ```
 
-Lossy: quality digests are not stored. Decompress/audit still verify sequence
-(and ids when preserved).
+Lossy: quality digests are not stored. Decompress/audit still verify sequence (and ids when preserved).
 
 ### Binary Thresholding
 
@@ -98,9 +80,7 @@ Lossy: quality digests are not stored. Decompress/audit still verify sequence
 spring2 -c --R1 reads.fastq -o reads.sp -q binary 20 30 10
 ```
 
-This maps qualities to `high` when `>= threshold` and to `low` otherwise.
-Same integrity rules as Illumina binning: no quality digest; sequence/id
-checks still apply.
+This maps qualities to `high` when `>= threshold` and to `low` otherwise. Same integrity rules as Illumina binning: no quality digest; sequence/id checks still apply.
 
 ## `--strip` Modes
 

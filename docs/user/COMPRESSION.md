@@ -61,12 +61,9 @@ Rules:
 - `--I1` currently requires `--R2`
 - `--I2` requires `--I1`
 
-Grouped archives preserve all provided lanes together and restore them with a
-single decompression command.
+Grouped archives preserve all provided lanes together and restore them with a single decompression command.
 
-When `--R3` points at the same file as `--R1` or `--R2`, SPRING2 stores R3 as an
-alias of that mate (no extra payload) and records the mate's digests in
-`bundle.meta` so audit/decompress can reject a flipped alias label.
+When `--R3` points at the same file as `--R1` or `--R2`, SPRING2 stores R3 as an alias of that mate (no extra payload) and records the mate's digests in `bundle.meta` so audit/decompress can reject a flipped alias label.
 
 ## Performance Controls
 
@@ -80,18 +77,11 @@ spring2 -c --R1 reads.fastq -o reads.sp --threads 8
 
 The default thread count is `min(max(1, hw_threads - 1), 16)`.
 
-Compression is bit-deterministic for both short-read and long-read paths: two
-runs with the same inputs and thread count produce identical `.sp` archives.
-Short-read match selection and low-diversity chain building are serialized so
-OpenMP scheduling cannot change the reorder graph; long-read block compression
-writes fixed per-thread block slots. Archive packaging still embeds the
-requested thread count, so `-t 1` and `-t 8` archives are not required to be
-byte-identical to each other.
+Compression is bit-deterministic for both short-read and long-read paths: two runs with the same inputs and thread count produce identical `.sp` archives. Short-read match selection and low-diversity chain building are serialized so OpenMP scheduling cannot change the reorder graph; long-read block compression writes fixed per-thread block slots. Archive packaging still embeds the requested thread count, so `-t 1` and `-t 8` archives are not required to be byte-identical to each other.
 
 ### Memory Budget
 
-Use `--memory` to cap effective worker concurrency based on an approximate
-memory budget:
+Use `--memory` to cap effective worker concurrency based on an approximate memory budget:
 
 ```bash
 spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --memory 8
@@ -101,46 +91,12 @@ Set `--memory 0` to disable this safety knob.
 
 ### Adaptive Memory and Disk Routing
 
-SPRING2 selects a compression route at runtime based on the available memory
-and disk budget:
+SPRING2 selects a compression route at runtime based on the available memory and disk budget:
 
-- **Memory path**: when the estimated peak working set fits within the budget,
-  all intermediates are kept in RAM. This is the fastest route.
-- **Disk path**: when memory is tight, preprocessing intermediates are spilled
-  to a temporary workspace on disk (beside the output archive by default as
-  `<archive>.work-tmp`, or `<archive>.grouped-tmp` for grouped bundles).
-  Within the disk path, SPRING2 further adapts:
-  - **External-MPHF mode**: if the work directory has sufficient
-    free space (roughly 40 bytes × read count), the hash-function builder
-    offloads its sort structures to disk, reducing peak RAM by several GB.
-  - **Thread-capping mode**: if disk space is also limited,
-    SPRING2 automatically reduces the encoding thread count so that per-thread
-    buffer overhead stays within the available memory budget.
-  - **Early clean-read stream release**: raw clean-read byte streams are freed
-    immediately after the bitset array is decoded during reordering, rather
-    than held live throughout MPHF construction and read reordering, eliminating
-    a multi-GB intermediate peak.
-  - **Singleton streaming**: singleton and N-read raw byte buffers are streamed
-    from disk at encode time rather than loaded into RAM before decoding,
-    eliminating a further multi-GB peak for datasets with many singletons.
-  - **Aligned-shard streaming**: aligned read shards are streamed from disk
-    per encoder thread rather than loaded into RAM before encoding begins,
-    eliminating a multi-GB shard-buffer peak.
-  - **Metadata spill**: per-thread encoder metadata (positions, orientations,
-    read orders, noise) is written incrementally to disk during encoding and
-    merged after the encoding loop, rather than accumulating in RAM until the
-    loop completes.
-  - **Stream scatter buffering**: during the "Reordering and compressing
-    streams" stage, scatter records are accumulated in per-block RAM buffers
-    and flushed to scratch files only in large batched appends when the
-    aggregate buffer size exceeds 40 % of the memory budget (default cap
-    4 GiB), rather than opening, appending, and closing a scratch file per
-    read. When the entire scatter fits under the cap, scratch files are skipped
-    entirely and the buffers are handed directly to the parallel block rebuild.
+- **Memory path**: when the estimated peak working set fits within the budget, all intermediates are kept in RAM. This is the fastest route.
+- **Disk path**: when memory is tight, preprocessing intermediates are spilled to a temporary workspace on disk (beside the output archive by default as `<archive>.work-tmp`, or `<archive>.grouped-tmp` for grouped bundles). Within the disk path, SPRING2 further adapts: - **External-MPHF mode**: if the work directory has sufficient free space (roughly 40 bytes × read count), the hash-function builder offloads its sort structures to disk, reducing peak RAM by several GB. - **Thread-capping mode**: if disk space is also limited, SPRING2 automatically reduces the encoding thread count so that per-thread buffer overhead stays within the available memory budget. - **Early clean-read stream release**: raw clean-read byte streams are freed immediately after the bitset array is decoded during reordering, rather than held live throughout MPHF construction and read reordering, eliminating a multi-GB intermediate peak. - **Singleton streaming**: singleton and N-read raw byte buffers are streamed from disk at encode time rather than loaded into RAM before decoding, eliminating a further multi-GB peak for datasets with many singletons. - **Aligned-shard streaming**: aligned read shards are streamed from disk per encoder thread rather than loaded into RAM before encoding begins, eliminating a multi-GB shard-buffer peak. - **Metadata spill**: per-thread encoder metadata (positions, orientations, read orders, noise) is written incrementally to disk during encoding and merged after the encoding loop, rather than accumulating in RAM until the loop completes. - **Stream scatter buffering**: during the "Reordering and compressing streams" stage, scatter records are accumulated in per-block RAM buffers and flushed to scratch files only in large batched appends when the aggregate buffer size exceeds 40 % of the memory budget (default cap 4 GiB), rather than opening, appending, and closing a scratch file per read. When the entire scatter fits under the cap, scratch files are skipped entirely and the buffers are handed directly to the parallel block rebuild.
 
-In practice, passing `--memory 8` on a machine with 8 GB free lets SPRING2
-pick the right route automatically. Lower values increase the chance of
-triggering disk-path routing; very low values also trigger thread capping.
+In practice, passing `--memory 8` on a machine with 8 GB free lets SPRING2 pick the right route automatically. Lower values increase the chance of triggering disk-path routing; very low values also trigger thread capping.
 
 #### Advanced routing overrides
 
@@ -157,14 +113,11 @@ spring2 -c --R1 reads.fastq -o reads.sp --compression-route disk
 spring2 -c --R1 reads.fastq -o /data/reads.sp -r disk -w /dev/shm
 ```
 
-`-w` / `--tmp-dir` only affects disk-path workspaces (`.work-tmp` /
-`.grouped-tmp`). It is ignored when `-r memory` / `--compression-route memory`
-is selected.
+`-w` / `--tmp-dir` only affects disk-path workspaces (`.work-tmp` / `.grouped-tmp`). It is ignored when `-r memory` / `--compression-route memory` is selected.
 
 ### Compression Level
 
-Use `--level 1..9` to change the archive compression level used for gzip-style
-formatting and the internal scaling used for other streams:
+Use `--level 1..9` to change the archive compression level used for gzip-style formatting and the internal scaling used for other streams:
 
 ```bash
 spring2 -c --R1 reads.fastq -o reads.sp --level 9
@@ -182,10 +135,7 @@ That note is stored in archive metadata and shown by preview mode.
 
 ## Container Integrity
 
-Every new `.sp` archive includes an `integrity.meta` member listing the SHA-256
-of each packed payload (plus a root hash of that sorted digest list). Grouped
-bundles hash the outer members the same way; nested lane archives carry their
-own manifests. Decompress and audit verify these digests automatically.
+Every new `.sp` archive includes an `integrity.meta` member listing the SHA-256 of each packed payload (plus a root hash of that sorted digest list). Grouped bundles hash the outer members the same way; nested lane archives carry their own manifests. Decompress and audit verify these digests automatically.
 
 ## Compression-Time Verification
 
@@ -195,8 +145,7 @@ Add `--audit` to verify the archive immediately after compression:
 spring2 -c --R1 reads.fastq --R2 reads_2.fastq -o reads.sp --audit
 ```
 
-This runs a dry-run verification pass after archive creation (container
-SHA-256 plus reconstructed record digests).
+This runs a dry-run verification pass after archive creation (container SHA-256 plus reconstructed record digests).
 
 ## Logging
 

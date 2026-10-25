@@ -4,6 +4,12 @@
 
 ## Unreleased
 
+## V1.4.0
+
+### Changed
+
+- Bumped the embedded package version to `1.4.0` and accept `1.4.x` archives in the decompression version gate.
+
 ### Added
 
 - Added a manifest-driven backward-compat harness (`tests/data/compat/`, `compat_archive_integration_tests.cpp`, `tools/dev/mint_compat_fixtures.py`) so frozen legacy Spring and assay-specific SPRING2 archives (`dna_*`, `bisulfite_*`, `sc_atac`, `sc_rna`, `sc_bisulfite_*`) are systematically decompressed/previewed/audited by the current binary; mint current-version goldens before each release. Legacy Spring fixtures live under `compat/legacy/*.spring` and are covered only by that harness.

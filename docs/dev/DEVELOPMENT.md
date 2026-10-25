@@ -154,27 +154,17 @@ There are three layers to keep straight:
 
 **Parser coverage** lives in `tests/unit/archive_metadata_version_unit_tests.cpp`. Update that test first when metadata layout, version parsing, preview version reporting, or decompression routing changes.
 
-**End-to-end decompress coverage** lives in `tests/data/compat/` and
-`tests/integration/compat_archive_integration_tests.cpp`. The TSV manifest lists
-frozen archives (`compat/legacy/*.spring` for original Spring, plus assay-named
-SPRING2 `compat/<version>/{dna_*,bisulfite_*,sc_atac,sc_rna,sc_bisulfite_*}.sp`)
-and the checks to run (`decompress`, `preview`, `audit`, `reader`). Keep that
-harness as the single place for historical archive round-trips. Mint a new
-SPRING2 golden set before tagging a release:
+**End-to-end decompress coverage** lives in `tests/data/compat/` and `tests/integration/compat_archive_integration_tests.cpp`. The TSV manifest lists frozen archives (`compat/legacy/*.spring` for original Spring, plus assay-named SPRING2 `compat/<version>/{dna_*,bisulfite_*,sc_atac,sc_rna,sc_bisulfite_*}.sp`) and the checks to run (`decompress`, `preview`, `audit`, `reader`). Keep that harness as the single place for historical archive round-trips. Mint a new SPRING2 golden set before tagging a release:
 
 ```bash
 python tools/dev/mint_compat_fixtures.py --spring2 path/to/spring2
 ```
 
-Never overwrite an older `compat/<version>/` tree with a newer binary. Commit the
-new directory and the updated `manifest.tsv` with the release.
+Never overwrite an older `compat/<version>/` tree with a newer binary. Commit the new directory and the updated `manifest.tsv` with the release.
 
 ### Benchmark/Test Scripts
 
-The `tests/` directory also includes benchmark and comparison scripts. On GitHub,
-the manual **Benchmark** workflow (`.github/workflows/benchmark.yml`,
-`workflow_dispatch`) builds SPRING2 and runs `small_bench.py`, `big_bench.py`,
-and `comparison_bench.py`.
+The `tests/` directory also includes benchmark and comparison scripts. On GitHub, the manual **Benchmark** workflow (`.github/workflows/benchmark.yml`, `workflow_dispatch`) builds SPRING2 and runs `small_bench.py`, `big_bench.py`, and `comparison_bench.py`.
 
 - `tests/bench/big_bench.py`: End-to-end paired-end benchmark on the SRR8185389 dataset. Pass `--no_debug` to suppress SPRING's `-v debug` output during the run.
 - `tests/bench/small_bench.py`: Faster benchmark variant for quick local performance checks and assay-specific benchmark coverage.
@@ -207,7 +197,4 @@ The project uses GitHub Actions for automated multi-architecture releases.
 
 - **Runners**: Uses Linux, macOS, and Windows GitHub-hosted runners for `x86_64` and `arm64` targets.
 - **Environment**: Linux builds run inside **AlmaLinux 8** Docker containers to pin the GLIBC baseline to **2.28**, ensuring portability across enterprise distributions (RHEL 8+, Ubuntu 20.04+, etc.). macOS and Windows builds run natively on their respective hosted runners.
-- **Artifacts**:
-  - Linux: AppImage per architecture (`spring2-linux-*.AppImage`)
-  - macOS: zipped `.app` bundles per architecture (`spring2-macos-*.app.zip`)
-  - Windows: standalone executable per architecture (`spring2-windows-*.exe`)
+- **Artifacts**: - Linux: AppImage per architecture (`spring2-linux-*.AppImage`) - macOS: zipped `.app` bundles per architecture (`spring2-macos-*.app.zip`) - Windows: standalone executable per architecture (`spring2-windows-*.exe`)

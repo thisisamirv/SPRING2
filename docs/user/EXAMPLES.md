@@ -1,8 +1,6 @@
 # SPRING2 End-to-End Examples
 
-This page collects complete command sequences for common assay pipelines.
-Each example shows a typical compression flow, optional inspection, and
-restoration command.
+This page collects complete command sequences for common assay pipelines. Each example shows a typical compression flow, optional inspection, and restoration command.
 
 ## Conventions
 
@@ -12,8 +10,7 @@ restoration command.
 
 ## Paired-End DNA or WGS
 
-Typical paired-end DNA datasets can use the default `auto` assay mode or an
-explicit `dna` setting when you want deterministic behavior.
+Typical paired-end DNA datasets can use the default `auto` assay mode or an explicit `dna` setting when you want deterministic behavior.
 
 ```bash
 spring2 -c \
@@ -32,8 +29,7 @@ spring2 -d -i tumor01.sp -o tumor01_restored_R1.fastq.gz tumor01_restored_R2.fas
 
 ## Bulk RNA-seq
 
-For bulk RNA-seq, use `rna` explicitly if you already know the assay, or keep
-`auto` if you want SPRING2 to classify the startup sample.
+For bulk RNA-seq, use `rna` explicitly if you already know the assay, or keep `auto` if you want SPRING2 to classify the startup sample.
 
 ```bash
 spring2 -c \
@@ -51,8 +47,7 @@ spring2 -d -i rna_liver.sp -o rna_liver_R1.fastq.gz rna_liver_R2.fastq.gz
 
 ## ATAC-seq
 
-ATAC workflows benefit from explicit assay selection when you want predictable
-adapter-aware handling across repeated runs.
+ATAC workflows benefit from explicit assay selection when you want predictable adapter-aware handling across repeated runs.
 
 ```bash
 spring2 -c \
@@ -90,8 +85,7 @@ spring2 -d -i methylation_batch02.sp -o methylation_batch02_R1.fastq.gz methylat
 
 ## Single-Cell RNA-seq with I1 Index Reads
 
-When the cellular barcode is stored in I1, pass the grouped index lanes during
-compression. SPRING2 restores them as grouped outputs during decompression.
+When the cellular barcode is stored in I1, pass the grouped index lanes during compression. SPRING2 restores them as grouped outputs during decompression.
 
 ```bash
 spring2 -c \
@@ -118,8 +112,7 @@ Expected grouped outputs:
 
 ## Single-Cell RNA-seq with Barcode in R1
 
-When no I1 lane exists and the cellular barcode is part of the R1 prefix, set
-`--cb-len` to the barcode length.
+When no I1 lane exists and the cellular barcode is part of the R1 prefix, set `--cb-len` to the barcode length.
 
 ```bash
 spring2 -c \
@@ -138,8 +131,7 @@ spring2 -d -i dropseq_scrna.sp -o dropseq_scrna_R1.fastq.gz dropseq_scrna_R2.fas
 
 ## Single-Cell ATAC-seq
 
-Single-cell ATAC is typically paired-end and may also benefit from grouped lane
-handling depending on the upstream sequencer layout.
+Single-cell ATAC is typically paired-end and may also benefit from grouped lane handling depending on the upstream sequencer layout.
 
 ```bash
 spring2 -c \
@@ -158,10 +150,7 @@ spring2 -d -i multiome01_scatac.sp -o multiome01_scatac_R1.fastq.gz multiome01_s
 
 ## Single-Cell Bisulfite
 
-Single-cell bisulfite datasets can use explicit assay selection. Unlike
-sc-RNA, SPRING2 does not strip an R1 cellular-barcode prefix for
-`sc-bisulfite` (protocols disagree on R1 layout), so `--cb-len` has no effect
-on that path.
+Single-cell bisulfite datasets can use explicit assay selection. Unlike sc-RNA, SPRING2 does not strip an R1 cellular-barcode prefix for `sc-bisulfite` (protocols disagree on R1 layout), so `--cb-len` has no effect on that path.
 
 ```bash
 spring2 -c \
@@ -179,8 +168,7 @@ spring2 -d -i plateP3_scbs.sp -o plateP3_scbs_R1.fastq.gz plateP3_scbs_R2.fastq.
 
 ## Grouped Read-3 plus Index Pipeline
 
-Use grouped mode when the run includes paired reads plus read-3 and index
-lanes. Decompression restores all lanes from one archive.
+Use grouped mode when the run includes paired reads plus read-3 and index lanes. Decompression restores all lanes from one archive.
 
 ```bash
 spring2 -c \
@@ -223,8 +211,7 @@ Use lossy modes only when downstream requirements allow quality modification.
 
 ## Verification-Focused Workflow
 
-If the priority is archive validation for transfer or storage, combine
-compression-time audit and later preview-time audit.
+If the priority is archive validation for transfer or storage, combine compression-time audit and later preview-time audit.
 
 ```bash
 spring2 -c \

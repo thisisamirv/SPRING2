@@ -2,9 +2,7 @@
 
 # SPRING2 Platform Build Commands
 
-This page contains the concrete build commands for each supported host
-environment. For requirements and build strategy, start with
-[BUILDING.md](BUILDING.md).
+This page contains the concrete build commands for each supported host environment. For requirements and build strategy, start with [BUILDING.md](BUILDING.md).
 
 ## Linux
 
@@ -17,8 +15,7 @@ python3 -m pip install --upgrade --user pip
 python3 -m pip install --user "cmake==4.2.0"
 ```
 
-If the Python user binary directory is not on `PATH`, add it before invoking
-CMake:
+If the Python user binary directory is not on `PATH`, add it before invoking CMake:
 
 ```bash
 export PATH="$(python3 -m site --user-base)/bin:$PATH"
@@ -49,8 +46,7 @@ python3 -m pip install --upgrade --user pip
 python3 -m pip install --user "cmake==4.2.0"
 ```
 
-If the Python user binary directory is not on `PATH`, add it before invoking
-CMake:
+If the Python user binary directory is not on `PATH`, add it before invoking CMake:
 
 ```bash
 export PATH="$(python3 -m site --user-base)/bin:$PATH"
@@ -116,7 +112,5 @@ cmake --install out/build-clangcl --config Release --prefix out
 - CMake 4.2 or newer is required.
 - A C++20-capable compiler is required.
 - OpenMP is required.
-- Vendored Ninja and NASM are used automatically from `tools/host/` when
-  available on supported hosts.
-- For a machine-tuned build, pass
-  `-Dspring_optimize_for_native=ON -Dspring_optimize_for_portability=OFF`.
+- Vendored Ninja and NASM are used automatically from `tools/host/` when available on supported hosts.
+- For a machine-tuned build, pass `-Dspring_optimize_for_native=ON -Dspring_optimize_for_portability=OFF`.

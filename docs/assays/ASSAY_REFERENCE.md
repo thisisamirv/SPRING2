@@ -32,12 +32,9 @@ Each block was constructed independently and validated before concatenation.
 1. RNA exon block (RNA vs DNA discrimination)
 
 ---------------------------------------------
-Purpose
-The RNA exon block robustly distinguishes RNA-derived libraries (bulk RNA-seq, scRNA-seq) from DNA-derived libraries using exonic enrichment and splicing signal.
+Purpose The RNA exon block robustly distinguishes RNA-derived libraries (bulk RNA-seq, scRNA-seq) from DNA-derived libraries using exonic enrichment and splicing signal.
 
-Gene selection
-A curated set of ubiquitously expressed housekeeping genes was selected:
-ACTB, GAPDH, EEF1A1, RPLP0, RPS18, RPL13A, HPRT1, B2M, PABPC1, HNRNPK, MALAT1
+Gene selection A curated set of ubiquitously expressed housekeeping genes was selected: ACTB, GAPDH, EEF1A1, RPLP0, RPS18, RPL13A, HPRT1, B2M, PABPC1, HNRNPK, MALAT1
 
 Transcript selection
 
@@ -58,8 +55,7 @@ Purpose
 
 To detect chromatin accessibility libraries (ATAC-seq, scATAC-seq) via sharp enrichment at transcription start sites (TSSs).
 
-Gene selection
-ACTB, GAPDH, EEF1A1, RPLP0, RPL13A, RPS18, HNRNPA1, HSP90AA1, CFL1, TUBA1B, B2M
+Gene selection ACTB, GAPDH, EEF1A1, RPLP0, RPL13A, RPS18, HNRNPA1, HSP90AA1, CFL1, TUBA1B, B2M
 
 TSS determination
 
@@ -128,5 +124,4 @@ This reference supports very small alignment sketches (10–50k reads) to enable
 
 ## Versioning
 
-Genome: hg38 (GRCh38)
-Annotation: GENCODE v49
+Genome: hg38 (GRCh38) Annotation: GENCODE v49

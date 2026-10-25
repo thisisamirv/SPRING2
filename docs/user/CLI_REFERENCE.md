@@ -28,8 +28,7 @@ spring2 --preview -i <archive.sp> [--audit]
 - `-V`, `--version`: print version information
 - `-o`, `--output <arg>`: output archive or restored output path(s)
 - `-t`, `--threads <arg>`: number of worker threads
-- `-m`, `--memory <arg>`: approximate memory budget in GB; `0` disables the
-  thread-cap limit (auto compression routing still uses detected free RAM)
+- `-m`, `--memory <arg>`: approximate memory budget in GB; `0` disables the thread-cap limit (auto compression routing still uses detected free RAM)
 - `-v`, `--verbose [info|debug]`: logging level
 
 ## Compression Options
@@ -45,22 +44,17 @@ spring2 --preview -i <archive.sp> [--audit]
 - `-q`, `--qmod ...`: quality storage mode
 - `-n`, `--note <arg>`: store a custom note in archive metadata
 - `-y`, `--assay <arg>`: select assay mode
-- `-b`, `--cb-len <arg>`: cellular barcode length for sc-RNA R1 CB-prefix
-  stripping (ignored for `sc-bisulfite`; also ignored when `--I1` is present)
-- `-r`, `--compression-route <auto|memory|disk>`: advanced compression routing
-  override (`auto` is the default planner)
-- `-w`, `--tmp-dir <arg>`: advanced directory for disk-path workspaces
-  (`.work-tmp` / `.grouped-tmp`); default is beside the output archive
+- `-b`, `--cb-len <arg>`: cellular barcode length for sc-RNA R1 CB-prefix stripping (ignored for `sc-bisulfite`; also ignored when `--I1` is present)
+- `-r`, `--compression-route <auto|memory|disk>`: advanced compression routing override (`auto` is the default planner)
+- `-w`, `--tmp-dir <arg>`: advanced directory for disk-path workspaces (`.work-tmp` / `.grouped-tmp`); default is beside the output archive
 - `-a`, `--audit`: run post-compression verification
 
 ## Decompression Options
 
 - `-d`, `--decompress`: decompression mode
 - `-i`, `--input <arg>`: input archive path
-- `-a`, `--audit`: run a full in-memory archive integrity audit before writing
-  outputs
-- `-u`, `--unzip`: force plain-text output even if the original input was
-  gzipped
+- `-a`, `--audit`: run a full in-memory archive integrity audit before writing outputs
+- `-u`, `--unzip`: force plain-text output even if the original input was gzipped
 
 ## Preview Options
 
@@ -87,12 +81,9 @@ spring2 --preview -i <archive.sp> [--audit]
 
 ## Output Naming Notes
 
-- For paired-end or grouped archives, `-o prefix` expands to lane-specific
-  suffixes such as `.R1`, `.R2`, and (when present) `.R3`, `.I1`, and `.I2`.
+- For paired-end or grouped archives, `-o prefix` expands to lane-specific suffixes such as `.R1`, `.R2`, and (when present) `.R3`, `.I1`, and `.I2`.
 - Explicit full output paths can still be passed for each mate or lane.
-- Generated defaults and prefixes append `.gz` when the original stream was
-  gzipped (unless `--unzip` is set). Explicit paths ending in `.gz` write
-  gzipped restored output.
+- Generated defaults and prefixes append `.gz` when the original stream was gzipped (unless `--unzip` is set). Explicit paths ending in `.gz` write gzipped restored output.
 
 ## See Also
 
