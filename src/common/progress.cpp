@@ -67,8 +67,10 @@ void Logger::log_debug(const std::string &msg) {
 }
 
 void Logger::log_warning(const std::string &msg) {
-  // Warnings are printed regardless of verbosity usually, but let's keep it to
-  // stdout
+  // Match info: quiet mode (default CLI / tests) stays silent; -v shows warnings.
+  if (!is_info_enabled()) {
+    return;
+  }
   std::cout << "WARNING: " << msg << std::endl;
 }
 

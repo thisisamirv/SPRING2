@@ -30,7 +30,6 @@
 
 ### Fixed
 
-- Fixed `comparison_bench.py` passing SPRING2-only `-u/--unzip` to legacy Spring, which rejects unknown options; Spring v1 PE decompress now uses two explicit `-o` paths and expects `.1`/`.2` mates.
 - Fixed format-v1 `cp.bin` parse rejecting valid release archives: after reading the peek-terminated extension trailer the stream has `eofbit` set, and `!good()` was treated as failure. EOF after a successful parse is now accepted.
 - Fixed deterministic short-read reorder using the OpenMP team size as the read-scan stride while only thread 0 performed matching, which skipped most seeds/singletons and produced larger archives than `-t 1`. Thread 0 now scans every read.
 - Fixed bisulfite auto domain compression losing size vs DNA on directional PE libraries: depleted-base reorder masks and ternary contig packing are armed only when both streams share the same depleted base (`C` or `G`); G-depleted libraries pack/decode with an `{A,C,T}` alphabet via new `bisulfite_ternary_escape_base` metadata (legacy archives default to escape-on-`C`). Directional PE (C vs G) keeps DNA-equivalent encoding while still labeling the assay from detection.

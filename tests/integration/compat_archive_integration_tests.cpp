@@ -19,6 +19,16 @@ using namespace integration_test_support;
 
 namespace {
 
+struct CoutCapture {
+  explicit CoutCapture(std::ostream &sink)
+      : previous_(std::cout.rdbuf(sink.rdbuf())) {}
+  ~CoutCapture() { std::cout.rdbuf(previous_); }
+  CoutCapture(const CoutCapture &) = delete;
+  CoutCapture &operator=(const CoutCapture &) = delete;
+
+  std::streambuf *previous_;
+};
+
 struct CompatFixture {
   std::string id;
   std::string kind;
@@ -190,17 +200,26 @@ void check_decompress(const CompatFixture &fixture) {
   const bool multi_lane = !fixture.ref_r2.empty() || !fixture.ref_r3.empty() ||
                           !fixture.ref_i1.empty() || !fixture.ref_i2.empty();
 
+  // Quiet + discard stdout so progress bars / integrity.meta warnings stay out
+  // of CTest logs. Capture only wraps decompress so assertion messages remain.
+  std::ostringstream discarded;
   if (!multi_lane) {
     const fs::path output = work / "restored";
-    CHECK_NOTHROW(decompress({archive_path}, {output.generic_string()}, 1,
-                             log_level::info, fixture.refs_gzipped));
+    {
+      const CoutCapture capture(discarded);
+      CHECK_NOTHROW(decompress({archive_path}, {output.generic_string()}, 1,
+                               log_level::quiet, fixture.refs_gzipped));
+    }
     check_lane(fixture, output, fixture.ref_r1, "R1");
   } else if (!fixture.ref_r3.empty() || !fixture.ref_i1.empty() ||
              !fixture.ref_i2.empty()) {
     // Grouped: single -o prefix writes role suffixes (.R1/.R2/.R3/.I1/.I2).
     const fs::path prefix = work / "restored";
-    CHECK_NOTHROW(decompress({archive_path}, {prefix.generic_string()}, 1,
-                             log_level::info, fixture.refs_gzipped));
+    {
+      const CoutCapture capture(discarded);
+      CHECK_NOTHROW(decompress({archive_path}, {prefix.generic_string()}, 1,
+                               log_level::quiet, fixture.refs_gzipped));
+    }
     check_lane(fixture, work / "restored.R1", fixture.ref_r1, "R1");
     check_lane(fixture, work / "restored.R2", fixture.ref_r2, "R2");
     check_lane(fixture, work / "restored.R3", fixture.ref_r3, "R3");
@@ -209,9 +228,12 @@ void check_decompress(const CompatFixture &fixture) {
   } else {
     const fs::path out_r1 = work / "restored.R1";
     const fs::path out_r2 = work / "restored.R2";
-    CHECK_NOTHROW(decompress(
-        {archive_path}, {out_r1.generic_string(), out_r2.generic_string()}, 1,
-        log_level::info, fixture.refs_gzipped));
+    {
+      const CoutCapture capture(discarded);
+      CHECK_NOTHROW(decompress(
+          {archive_path}, {out_r1.generic_string(), out_r2.generic_string()}, 1,
+          log_level::quiet, fixture.refs_gzipped));
+    }
     check_lane(fixture, out_r1, fixture.ref_r1, "R1");
     check_lane(fixture, out_r2, fixture.ref_r2, "R2");
   }
@@ -224,9 +246,10 @@ void check_preview(const CompatFixture &fixture) {
   REQUIRE(fs::exists(archive_path));
 
   std::ostringstream preview_output;
-  auto *original_buffer = std::cout.rdbuf(preview_output.rdbuf());
-  CHECK_NOTHROW(preview(archive_path, false));
-  std::cout.rdbuf(original_buffer);
+  {
+    const CoutCapture capture(preview_output);
+    CHECK_NOTHROW(preview(archive_path, false));
+  }
 
   const std::string output = preview_output.str();
   const std::string needle = "Archive Version:   " + fixture.expected_version;
@@ -254,6 +277,11 @@ void check_preview(const CompatFixture &fixture) {
 void check_audit(const CompatFixture &fixture) {
   const std::string archive_path = asset_path(fixture.archive);
   REQUIRE(fs::exists(archive_path));
+  // Discard audit chatter (integrity.meta warnings, "Audit verified…") from
+  // CTest logs; failures still throw into CHECK_NOTHROW.
+  std::ostringstream discarded;
+  const CoutCapture capture(discarded);
+  Logger::set_level(log_level::quiet);
   CHECK_NOTHROW(preview(archive_path, true));
 }
 

@@ -560,23 +560,25 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
   auto *const remaining_read_lock_data = remaining_read_lock.data();
   auto *const unmatched_counts_data = unmatched_counts.data();
   auto *const singleton_order_buffers_data = singleton_order_buffers.data();
+  // Deterministic reorder runs on a single OpenMP thread. Spawning idle
+  // workers that only write empty shards into shared `artifact` crashes on
+  // Windows ClangCL/libomp (worker threads get garbage shared std::vector
+  // captures). Empty shards for threads 1..num_thr-1 already exist from
+  // assign() above.
+  auto *const aligned_shards_data = artifact.aligned_shards.data();
   auto reorder_pass_start = std::chrono::steady_clock::now();
   auto last_progress_log_ts = reorder_pass_start;
-#pragma omp parallel default(none) shared(                                     \
-        rg, read, read_lengths, dict, remaining_reads, artifact, first_read,   \
+#pragma omp parallel num_threads(1) default(none) shared(                      \
+        rg, read, read_lengths, dict, remaining_reads, first_read,             \
             index_masks_data, length_masks_data, dict_locks_data,              \
             read_locks_data, remaining_read_lock_data, unmatched_counts_data,  \
-            singleton_order_buffers_data, reorder_pass_start,                  \
-            last_progress_log_ts)
+            singleton_order_buffers_data, aligned_shards_data,                 \
+            reorder_pass_start, last_progress_log_ts)
   {
     bool done = false;
-    int thread_id = omp_get_thread_num();
-    // Serialize match selection to thread 0 for bit-identical archives while
-    // still materializing empty per-thread shards for downstream stages.
-    // Thread 0 uses stride 1 so every read is visited.
-    if (thread_id != 0) {
-      done = true;
-    }
+    // Always shard index 0: matching is single-threaded for bit-identical
+    // archives; downstream stages still see rg.num_thr empty sibling shards.
+    constexpr int thread_id = 0;
     constexpr int64_t scan_stride = 1;
     int64_t remaining_read_scan = rg.numreads > 0 ? rg.numreads - 1 : -1;
     std::string orientation_output;
@@ -734,13 +736,9 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
           detail::append_binary(singleton_order_output,
                                 static_cast<uint32_t>(previous_read_id));
         }
-        const int64_t num_thr =
-            scan_stride; // scan_stride == omp_get_num_threads()
-        const int64_t reads_per_thr =
-            (static_cast<int64_t>(rg.numreads) + num_thr - 1) / num_thr;
-        const int64_t sweep_start = thread_id * reads_per_thr;
-        const int64_t sweep_end = std::min(sweep_start + reads_per_thr,
-                                           static_cast<int64_t>(rg.numreads));
+        // Single-thread drain: scan every remaining read.
+        const int64_t sweep_start = 0;
+        const int64_t sweep_end = static_cast<int64_t>(rg.numreads);
         for (int64_t read_id = sweep_start; read_id < sweep_end; read_id++) {
           if (!remaining_reads[read_id])
             continue; // already claimed; cheap sequential check
@@ -960,15 +958,15 @@ void reorder(std::bitset<bitset_size> *read, bbhashdict *dict,
         }
       }
     }
-    artifact.aligned_shards[static_cast<size_t>(thread_id)].orientation_bytes =
+    aligned_shards_data[static_cast<size_t>(thread_id)].orientation_bytes =
         std::move(orientation_output);
-    artifact.aligned_shards[static_cast<size_t>(thread_id)].flag_bytes =
+    aligned_shards_data[static_cast<size_t>(thread_id)].flag_bytes =
         std::move(flag_output);
-    artifact.aligned_shards[static_cast<size_t>(thread_id)].position_bytes =
+    aligned_shards_data[static_cast<size_t>(thread_id)].position_bytes =
         std::move(position_output);
-    artifact.aligned_shards[static_cast<size_t>(thread_id)].order_bytes =
+    aligned_shards_data[static_cast<size_t>(thread_id)].order_bytes =
         std::move(order_output);
-    artifact.aligned_shards[static_cast<size_t>(thread_id)].read_length_bytes =
+    aligned_shards_data[static_cast<size_t>(thread_id)].read_length_bytes =
         std::move(read_length_output);
     singleton_order_buffers_data[static_cast<size_t>(thread_id)] =
         std::move(singleton_order_output);
