@@ -2,6 +2,83 @@ id	kind	archive	expected_version	ref_r1	ref_r2	ref_r3	ref_i1	ref_i2	refs_gzipped
 legacy_spring_pe_fastq	legacy_spring	compat/legacy/pe_fastq.spring	legacy spring	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,reader	
 legacy_spring_se_fasta	legacy_spring	compat/legacy/se_fasta.spring	legacy spring	test_1.fasta					0	decompress,preview	
 legacy_spring_se_fastq	legacy_spring	compat/legacy/se_fastq.spring	legacy spring	test_1.fastq					0	decompress,preview,reader	
+spring2_1_0_0_bisulfite_pe_fastq	spring2	compat/1.0.0/bisulfite_pe_fastq.sp	1.0.0	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_0_0_dna_pe_fastq	spring2	compat/1.0.0/dna_pe_fastq.sp	1.0.0	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_0_0_dna_se_fasta	spring2	compat/1.0.0/dna_se_fasta.sp	1.0.0	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_0_0_dna_se_fastq	spring2	compat/1.0.0/dna_se_fastq.sp	1.0.0	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_0_0_sc_atac	spring2	compat/1.0.0/sc_atac.sp	1.0.0	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_0_0_sc_bisulfite_pe_fastq	spring2	compat/1.0.0/sc_bisulfite_pe_fastq.sp	1.0.0	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_0_0_sc_rna	spring2	compat/1.0.0/sc_rna.sp	1.0.0	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_0_1_bisulfite_pe_fastq	spring2	compat/1.0.1/bisulfite_pe_fastq.sp	1.0.1	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_0_1_dna_pe_fastq	spring2	compat/1.0.1/dna_pe_fastq.sp	1.0.1	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_0_1_dna_se_fasta	spring2	compat/1.0.1/dna_se_fasta.sp	1.0.1	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_0_1_dna_se_fastq	spring2	compat/1.0.1/dna_se_fastq.sp	1.0.1	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_0_1_sc_atac	spring2	compat/1.0.1/sc_atac.sp	1.0.1	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_0_1_sc_bisulfite_pe_fastq	spring2	compat/1.0.1/sc_bisulfite_pe_fastq.sp	1.0.1	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_0_1_sc_rna	spring2	compat/1.0.1/sc_rna.sp	1.0.1	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_0_2_bisulfite_pe_fastq	spring2	compat/1.0.2/bisulfite_pe_fastq.sp	1.0.1	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_0_2_dna_pe_fastq	spring2	compat/1.0.2/dna_pe_fastq.sp	1.0.1	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_0_2_dna_se_fasta	spring2	compat/1.0.2/dna_se_fasta.sp	1.0.1	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_0_2_dna_se_fastq	spring2	compat/1.0.2/dna_se_fastq.sp	1.0.1	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_0_2_sc_atac	spring2	compat/1.0.2/sc_atac.sp	1.0.1	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_0_2_sc_bisulfite_pe_fastq	spring2	compat/1.0.2/sc_bisulfite_pe_fastq.sp	1.0.1	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_0_2_sc_rna	spring2	compat/1.0.2/sc_rna.sp	1.0.1	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_1_0_bisulfite_pe_fastq	spring2	compat/1.1.0/bisulfite_pe_fastq.sp	1.1.0	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_1_0_dna_pe_fastq	spring2	compat/1.1.0/dna_pe_fastq.sp	1.1.0	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_1_0_dna_se_fasta	spring2	compat/1.1.0/dna_se_fasta.sp	1.1.0	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_1_0_dna_se_fastq	spring2	compat/1.1.0/dna_se_fastq.sp	1.1.0	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_1_0_sc_atac	spring2	compat/1.1.0/sc_atac.sp	1.1.0	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_1_0_sc_bisulfite_pe_fastq	spring2	compat/1.1.0/sc_bisulfite_pe_fastq.sp	1.1.0	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_1_0_sc_rna	spring2	compat/1.1.0/sc_rna.sp	1.1.0	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_2_0_bisulfite_pe_fastq	spring2	compat/1.2.0/bisulfite_pe_fastq.sp	1.2.0	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_2_0_dna_pe_fastq	spring2	compat/1.2.0/dna_pe_fastq.sp	1.2.0	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_2_0_dna_se_fasta	spring2	compat/1.2.0/dna_se_fasta.sp	1.2.0	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_2_0_dna_se_fastq	spring2	compat/1.2.0/dna_se_fastq.sp	1.2.0	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_2_0_sc_atac	spring2	compat/1.2.0/sc_atac.sp	1.2.0	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_2_0_sc_bisulfite_pe_fastq	spring2	compat/1.2.0/sc_bisulfite_pe_fastq.sp	1.2.0	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_2_0_sc_rna	spring2	compat/1.2.0/sc_rna.sp	1.2.0	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_2_1_bisulfite_pe_fastq	spring2	compat/1.2.1/bisulfite_pe_fastq.sp	1.2.1	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_2_1_dna_pe_fastq	spring2	compat/1.2.1/dna_pe_fastq.sp	1.2.1	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_2_1_dna_se_fasta	spring2	compat/1.2.1/dna_se_fasta.sp	1.2.1	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_2_1_dna_se_fastq	spring2	compat/1.2.1/dna_se_fastq.sp	1.2.1	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_2_1_sc_atac	spring2	compat/1.2.1/sc_atac.sp	1.2.1	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_2_1_sc_bisulfite_pe_fastq	spring2	compat/1.2.1/sc_bisulfite_pe_fastq.sp	1.2.1	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_2_1_sc_rna	spring2	compat/1.2.1/sc_rna.sp	1.2.1	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_3_0_bisulfite_pe_fastq	spring2	compat/1.3.0/bisulfite_pe_fastq.sp	1.3.0	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_3_0_dna_pe_fastq	spring2	compat/1.3.0/dna_pe_fastq.sp	1.3.0	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_3_0_dna_se_fasta	spring2	compat/1.3.0/dna_se_fasta.sp	1.3.0	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_3_0_dna_se_fastq	spring2	compat/1.3.0/dna_se_fastq.sp	1.3.0	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_3_0_sc_atac	spring2	compat/1.3.0/sc_atac.sp	1.3.0	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_3_0_sc_bisulfite_pe_fastq	spring2	compat/1.3.0/sc_bisulfite_pe_fastq.sp	1.3.0	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_3_0_sc_rna	spring2	compat/1.3.0/sc_rna.sp	1.3.0	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_3_1_bisulfite_pe_fastq	spring2	compat/1.3.1/bisulfite_pe_fastq.sp	1.3.1	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_3_1_dna_pe_fastq	spring2	compat/1.3.1/dna_pe_fastq.sp	1.3.1	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_3_1_dna_se_fasta	spring2	compat/1.3.1/dna_se_fasta.sp	1.3.1	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_3_1_dna_se_fastq	spring2	compat/1.3.1/dna_se_fastq.sp	1.3.1	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_3_1_sc_atac	spring2	compat/1.3.1/sc_atac.sp	1.3.1	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_3_1_sc_bisulfite_pe_fastq	spring2	compat/1.3.1/sc_bisulfite_pe_fastq.sp	1.3.1	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_3_1_sc_rna	spring2	compat/1.3.1/sc_rna.sp	1.3.1	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_3_2_bisulfite_pe_fastq	spring2	compat/1.3.2/bisulfite_pe_fastq.sp	1.3.2	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_3_2_dna_pe_fastq	spring2	compat/1.3.2/dna_pe_fastq.sp	1.3.2	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_3_2_dna_se_fasta	spring2	compat/1.3.2/dna_se_fasta.sp	1.3.2	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_3_2_dna_se_fastq	spring2	compat/1.3.2/dna_se_fastq.sp	1.3.2	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_3_2_sc_atac	spring2	compat/1.3.2/sc_atac.sp	1.3.2	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_3_2_sc_bisulfite_pe_fastq	spring2	compat/1.3.2/sc_bisulfite_pe_fastq.sp	1.3.2	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_3_2_sc_rna	spring2	compat/1.3.2/sc_rna.sp	1.3.2	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_3_3_bisulfite_pe_fastq	spring2	compat/1.3.3/bisulfite_pe_fastq.sp	1.3.3	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_3_3_dna_pe_fastq	spring2	compat/1.3.3/dna_pe_fastq.sp	1.3.3	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_3_3_dna_se_fasta	spring2	compat/1.3.3/dna_se_fasta.sp	1.3.3	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_3_3_dna_se_fastq	spring2	compat/1.3.3/dna_se_fastq.sp	1.3.3	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_3_3_sc_atac	spring2	compat/1.3.3/sc_atac.sp	1.3.3	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_3_3_sc_bisulfite_pe_fastq	spring2	compat/1.3.3/sc_bisulfite_pe_fastq.sp	1.3.3	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_3_3_sc_rna	spring2	compat/1.3.3/sc_rna.sp	1.3.3	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
+spring2_1_3_4_bisulfite_pe_fastq	spring2	compat/1.3.4/bisulfite_pe_fastq.sp	1.3.4	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
+spring2_1_3_4_dna_pe_fastq	spring2	compat/1.3.4/dna_pe_fastq.sp	1.3.4	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
+spring2_1_3_4_dna_se_fasta	spring2	compat/1.3.4/dna_se_fasta.sp	1.3.4	test_1.fasta					0	decompress,preview,audit	dna
+spring2_1_3_4_dna_se_fastq	spring2	compat/1.3.4/dna_se_fastq.sp	1.3.4	test_1.fastq					0	decompress,preview,audit,reader	dna
+spring2_1_3_4_sc_atac	spring2	compat/1.3.4/sc_atac.sp	1.3.4	test_4_R1.fastq.gz	test_4_R2.fastq.gz	test_4_R3.fastq.gz	test_4_I1.fastq.gz		1	decompress,preview,audit	sc-atac
+spring2_1_3_4_sc_bisulfite_pe_fastq	spring2	compat/1.3.4/sc_bisulfite_pe_fastq.sp	1.3.4	test_6_R1.fastq.gz	test_6_R2.fastq.gz				1	decompress,preview,audit	sc-bisulfite
+spring2_1_3_4_sc_rna	spring2	compat/1.3.4/sc_rna.sp	1.3.4	test_5_R1.fastq.gz	test_5_R2.fastq.gz		test_5_I1.fastq.gz	test_5_I2.fastq.gz	1	decompress,preview,audit	sc-rna
 spring2_1_3_6_bisulfite_pe_fastq	spring2	compat/1.3.6/bisulfite_pe_fastq.sp	1.3.6	test_3_R1.fastq.gz	test_3_R2.fastq.gz				1	decompress,preview,audit,reader	bisulfite
 spring2_1_3_6_dna_pe_fastq	spring2	compat/1.3.6/dna_pe_fastq.sp	1.3.6	test_1.fastq	test_2.fastq				0	decompress,preview,audit	dna
 spring2_1_3_6_dna_se_fasta	spring2	compat/1.3.6/dna_se_fasta.sp	1.3.6	test_1.fasta					0	decompress,preview,audit	dna

@@ -7,6 +7,10 @@ Writes tests/data/compat/<VERSION>/*.sp using the provided spring2 binary at
 Historical compat/<old_version>/ trees are never deleted or overwritten for a
 different VERSION. Re-running for the same VERSION replaces that version's
 archives and manifest rows only.
+
+Pass --wsl when spring2 is a Linux AppImage and this script is running on
+Windows; arguments are converted to /mnt/<drive>/... paths and executed via
+`wsl` with APPIMAGE_EXTRACT_AND_RUN=1.
 """
 
 from __future__ import annotations
@@ -101,6 +105,14 @@ LEGACY_ROWS = (
 )
 
 
+def windows_to_wsl(path: Path) -> str:
+    resolved = path.resolve()
+    text = str(resolved).replace("\\", "/")
+    if len(text) >= 2 and text[1] == ":":
+        return f"/mnt/{text[0].lower()}{text[2:]}"
+    return text
+
+
 def run(cmd: list[str]) -> str:
     completed = subprocess.run(
         cmd, check=True, capture_output=True, text=True, encoding="utf-8"
@@ -108,8 +120,21 @@ def run(cmd: list[str]) -> str:
     return (completed.stdout or "") + (completed.stderr or "")
 
 
-def detect_version(spring2: Path) -> str:
-    output = run([str(spring2), "-V"])
+def spring2_command(spring2: Path, args: list[str], *, use_wsl: bool) -> list[str]:
+    if not use_wsl:
+        return [str(spring2), *args]
+    return [
+        "wsl",
+        "-e",
+        "env",
+        "APPIMAGE_EXTRACT_AND_RUN=1",
+        windows_to_wsl(spring2),
+        *args,
+    ]
+
+
+def detect_version(spring2: Path, *, use_wsl: bool = False) -> str:
+    output = run(spring2_command(spring2, ["-V"], use_wsl=use_wsl))
     match = re.search(r"(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)", output)
     if not match:
         raise RuntimeError(f"Could not parse version from: {output!r}")
@@ -152,11 +177,15 @@ def ensure_legacy_rows(rows: list[str]) -> list[str]:
     return list(by_id.values())
 
 
-def lane_args(lanes: dict[str, str]) -> list[str]:
+def lane_args(lanes: dict[str, str], *, use_wsl: bool) -> list[str]:
     args: list[str] = []
     for role in ("R1", "R2", "R3", "I1", "I2"):
-        if role in lanes:
-            args.extend([f"--{role}", str(DATA_DIR / lanes[role])])
+        if role not in lanes:
+            continue
+        path = DATA_DIR / lanes[role]
+        args.extend(
+            [f"--{role}", windows_to_wsl(path) if use_wsl else str(path)]
+        )
     return args
 
 
@@ -164,7 +193,20 @@ def manifest_lane(lanes: dict[str, str], role: str) -> str:
     return lanes.get(role, "")
 
 
-def mint(spring2: Path, version: str) -> None:
+def mint(
+    spring2: Path,
+    version: str,
+    *,
+    use_wsl: bool = False,
+    expected_version: str | None = None,
+) -> None:
+    """Mint goldens under compat/<version>/.
+
+    expected_version is written to manifest.tsv for preview checks. Defaults to
+    version; pass a different value when a release binary embeds a mismatched
+    creator string (e.g. tag v1.0.2 reporting 1.0.1).
+    """
+    embedded = expected_version or version
     out_dir = COMPAT_DIR / version
     out_dir.mkdir(parents=True, exist_ok=True)
     new_rows: list[str] = []
@@ -181,18 +223,22 @@ def mint(spring2: Path, version: str) -> None:
 
         archive_rel = f"compat/{version}/{case['suffix']}.sp"
         archive_path = DATA_DIR / archive_rel
+        out_arg = windows_to_wsl(archive_path) if use_wsl else str(archive_path)
 
-        cmd = [
-            str(spring2),
-            "-c",
-            *lane_args(lanes),
-            "-y",
-            str(case["assay"]),
-            "-o",
-            str(archive_path),
-            "-t",
-            "1",
-        ]
+        cmd = spring2_command(
+            spring2,
+            [
+                "-c",
+                *lane_args(lanes, use_wsl=use_wsl),
+                "-y",
+                str(case["assay"]),
+                "-o",
+                out_arg,
+                "-t",
+                "1",
+            ],
+            use_wsl=use_wsl,
+        )
         print("mint:", " ".join(cmd))
         run(cmd)
         if not archive_path.exists() or archive_path.stat().st_size == 0:
@@ -203,7 +249,7 @@ def mint(spring2: Path, version: str) -> None:
         )
         gzip_flag = "1" if case["gzip"] else "0"
         new_rows.append(
-            f"{fixture_id}\tspring2\t{archive_rel}\t{version}\t"
+            f"{fixture_id}\tspring2\t{archive_rel}\t{embedded}\t"
             f"{manifest_lane(lanes, 'R1')}\t{manifest_lane(lanes, 'R2')}\t"
             f"{manifest_lane(lanes, 'R3')}\t{manifest_lane(lanes, 'I1')}\t"
             f"{manifest_lane(lanes, 'I2')}\t{gzip_flag}\t{case['checks']}\t"
@@ -229,13 +275,18 @@ def main() -> int:
         default=None,
         help="Override creator version directory name (default: spring2 -V)",
     )
+    parser.add_argument(
+        "--wsl",
+        action="store_true",
+        help="Run a Linux AppImage through WSL (Windows host)",
+    )
     args = parser.parse_args()
     spring2 = args.spring2.resolve()
     if not spring2.exists():
         print(f"spring2 not found: {spring2}", file=sys.stderr)
         return 1
-    version = args.version or detect_version(spring2)
-    mint(spring2, version)
+    version = args.version or detect_version(spring2, use_wsl=args.wsl)
+    mint(spring2, version, use_wsl=args.wsl)
     return 0
 
 

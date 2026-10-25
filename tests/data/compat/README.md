@@ -23,7 +23,8 @@ python tools/dev/mint_compat_fixtures.py --spring2 path/to/spring2
 
 That writes assay-specific `compat/<VERSION>/` archives with `-t 1` and
 explicit `-y <assay>`, then upserts the matching manifest rows. Commit the new
-directory and the updated `manifest.tsv`.
+directory and the updated `manifest.tsv`. Historical `compat/<old_version>/`
+trees are frozen fixtures — do not remint them with a newer binary.
 
 Current SPRING2 cases:
 

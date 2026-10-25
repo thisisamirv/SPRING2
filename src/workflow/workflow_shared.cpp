@@ -240,7 +240,9 @@ void read_archive_compression_params(
     compression_params parsed{};
     std::istringstream input(cp_bytes, std::ios::binary);
     read_compression_params(input, parsed);
-    if (!input.good()) {
+    // Format v1 trailers end by peeking EOF, which sets eofbit. Treat that as
+    // success; only failbit/badbit mean a truncated or corrupt parse.
+    if (input.bad() || (input.fail() && !input.eof())) {
       throw std::runtime_error("Can't read compression parameters.");
     }
     cp = std::move(parsed);
