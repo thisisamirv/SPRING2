@@ -13,14 +13,6 @@ using namespace integration_test_support;
 
 namespace {
 
-std::string sample_asset_path(const std::string &name) {
-#ifdef INTEGRATION_TEST_ASSET_DIR
-  return (fs::path(INTEGRATION_TEST_ASSET_DIR) / name).generic_string();
-#else
-  return (fs::path("..") / ".." / "data" / "samples" / name).generic_string();
-#endif
-}
-
 std::string normalize_newlines(std::string text) {
   std::erase(text, '\r');
   return text;
