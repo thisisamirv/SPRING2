@@ -154,14 +154,19 @@ def run_benchmark(
         ]
     else:
         compressed_paths = [TMP_OUTPUT_DIR / f"{output_prefix.name}.sp"]
+        roundtrip_prefix = TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq"
         if len(input_paths) == 1:
+            decompressed_paths = [roundtrip_prefix]
+        elif label == "spring_v1":
+            # Legacy Spring PE single-prefix restores use .1/.2 (not .R1/.R2).
             decompressed_paths = [
-                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq"
+                pathlib.Path(f"{roundtrip_prefix}.1"),
+                pathlib.Path(f"{roundtrip_prefix}.2"),
             ]
         else:
             decompressed_paths = [
-                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.R1",
-                TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq.R2",
+                pathlib.Path(f"{roundtrip_prefix}.R1"),
+                pathlib.Path(f"{roundtrip_prefix}.R2"),
             ]
 
     for stale in compressed_paths + decompressed_paths:
@@ -249,16 +254,22 @@ def run_benchmark(
             max_rss_kb=None,
         )  # type: ignore[call-arg]
     else:
-        # --unzip: PE single-prefix restores are name.R1/.R2; without -u,
-        # gzipped originals become name.R1.gz/.R2.gz and break path checks.
-        decompress_args = [
-            "-d",
-            "-u",
-            "-i",
-            str(compressed_paths[0]),
-            "-o",
-            str(TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq"),
-        ]
+        roundtrip_prefix = TMP_OUTPUT_DIR / f"{output_prefix.name}.roundtrip.fastq"
+        if label == "spring_v1":
+            # Legacy Spring has no --unzip; PE takes two explicit -o paths.
+            decompress_args = ["-d", "-i", str(compressed_paths[0]), "-o"]
+            decompress_args.extend(str(path) for path in decompressed_paths)
+        else:
+            # SPRING2 --unzip: PE single-prefix writes name.R1/.R2; without -u,
+            # gzipped originals become name.R1.gz/.R2.gz and break path checks.
+            decompress_args = [
+                "-d",
+                "-u",
+                "-i",
+                str(compressed_paths[0]),
+                "-o",
+                str(roundtrip_prefix),
+            ]
         if compressed_paths[0].suffix == ".gz" and runner_help_contains(
             runner_prefix, "gzipped-fastq"
         ):
