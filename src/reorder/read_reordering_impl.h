@@ -1175,12 +1175,13 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
   // Override with SPRING2_REORDER_SHIFT_STEP (positive int; 1 = full
   // sensitivity).
   static constexpr int kDefaultReorderShiftStep = 2;
-  const int shift_step_override = []() -> int {
+  const int shift_step_override = [&rg]() -> int {
     const char *env = std::getenv("SPRING2_REORDER_SHIFT_STEP");
     if (env) {
-      const long v = std::strtol(env, nullptr, 10);
-      if (v >= 1)
-        return static_cast<int>(v);
+      std::istringstream value(env);
+      int v = 0;
+      if ((value >> v) && value.eof() && v >= 1)
+        return std::min(v, std::max(1, rg.maxshift));
     }
     return -1;
   }();
