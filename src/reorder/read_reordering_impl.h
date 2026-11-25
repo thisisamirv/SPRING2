@@ -1160,9 +1160,10 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
   const int max_reorder_shift_cap = []() -> int {
     const char *env = std::getenv("SPRING2_MAX_REORDER_SHIFT");
     if (env) {
-      const long v = std::strtol(env, nullptr, 10);
-      if (v >= 0)
-        return static_cast<int>(v);
+       std::istringstream value(env);
+       int v = 0;
+       if ((value >> v) && value.eof() && v >= 0)
+         return v;
     }
     return kDefaultMaxReorderShift;
   }();
