@@ -328,10 +328,12 @@ inline void finalize_bucket_offsets(bbhashdict &dictionary) {
     firstprivate(thread_count)
   {
     const int thread_id = omp_get_thread_num();
-    const uint32_t begin =
-        static_cast<uint32_t>(thread_id) * scan_length / thread_count;
-    const uint32_t end =
-        static_cast<uint32_t>(thread_id + 1) * scan_length / thread_count;
+    // 64-bit math: thread_id * scan_length overflows uint32_t for large
+    // dictionaries with high thread counts.
+    const uint32_t begin = static_cast<uint32_t>(
+        static_cast<uint64_t>(thread_id) * scan_length / thread_count);
+    const uint32_t end = static_cast<uint32_t>(
+        static_cast<uint64_t>(thread_id + 1) * scan_length / thread_count);
 
     uint32_t running_sum = 0;
     for (uint32_t local_index = begin; local_index < end; local_index++) {

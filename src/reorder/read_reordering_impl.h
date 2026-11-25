@@ -1153,19 +1153,60 @@ reorder_encoder_artifact reorder_main(reorder_input_artifact input_artifact,
   rg.num_thr = cp.encoding.num_thr;
   rg.paired_end = cp.encoding.paired_end;
   // Cap maxshift so 150+ bp datasets don't take proportionally longer.
-  static constexpr int kMaxReorderShift = 50;
+  // Override with SPRING2_MAX_REORDER_SHIFT (0 = uncapped, or a positive int).
+  static constexpr int kDefaultMaxReorderShift = 50;
+  const bool max_shift_overridden =
+      std::getenv("SPRING2_MAX_REORDER_SHIFT") != nullptr;
+  const int max_reorder_shift_cap = []() -> int {
+    const char *env = std::getenv("SPRING2_MAX_REORDER_SHIFT");
+    if (env) {
+       std::istringstream value(env);
+       int v = 0;
+       if ((value >> v) && value.eof() && v >= 0)
+         return v;
+    }
+    return kDefaultMaxReorderShift;
+  }();
+  rg.maxshift = max_reorder_shift_cap > 0
+                    ? std::min(rg.max_readlen / 2, max_reorder_shift_cap)
+                    : rg.max_readlen / 2;
+
   // For long reads, try every other shift position — halves inner-loop
   // iterations with minimal compression loss at high coverage.
-  static constexpr int kReorderShiftStep = 2;
-  rg.maxshift = std::min(rg.max_readlen / 2, kMaxReorderShift);
-  rg.shift_step = (rg.max_readlen > 100) ? kReorderShiftStep : 1;
-  if (rg.max_readlen / 2 > kMaxReorderShift) {
+  // Override with SPRING2_REORDER_SHIFT_STEP (positive int; 1 = full
+  // sensitivity).
+  static constexpr int kDefaultReorderShiftStep = 2;
+  const int shift_step_override = [&rg]() -> int {
+    const char *env = std::getenv("SPRING2_REORDER_SHIFT_STEP");
+    if (env) {
+      std::istringstream value(env);
+      int v = 0;
+      if ((value >> v) && value.eof() && v >= 1)
+        return std::min(v, std::max(1, rg.maxshift));
+    }
+    return -1;
+  }();
+  if (shift_step_override >= 1) {
+    rg.shift_step = shift_step_override;
+    SPRING_LOG_INFO(
+        "Reorder shift step overridden by SPRING2_REORDER_SHIFT_STEP: " +
+        std::to_string(rg.shift_step));
+  } else {
+    rg.shift_step = (rg.max_readlen > 100) ? kDefaultReorderShiftStep : 1;
+  }
+
+  if (max_shift_overridden) {
+    SPRING_LOG_INFO(
+        "Reorder maxshift configured by SPRING2_MAX_REORDER_SHIFT: " +
+        std::to_string(rg.maxshift) +
+        (max_reorder_shift_cap == 0 ? " (uncapped)" : ""));
+  } else if (rg.max_readlen / 2 > kDefaultMaxReorderShift) {
     SPRING_LOG_INFO("Reorder maxshift capped at " +
-                    std::to_string(kMaxReorderShift) +
+                    std::to_string(kDefaultMaxReorderShift) +
                     " (uncapped: " + std::to_string(rg.max_readlen / 2) +
                     " for " + std::to_string(rg.max_readlen) + " bp reads)");
   }
-  if (rg.shift_step > 1) {
+  if (rg.shift_step > 1 && shift_step_override < 1) {
     SPRING_LOG_INFO("Reorder shift step: " + std::to_string(rg.shift_step) +
                     " (read length " + std::to_string(rg.max_readlen) +
                     " bp, ~" + std::to_string(rg.maxshift / rg.shift_step + 1) +
